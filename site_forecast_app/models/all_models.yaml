@@ -1,0 +1,16 @@
+# Here we define all the models that are available in the app
+models:
+  # RU client wind
+  - name: nl
+    type: pvnet
+    id: openclimatefix/pvnet_nl
+    version: 941785df8d6e87f01e088f555ea81c400131d440
+    client: nl
+    asset_type: pv
+  # this is just a dummy one
+  - name: dummy
+    type: dummy
+    id: models/dummy
+    version: 0.0.1
+    client: dummy
+    asset_type: pv

@@ -1,0 +1,113 @@
+[tool.poetry]
+name = "site_forecast_app"
+version = "0.0.1"
+description = "Runs wind and PV forecasts"
+authors = ["Open Climate Fix <info@openclimatefix.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.1.7"
+pvsite-datamodel = "^1.0.55"
+pandas = "2.2.3"
+pvnet = "4.1.7"
+pytz = "^2024.1"
+numpy = "^1.26.4"
+huggingface-hub = "0.20.3"
+ocf-data-sampler = "0.2.19"
+pyproj = "3.6.0" # 3.7.1 seems to cause an error at the moment
+pyogrio = "0.8.0" # 0.9.0 seems to cause an error at the moment
+torch = [
+     {url="https://download.pytorch.org/whl/cpu/torch-2.2.1%2Bcpu-cp311-cp311-linux_x86_64.whl", markers="platform_system == \"Linux\" and platform_machine == \"x86_64\""},
+     {url="https://download.pytorch.org/whl/cpu/torch-2.2.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", markers="platform_system == \"Linux\" and platform_machine == \"aarch64\""},
+     {url="https://download.pytorch.org/whl/cpu/torch-2.2.1-cp311-none-macosx_10_9_x86_64.whl", markers="platform_system == \"Darwin\" and platform_machine == \"x86_64\""},
+     {url="https://download.pytorch.org/whl/cpu/torch-2.2.1-cp311-none-macosx_11_0_arm64.whl", markers="platform_system == \"Darwin\" and platform_machine == \"arm64\""}
+ ]
+torchvision = [
+    {url="https://download.pytorch.org/whl/cpu/torchvision-0.17.1%2Bcpu-cp311-cp311-linux_x86_64.whl", markers="platform_system == \"Linux\" and platform_machine == \"x86_64\""},
+    {url="https://download.pytorch.org/whl/cpu/torchvision-0.17.1-cp311-cp311-linux_aarch64.whl", markers="platform_system == \"Linux\" and platform_machine == \"aarch64\""},
+    {url="https://download.pytorch.org/whl/cpu/torchvision-0.17.1-cp311-cp311-macosx_10_13_x86_64.whl", markers="platform_system == \"Darwin\" and platform_machine == \"x86_64\""},
+    {url="https://download.pytorch.org/whl/cpu/torchvision-0.17.1-cp311-cp311-macosx_11_0_arm64.whl", markers="platform_system == \"Darwin\" and platform_machine == \"arm64\""}
+]
+sentry-sdk = "^2.1.1"
+pvlib = "^0.12.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.4"
+pytest-cov = "^4.1.0"
+ruff = "^0.1.11"
+testcontainers = "^3.7.1"
+
+[tool.poetry.group.notebook.dependencies]
+jupyter = "^1.0.0"
+
+[tool.poetry.scripts]
+app = "site_forecast_app.app:app"
+seeder = "scripts.seed_local_db:seed_db"
+inspect = "tests.test_data.inspect:run"
+
+[tool.ruff]
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
+select = ["B", "E", "F", "D", "I"]
+ignore = ["D200","D202","D210","D212","D415","D105"]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["A", "B", "C", "D", "E", "F", "I"]
+unfixable = []
+
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "tests",
+]
+
+# Same as Black.
+line-length = 100
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.11.
+target-version = "py311"
+fix = false
+
+# Group violations by containing file.
+output-format = "github"
+ignore-init-module-imports = true
+
+[tool.ruff.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
+
+[tool.ruff.pydocstyle]
+# Use Google-style docstrings.
+convention = "google"
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401", "E402"]
+
+[tool.coverage.run]
+omit = ["tests/*", "scripts/*"]
+
+[build-system]
+requires = ["poetry-core==1.8.0"]
+build-backend = "poetry.core.masonry.api"

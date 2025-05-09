@@ -1,0 +1,304 @@
+"""
+Fixtures for testing
+"""
+
+import datetime as dt
+import logging
+import os
+import random
+from uuid import uuid4
+
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
+import zarr
+from pvsite_datamodel import DatabaseConnection
+from pvsite_datamodel.read.model import get_or_create_model
+from pvsite_datamodel.sqlmodels import Base, ForecastSQL, ForecastValueSQL, GenerationSQL, SiteSQL
+from sqlalchemy import create_engine
+from testcontainers.postgres import PostgresContainer
+
+log = logging.getLogger(__name__)
+
+random.seed(42)
+
+@pytest.fixture(scope="session")
+def engine():
+    """Database engine fixture."""
+
+    with PostgresContainer("postgres:14.5") as postgres:
+        url = postgres.get_connection_url()
+        os.environ["DB_URL"] = url
+        engine = create_engine(url)
+
+        yield engine
+
+        engine.dispose()
+
+
+@pytest.fixture()
+def db_conn(engine):
+    """Create db connections and create/drop tables at the start/end of each test"""
+
+    connection = DatabaseConnection(engine.url, echo=False)
+    engine = connection.engine
+
+    Base.metadata.create_all(engine)
+
+    yield connection
+
+    Base.metadata.drop_all(engine)
+
+
+@pytest.fixture()
+def db_session(db_conn, engine):
+    """Return a sqlalchemy session, which tears down everything properly post-test."""
+
+    with db_conn.get_session() as session:
+        # begin the nested transaction
+        session.begin()
+        # use the connection with the already started transaction
+        yield session
+
+        # roll back the broader transaction
+        session.rollback()
+
+
+@pytest.fixture()
+def sites(db_session):
+    """Seed some initial data into DB."""
+
+    sites = []
+    # PV site
+    site = SiteSQL(
+        client_site_id=1,
+        client_site_name="test_site_nl",
+        latitude=52,
+        longitude=5,
+        capacity_kw=20000,
+        ml_id=1,
+        asset_type="pv",
+        country="nl",
+    )
+    db_session.add(site)
+    sites.append(site)
+
+    db_session.commit()
+
+    return sites
+
+
+@pytest.fixture()
+def generation_db_values(db_session, sites, init_timestamp):
+    """Create some fake generations"""
+
+    n = 450  # 22.5 hours of readings
+    start_times = [init_timestamp - dt.timedelta(minutes=x * 3) for x in range(n)]
+
+    # remove some of the most recent readings (to simulate missing timestamps)
+    del start_times[20]
+    del start_times[8]
+    del start_times[3]
+
+    # Random power values in the range 0-10000kw
+    power_values = [random.random() * 10000 for _ in range(len(start_times))]
+
+    all_generations = []
+    for site in sites:
+        for i in range(0, len(start_times)):
+            generation = GenerationSQL(
+                site_uuid=site.site_uuid,
+                generation_power_kw=power_values[i],
+                start_utc=start_times[i],
+                end_utc=start_times[i] + dt.timedelta(minutes=3),
+            )
+            all_generations.append(generation)
+
+    db_session.add_all(all_generations)
+    db_session.commit()
+
+    return all_generations
+
+
+@pytest.fixture()
+def forecast_values():
+    """Dummy forecast values"""
+
+    n = 10  # number of forecast values
+    step = 15  # in minutes
+    init_utc = dt.datetime.now(dt.timezone.utc)
+    start_utc = [init_utc + dt.timedelta(minutes=i * step) for i in range(n)]
+    end_utc = [d + dt.timedelta(minutes=step) for d in start_utc]
+    forecast_power_kw = [i * 10 for i in range(n)]
+    forecast_values = {
+        "start_utc": start_utc,
+        "end_utc": end_utc,
+        "forecast_power_kw": forecast_power_kw,
+    }
+
+    return forecast_values
+
+
+def generate_probabilistic_values():
+    """Generate probabilistic values for forecast"""
+    return {
+        "p10": round(random.uniform(0, 5000), 2),
+        "p50": round(random.uniform(5000, 10000), 2),
+        "p90": round(random.uniform(10000, 15000), 2),
+    }
+
+@pytest.fixture()
+def forecasts(db_session, sites):
+    """Make fake forecasts"""
+    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))
+
+    n = 24 * 4  # 24 hours of readings of 15
+    start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]
+    start_times = start_times[::-1]
+
+    for site in sites:
+        forecast_uuid = uuid4()
+        model = get_or_create_model(db_session, "test", "0.0.0")
+        forecast = ForecastSQL(
+            site_uuid=site.site_uuid,
+            timestamp_utc=start_times[-1],
+            forecast_version="0.0.0",
+            created_utc=start_times[-1],
+            forecast_uuid=forecast_uuid,
+        )
+        db_session.add(forecast)
+
+        forecast_values = []
+        for i in range(0, len(start_times)):
+            forecast_value = ForecastValueSQL(
+                horizon_minutes=i * 15,
+                forecast_power_kw=random.random() * 10000,
+                start_utc=start_times[i],
+                end_utc=start_times[i] + dt.timedelta(minutes=15),
+                ml_model_uuid=model.model_uuid,
+                forecast_uuid=forecast_uuid,
+                created_utc=start_times[-1],
+                probabilistic_values=generate_probabilistic_values(),
+                
+            )
+            forecast_values.append(forecast_value)
+
+        db_session.add_all(forecast_values)
+
+
+@pytest.fixture(scope="session")
+def init_timestamp():
+    """Returns a datetime floored to the last 15 mins"""
+
+    return pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))
+
+
+@pytest.fixture(scope="session")
+def time_before_present():
+    """Returns a fixed time in the past with specified offset"""
+
+    now = pd.Timestamp.now(tz=None)
+
+    def _time_before_present(dt: dt.timedelta):
+        return now - dt
+
+    return _time_before_present
+
+
+@pytest.fixture(scope="session")
+def nwp_data(tmp_path_factory, time_before_present):
+    """Dummy NWP data"""
+
+    # Load dataset which only contains coordinates, but no data
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data.zarr")
+
+    # Last t0 to at least 6 hours ago and floor to 6-hour interval
+    t0_datetime_utc = time_before_present(dt.timedelta(hours=0)).floor("6h")
+    t0_datetime_utc = t0_datetime_utc - dt.timedelta(hours=6)
+    ds.init_time.values[:] = pd.date_range(
+        t0_datetime_utc - dt.timedelta(hours=6 * (len(ds.init_time) - 1)),
+        t0_datetime_utc,
+        freq=dt.timedelta(hours=1),
+    )
+
+    # force lat and lon to be in 0.1 steps
+    ds.latitude.values[:] = [65.0 - i * 0.1 for i in range(len(ds.latitude))]
+    ds.longitude.values[:] = [3.0 + i * 0.1 for i in range(len(ds.longitude))]
+
+    # This is important to avoid saving errors
+    for v in list(ds.coords.keys()):
+        if ds.coords[v].dtype == object:
+            ds[v].encoding.clear()
+
+    for v in list(ds.variables.keys()):
+        if ds[v].dtype == object:
+            ds[v].encoding.clear()
+
+    # Add data to dataset
+    ds["ecmwf"] = xr.DataArray(
+        np.zeros([len(ds[c]) for c in ds.xindexes]),
+        coords=[ds[c] for c in ds.xindexes],
+    )
+
+    # AS NWP data is loaded by the app from environment variable,
+    # save out data and set paths as environmental variables
+    temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
+    os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
+    ds.to_zarr(temp_nwp_path_ecmwf)
+
+
+
+@pytest.fixture(scope="session")
+def client_ruvnl():
+    """Set ruvnl client env var"""
+    os.environ["CLIENT_NAME"] = "ruvnl"
+
+
+@pytest.fixture(scope="session")
+def satellite_data(tmp_path_factory, init_timestamp):
+    """Dummy Satellite data"""
+    # Load dataset which only contains coordinates, but no data
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell.zarr")
+    # remove time dim and geostationary dims and expand them
+    ds = ds.drop_vars(["time", "x_geostationary", "y_geostationary"])
+    n_hours = 3
+
+    # Add times so they lead up to present
+    t0_datetime_utc = init_timestamp - dt.timedelta(minutes=0)
+    times = pd.date_range(
+        t0_datetime_utc - dt.timedelta(hours=n_hours),
+        t0_datetime_utc,
+        freq=dt.timedelta(minutes=15),
+    )
+    ds = ds.expand_dims(time=times)
+
+    # set geostationary cords for India
+    ds = ds.expand_dims(
+        x_geostationary=np.arange(5000000.0, -5000000.0, -5000),
+        y_geostationary=np.arange(-5000000.0, 5000000.0, 5000),
+    )
+
+    # Add data to dataset
+    ds["data"] = xr.DataArray(
+        np.zeros([len(ds[c]) for c in ds.xindexes]),
+        coords=[ds[c] for c in ds.xindexes],
+    )
+
+    # Add stored attributes to DataArray
+    ds.data.attrs = ds.attrs["_data_attrs"]
+    del ds.attrs["_data_attrs"]
+
+    # In production sat zarr is zipped
+    temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_sat.zarr.zip"
+
+    # save out data and set paths as environmental variables
+    os.environ["SATELLITE_ZARR_PATH"] = temp_sat_path
+    with zarr.storage.ZipStore(temp_sat_path, mode="x") as store:
+        ds.to_zarr(store)
+
+
+@pytest.fixture(scope="function")
+def use_satellite():
+    """Set use satellite env var"""
+    os.environ["USE_SATELLITE"] = "true"
