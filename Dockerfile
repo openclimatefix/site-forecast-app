@@ -30,7 +30,7 @@ RUN python -m venv /venv
 COPY pyproject.toml poetry.lock README.md .
 RUN . /venv/bin/activate && poetry install --only main --no-root
 
-COPY india_forecast_app ./india_forecast_app
+COPY site_forecast_app ./site_forecast_app
 RUN . /venv/bin/activate && poetry build
 
 FROM base as final

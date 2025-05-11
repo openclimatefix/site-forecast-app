@@ -42,7 +42,7 @@ def test_get_sites(db_session, sites):
 
 @pytest.mark.parametrize("asset_type", ["pv"])
 def test_get_model(
-    db_session, asset_type, sites, nwp_data, generation_db_values, init_timestamp
+    db_session, asset_type, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
 ):
     """Test for getting valid model"""
 
@@ -70,7 +70,7 @@ def test_get_model(
 
 @pytest.mark.parametrize("asset_type", ["pv"])
 def test_run_model(
-    db_session, asset_type, sites, nwp_data, generation_db_values, init_timestamp
+    db_session, asset_type, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
 ):
     """Test for running PV and wind models"""
 
@@ -125,7 +125,7 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
-    write_to_db, db_session, sites, nwp_data, generation_db_values
+    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data
 ):
     """Test for running app from command line"""
 
@@ -139,7 +139,7 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 6
+    n = 1  # 1 site, 1 model
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
@@ -151,7 +151,7 @@ def test_app(
 
 
 def test_app_no_pv_data(
-    db_session, sites, nwp_data
+    db_session, sites, nwp_data, satellite_data
 ):
     """Test for running app from command line"""
 
@@ -164,7 +164,7 @@ def test_app_no_pv_data(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 6
+    n = 1  # 1 site, 1 model
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
     assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 192)

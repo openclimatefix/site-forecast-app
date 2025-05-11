@@ -16,6 +16,9 @@ from ocf_data_sampler.torch_datasets.datasets.site import SitesDataset
 from ocf_data_sampler.config.save import save_yaml_configuration
 from ocf_data_sampler.torch_datasets.datasets.site import convert_netcdf_to_numpy_sample
 from ocf_data_sampler.numpy_sample.collate import stack_np_samples_into_batch
+from ocf_data_sampler.torch_datasets.sample.base import (
+    batch_to_tensor,
+)
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvsite_datamodel.sqlmodels import SiteAssetType
 from torch.utils.data import DataLoader
@@ -23,16 +26,11 @@ from torch.utils.data import DataLoader
 
 from .consts import (
     nwp_ecmwf_path,
-    nwp_gfs_path,
-    nwp_mo_global_path,
     pv_metadata_path,
     pv_netcdf_path,
     pv_path,
     root_data_path,
     satellite_path,
-    wind_metadata_path,
-    wind_netcdf_path,
-    wind_path,
 )
 from .utils import (
     NWPProcessAndCacheConfig,
@@ -83,7 +81,7 @@ class PVNetModel:
         self.generation_data = generation_data
         self._get_config()
         self._prepare_data_sources()
-        self.dataloader = self._create_dataloader()
+        self._create_dataloader()
         self.model = self._load_model()
 
     def predict(self, site_id: str, timestamp: dt.datetime):
@@ -93,29 +91,32 @@ class PVNetModel:
 
         normed_preds = []
         with torch.no_grad():
-            for i, batch in enumerate(self.dataloader):
-                log.info(f"Predicting for batch: {i}")
 
-                # TODO convert site xarry to torch
-                batch["satellite_actual"] = batch["satellite"]
-                batch = convert_netcdf_to_numpy_sample(batch)
+            batch = self.dataset[0]
+            i = 0
 
-                # save batch
-                save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
+            # for i, batch in enumerate(self.dataloader):
+            log.info(f"Predicting for batch: {i}")
 
-                # Run batch through model
-                preds = self.model(batch).detach().cpu().numpy()
+            log.info(batch)
+            batch = convert_netcdf_to_numpy_sample(batch)
+            batch = stack_np_samples_into_batch([batch])
+            batch = batch_to_tensor(batch)
 
-                # filter out night time
-                if self.asset_type == SiteAssetType.pv.name:
-                    preds = set_night_time_zeros(batch, preds)
+            # save batch
+            save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
 
-                # Store predictions
-                normed_preds += [preds]
+            # Run batch through model
+            preds = self.model(batch).detach().cpu().numpy()
 
-                # log max prediction
-                log.info(f"Max prediction: {np.max(preds, axis=1)}")
-                log.info(f"Completed batch: {i}")
+            preds = set_night_time_zeros(batch, preds, t0_idx=192)
+
+            # Store predictions
+            normed_preds += [preds]
+
+            # log max prediction
+            log.info(f"Max prediction: {np.max(preds, axis=1)}")
+            log.info(f"Completed batch: {i}")
 
         normed_preds = np.concatenate(normed_preds)
         n_times = normed_preds.shape[1]
@@ -125,6 +126,8 @@ class PVNetModel:
 
         # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
+
+        # TODO add 10th and 90th percentage
 
         values_df = pd.DataFrame(
             [
@@ -173,9 +176,9 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"].keys():
-            pass # TODO
-            # shutil.rmtree(satellite_path, ignore_errors=True)
-            # download_satellite_data(satellite_source_file_path)
+            # pass # TODO
+            shutil.rmtree(satellite_path, ignore_errors=True)
+            download_satellite_data(satellite_source_file_path)
 
         log.info("Preparing PV data sources")
         # Clear local cached wind data if already exists
@@ -228,29 +231,29 @@ class PVNetModel:
             )
 
         # Location and time datapipes
-        dataset = SitesDataset(config_filename=self.populated_data_config_filename)
+        self.dataset = SitesDataset(config_filename=self.populated_data_config_filename)
 
-        n_workers = 0
-
-        # Set up dataloader for parallel loading
-        dataloader_kwargs = dict(
-            shuffle=False,
-            batch_size=1,
-            sampler=None,
-            batch_sampler=None,
-            num_workers=n_workers,
-            pin_memory=False,
-            drop_last=False,
-            timeout=0,
-            worker_init_fn=worker_init_fn,
-            prefetch_factor=None,
-            persistent_workers=False,
-            collate_fn=None,
-        )
-
-        dataloader = DataLoader(dataset, **dataloader_kwargs)
-
-        return dataloader
+        # n_workers = 0
+        #
+        # # Set up dataloader for parallel loading
+        # dataloader_kwargs = dict(
+        #     shuffle=False,
+        #     batch_size=None,
+        #     sampler=None,
+        #     batch_sampler=None,
+        #     num_workers=n_workers,
+        #     pin_memory=False,
+        #     drop_last=False,
+        #     timeout=0,
+        #     worker_init_fn=worker_init_fn,
+        #     prefetch_factor=None,
+        #     persistent_workers=False,
+        #     collate_fn=None,
+        # )
+        #
+        # dataloader = DataLoader(self.dataset, **dataloader_kwargs)
+        #
+        # return dataloader
 
     def _load_model(self):
         """Load model"""

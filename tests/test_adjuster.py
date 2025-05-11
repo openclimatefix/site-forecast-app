@@ -101,7 +101,7 @@ def test_adjust_forecast_with_adjuster(
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 03:00:00") + pd.Timedelta(hours=i)
+                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(hours=i)
                 for i in range(5)
             ],
             # Provide initial probabilistic_values
@@ -146,7 +146,7 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 03:00:00") + pd.Timedelta(f"{i}H")
+                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(f"{i}H")
                 for i in range(0, 5)
             ],
         }
@@ -160,7 +160,7 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
     assert forecast_values_df["forecast_power_kw"].sum() == 15
 
 
-@pytest.mark.parametrize("asset_type", [SiteAssetType.pv, SiteAssetType.wind])
+@pytest.mark.parametrize("asset_type", [SiteAssetType.pv])
 def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
     """Test for zero_out_nighttime"""
     forecast_values_df = pd.DataFrame(
@@ -168,7 +168,7 @@ def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 23:00:00") + pd.Timedelta(f"{i}H")
+                pd.Timestamp("2024-11-01 05:00:00") + pd.Timedelta(f"{i}H")
                 for i in range(0, 5)
             ],
         }
@@ -182,8 +182,5 @@ def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
 
     assert len(forecast_values_df) == 5
     night_sum = forecast_values_df["forecast_power_kw"][0:2].sum()
-    if asset_type == SiteAssetType.pv:
-        assert night_sum == 0
-    else:
-        assert night_sum > 0
+    assert night_sum == 0
     assert forecast_values_df["forecast_power_kw"][2:].sum() > 0

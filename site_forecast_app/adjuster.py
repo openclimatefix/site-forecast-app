@@ -228,7 +228,7 @@ def adjust_forecast_with_adjuster(
     capacity = site.capacity_kw
     me_kw_limit = 0.1 * capacity
     n_values_above_limit = (me_values["me_kw"] > me_kw_limit).sum()
-    n_values_below_limit = (me_values["me_kw"] > me_kw_limit).sum()
+    n_values_below_limit = (me_values["me_kw"] < me_kw_limit).sum()
     me_values["me_kw"].clip(lower=-0.1 * capacity, upper=0.1 * capacity, inplace=True)
     log.debug(
         f"ME values clipped: There were {n_values_above_limit} values above the limit and "
