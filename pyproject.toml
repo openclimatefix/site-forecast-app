@@ -43,6 +43,7 @@ dev = [
     # LSP Support
     "python-lsp-server",
     "python-lsp-ruff",
+    "testcontainers",
 ]
 
 [project.urls]
