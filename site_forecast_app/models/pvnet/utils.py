@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import xarray as xr
 import yaml
+import zipfile
 from ocf_data_sampler.config.model import Configuration
 from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
@@ -160,8 +161,9 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
         )
         fs.get(satellite_source_file_path, "sat_min.zarr.zip")
         log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
-        # TODO dont use os.system
-        os.system(f"unzip -qq sat_min.zarr.zip -d {satellite_path}")
+
+        with zipfile.ZipFile("sat_min.zarr.zip", 'r') as zip_ref:
+            zip_ref.extractall(satellite_path)
     else:
         log.error(f"Could not find satellite data at {satellite_source_file_path}")
 
