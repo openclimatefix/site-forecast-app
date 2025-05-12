@@ -46,7 +46,7 @@ class Models(BaseModel):
     )
 
 
-def get_all_models(client_abbreviation: str | None = None) -> Models.models:
+def get_all_models(client_abbreviation: str | None = None) -> [Model]:
     """Returns all the models for a given client."""
     # load models from yaml file
     import os
