@@ -17,14 +17,14 @@ WORKDIR /app
 COPY pyproject.toml /app/pyproject.toml
 
 # Install only requirements
-RUN mkdir src && uv sync --no-dev --no-install-project --compile-bytecode --inexact
+RUN mkdir site_forecast_app && uv sync --no-dev --no-install-project --compile-bytecode --inexact
 
 # --- Build the package --- #
 FROM build-deps AS build-app
 
 # Install the app
 # * The .git folder is needed here for setuptools-git-versioning
-COPY src /app/src
+COPY site_forecast_app /app/site_forecast_app
 COPY .git /app/.git
 RUN uv sync --no-editable --no-dev --compile-bytecode --inexact
 
