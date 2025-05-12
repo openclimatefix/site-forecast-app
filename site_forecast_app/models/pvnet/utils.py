@@ -1,18 +1,17 @@
-"""Useful functions for setting up PVNet model"""
+"""Useful functions for setting up PVNet model."""
 import logging
 import os
-from typing import Optional
+import zipfile
+from uuid import UUID
 
 import fsspec
 import numpy as np
 import torch
 import xarray as xr
 import yaml
-import zipfile
-from ocf_data_sampler.config.model import Configuration
+from ocf_data_sampler.config.model import NWP, Configuration
 from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
-from ocf_data_sampler.config.model import NWP
 
 from .consts import (
     nwp_ecmwf_path,
@@ -25,23 +24,23 @@ log = logging.getLogger(__name__)
 
 
 class NWPProcessAndCacheConfig(BaseModel):
-    """Configuration for processing and caching NWP data"""
+    """Configuration for processing and caching NWP data."""
 
     source_nwp_path: str
     dest_nwp_path: str
     source: str
-    config: Optional[NWP] = None
+    config: NWP | None = None
 
 
-def populate_data_config_sources(input_path, output_path):
-    """Re-save the data config and replace the source filepaths
+def populate_data_config_sources(input_path:str, output_path:str) -> dict:
+    """Re-save the data config and replace the source filepaths.
 
     Args:
         input_path: Path to input datapipes configuration file
         output_path: Location to save the output configuration file
     """
     with open(input_path) as infile:
-        config = yaml.load(infile, Loader=yaml.FullLoader)
+        config = yaml.load(infile, Loader=yaml.FullLoader)  # noqa S506
 
     production_paths = {
         "pv": {"filename": pv_netcdf_path, "metadata_filename": pv_metadata_path},
@@ -51,10 +50,10 @@ def populate_data_config_sources(input_path, output_path):
 
     if "nwp" in config["input_data"]:
         nwp_config = config["input_data"]["nwp"]
-        for nwp_source in nwp_config.keys():
+        for nwp_source in nwp_config:
             if nwp_config[nwp_source]["zarr_path"] != "":
-                assert "nwp" in production_paths, "Missing production path: nwp"
-                assert nwp_source in production_paths["nwp"], f"Missing NWP path: {nwp_source}"
+                if nwp_source not in production_paths["nwp"]:
+                    Exception(f"Missing NWP path: {nwp_source} in production_paths")
                 nwp_config[nwp_source]["zarr_path"] = production_paths["nwp"][nwp_source]
 
             if "forecast_minutes" in nwp_config[nwp_source]:
@@ -70,15 +69,14 @@ def populate_data_config_sources(input_path, output_path):
 
     if "satellite" in config["input_data"]:
         satellite_config = config["input_data"]["satellite"]
-        assert "satellite" in production_paths, "Missing production path: satellite"
         satellite_config["zarr_path"] = production_paths["satellite"]["filepath"]
         if "satellite_image_size_pixels_height" in satellite_config:
             satellite_config["image_size_pixels_height"] = satellite_config.pop(
-                "satellite_image_size_pixels_height"
+                "satellite_image_size_pixels_height",
             )
         if "satellite_image_size_pixels_width" in satellite_config:
             satellite_config["image_size_pixels_width"] = satellite_config.pop(
-                "satellite_image_size_pixels_width"
+                "satellite_image_size_pixels_width",
             )
 
         # Remove any hard coding about satellite delay
@@ -106,15 +104,14 @@ def populate_data_config_sources(input_path, output_path):
     return config
 
 
-def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig):
-    """Reads zarr file, renames t variable to t2m and saves zarr to new destination"""
-
+def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
+    """Reads zarr file, renames t variable to t2m and saves zarr to new destination."""
     source_nwp_path = nwp_config.source_nwp_path
     dest_nwp_path = nwp_config.dest_nwp_path
 
     log.info(
         f"Processing and caching NWP data for {source_nwp_path} "
-        f"and saving to {dest_nwp_path} for {nwp_config.source}"
+        f"and saving to {dest_nwp_path} for {nwp_config.source}",
     )
 
     if os.path.exists(dest_nwp_path):
@@ -139,15 +136,14 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig):
 
 
 def download_satellite_data(satellite_source_file_path: str) -> None:
-    """Download the sat data"""
-
+    """Download the sat data."""
     temporary_satellite_data = "temporary_satellite_data.zarr"
 
     # download satellite data
     fs = fsspec.open(satellite_source_file_path).fs
     if fs.exists(satellite_source_file_path):
         log.info(
-            f"Downloading satellite data from {satellite_source_file_path} " f"to sat_min.zarr.zip"
+            f"Downloading satellite data from {satellite_source_file_path} " f"to sat_min.zarr.zip",
         )
         fs.get(satellite_source_file_path, "sat_min.zarr.zip")
         log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
@@ -168,11 +164,10 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
     ds.to_zarr(satellite_path, mode="a")
 
 
-def set_night_time_zeros(batch, preds, t0_idx: int, sun_elevation_limit=0.0):
-    """
-    Set all predictions to zero for night time values
-    """
-
+def set_night_time_zeros(
+    batch: dict, preds: torch.Tensor, t0_idx: int, sun_elevation_limit: float = 0.0,
+) -> torch.Tensor:
+    """Set all predictions to zero for night time values."""
     log.debug("Setting night time values to zero")
     # get sun elevation values and if less 0, set to 0
     key = "solar_elevation"
@@ -191,9 +186,14 @@ def set_night_time_zeros(batch, preds, t0_idx: int, sun_elevation_limit=0.0):
     return preds
 
 
-def save_batch(batch, i: int, model_name, site_uuid, save_batches_dir: Optional[str] = None):
-    """
-    Save batch to SAVE_BATCHES_DIR if set
+def save_batch(
+    batch: dict,
+    i: int,
+    model_name: str,
+    site_uuid: UUID,
+    save_batches_dir: str | None = None,
+) -> None:
+    """Save batch to SAVE_BATCHES_DIR if set.
 
     Args:
         batch: The batch to save
@@ -203,7 +203,6 @@ def save_batch(batch, i: int, model_name, site_uuid, save_batches_dir: Optional[
         save_batches_dir: The directory to save the batch to,
             defaults to environment variable SAVE_BATCHES_DIR
     """
-
     if save_batches_dir is None:
         save_batches_dir = os.getenv("SAVE_BATCHES_DIR", None)
 

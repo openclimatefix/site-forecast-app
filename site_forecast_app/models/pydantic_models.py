@@ -1,6 +1,5 @@
-""" A pydantic model for the ML models"""
+"""A pydantic model for the ML models."""
 
-from typing import List, Optional
 
 import fsspec
 from pyaml_env import parse_config
@@ -8,12 +7,13 @@ from pydantic import BaseModel, Field
 
 
 class Model(BaseModel):
-    """One ML Model"""
+    """One ML Model."""
 
     name: str = Field(..., title="Model Name", description="The name of the model")
-    type: Optional[str] = Field("pvnet", title="Model Type", description="The type of model")
+    type: str | None = Field("pvnet", title="Model Type", description="The type of model")
     id: str = Field(
-        ..., title="Model ID", description="The ID of the model, this what repo to load from in HF "
+        ..., title="Model ID", description="The ID of the model, "
+                                           "this what repo to load from in HF ",
     )
     version: str = Field(
         ...,
@@ -26,7 +26,7 @@ class Model(BaseModel):
         description="The name of the client that the model is for",
     )
     asset_type: str = Field(
-        "pv", title="Asset Type", description="The type of asset the model is for (pv or wind)"
+        "pv", title="Asset Type", description="The type of asset the model is for (pv or wind)",
     )
     adjuster_average_minutes: int = Field(
         60,
@@ -39,18 +39,15 @@ class Model(BaseModel):
 
 
 class Models(BaseModel):
-    """A group of ml models"""
+    """A group of ml models."""
 
-    models: List[Model] = Field(
-        ..., title="Models", description="A list of models to use for the forecast"
+    models: list[Model] = Field(
+        ..., title="Models", description="A list of models to use for the forecast",
     )
 
 
-def get_all_models(client_abbreviation: Optional[str] = None):
-    """
-    Returns all the models for a given client
-    """
-
+def get_all_models(client_abbreviation: str | None = None) -> Models.models:
+    """Returns all the models for a given client."""
     # load models from yaml file
     import os
 
