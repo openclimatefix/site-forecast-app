@@ -152,6 +152,8 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig):
 def download_satellite_data(satellite_source_file_path: str) -> None:
     """Download the sat data"""
 
+    temporary_satellite_data = "temporary_satellite_data.zarr"
+
     # download satellite data
     fs = fsspec.open(satellite_source_file_path).fs
     if fs.exists(satellite_source_file_path):
@@ -163,13 +165,19 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
         log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
 
         with zipfile.ZipFile("sat_min.zarr.zip", 'r') as zip_ref:
-            zip_ref.extractall(satellite_path)
+            zip_ref.extractall(temporary_satellite_data)
     else:
         log.error(f"Could not find satellite data at {satellite_source_file_path}")
 
     # log the timestamps for satellite data
-    ds = xr.open_zarr(satellite_path)
-    log.info(f"Satellite data timestamps: {ds.time.values}")
+    ds = xr.open_zarr(temporary_satellite_data)
+    log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
+
+    # scale
+    ds = ds / 1023
+
+    # save the dataset
+    ds.to_zarr(satellite_path, mode="a")
 
 
 def set_night_time_zeros(batch, preds, t0_idx:int, sun_elevation_limit=0.0):

@@ -92,11 +92,15 @@ class PVNetModel:
         normed_preds = []
         with torch.no_grad():
 
-            batch = self.dataset[0]
+            samples = self.dataset.valid_t0_and_site_ids
+            sample_t0 = samples.iloc[-1].t0
+            sample_site_id = samples.iloc[-1].site_id
+
+            batch = self.dataset.get_sample(t0=sample_t0, site_id=sample_site_id)
             i = 0
 
             # for i, batch in enumerate(self.dataloader):
-            log.info(f"Predicting for batch: {i}")
+            log.info(f"Predicting for batch: {i}, for {sample_t0=}, {sample_site_id=}")
 
             log.info(batch)
             batch = convert_netcdf_to_numpy_sample(batch)
@@ -121,7 +125,7 @@ class PVNetModel:
         normed_preds = np.concatenate(normed_preds)
         n_times = normed_preds.shape[1]
         valid_times = pd.to_datetime(
-            [self.t0 + dt.timedelta(minutes=15 * (i + 1)) for i in range(n_times)]
+            [sample_t0 + dt.timedelta(minutes=15 * i) for i in range(n_times)]
         )
 
         # index of the 50th percentile, assumed number of p values odd and in order
