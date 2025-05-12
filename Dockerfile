@@ -35,8 +35,9 @@ FROM python:3.12-slim
 # * This app uses the git binary within the source code, hence coopying it over
 COPY --from=build-app /app/.venv /app/.venv
 COPY --from=build-app /usr/bin/git /usr/bin/git
+COPY --from=build-app /app/site_forecast_app /app/site_forecast_app
 
 # This is just a check to make sure it works, we've had problems with this in the past
 ENV PATH="/app/.venv/bin:${PATH}"
 
-ENTRYPOINT ["/app/.venv/bin/site_forecast_app", "app", "--write-to-db"]
+ENTRYPOINT ["python","app/site_forecast_app/app.py", "--write-to-db"]
