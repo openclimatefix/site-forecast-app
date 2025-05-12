@@ -19,7 +19,6 @@ from site_forecast_app.app import (
     save_forecast,
 )
 from site_forecast_app.data.generation import get_generation_data
-from site_forecast_app.models.dummy import DummyModel
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
 
@@ -40,22 +39,20 @@ def test_get_sites(db_session, sites):
         assert sites[0].asset_type.name == "pv"
 
 
-@pytest.mark.parametrize("asset_type", ["pv"])
 def test_get_model(
-    db_session, asset_type, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
+    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
 ):
     """Test for getting valid model"""
 
     all_models = get_all_models()
-    ml_model = [model for model in all_models.models if model.asset_type == asset_type][0]
+    ml_model = [model for model in all_models.models][0]
     gen_sites = [
         s
         for s in sites
-        if s.asset_type.name == asset_type and s.client_site_name == "test_site_nl"
+        if s.client_site_name == "test_site_nl"
     ]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
     model = get_model(
-        asset_type,
         timestamp=init_timestamp,
         generation_data=gen_data,
         hf_version=ml_model.version,
@@ -68,23 +65,21 @@ def test_get_model(
     assert hasattr(model, "predict")
 
 
-@pytest.mark.parametrize("asset_type", ["pv"])
 def test_run_model(
-    db_session, asset_type, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
+    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
 ):
     """Test for running PV and wind models"""
 
     all_models = get_all_models()
-    ml_model = [model for model in all_models.models if model.asset_type == asset_type][0]
+    ml_model = [model for model in all_models.models][0]
     gen_sites = [
         s
         for s in sites
-        if s.asset_type.name == asset_type and s.client_site_name == "test_site_nl"
+        if s.client_site_name == "test_site_nl"
     ]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
-    model_cls = PVNetModel if asset_type == "wind" else DummyModel
+    model_cls = PVNetModel
     model = model_cls(
-        asset_type,
         timestamp=init_timestamp,
         generation_data=gen_data,
         hf_version=ml_model.version,

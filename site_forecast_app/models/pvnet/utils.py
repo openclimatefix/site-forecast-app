@@ -14,8 +14,6 @@ from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
 from ocf_data_sampler.config.model import NWP
 
-from site_forecast_app.data import nwp
-
 from .consts import (
     nwp_ecmwf_path,
     pv_metadata_path,
@@ -33,22 +31,6 @@ class NWPProcessAndCacheConfig(BaseModel):
     dest_nwp_path: str
     source: str
     config: Optional[NWP] = None
-
-
-def worker_init_fn(worker_id):
-    """
-    Clear reference to the loop and thread.
-
-    This is a nasty hack that was suggested but NOT recommended by the lead fsspec developer!
-    This appears necessary otherwise gcsfs hangs when used after forking multiple worker processes.
-    Only required for fsspec >= 0.9.0
-    See:
-    - https://github.com/fsspec/gcsfs/issues/379#issuecomment-839929801
-    - https://github.com/fsspec/filesystem_spec/pull/963#issuecomment-1131709948
-    TODO: Try deleting this two lines to make sure this is still relevant.
-    """
-    fsspec.asyn.iothread[0] = None
-    fsspec.asyn.loop[0] = None
 
 
 def populate_data_config_sources(input_path, output_path):
@@ -93,7 +75,7 @@ def populate_data_config_sources(input_path, output_path):
         if "satellite_image_size_pixels_width" in satellite_config:
             satellite_config["image_size_pixels_width"] = satellite_config.pop("satellite_image_size_pixels_width")
 
-        # TODO is this right?
+        # Remove any hard coding about satellite delay
         if "live_delay_minutes" in satellite_config:
             satellite_config.pop("live_delay_minutes")
 
@@ -102,7 +84,8 @@ def populate_data_config_sources(input_path, output_path):
         site_config['file_path'] = pv_netcdf_path
         site_config['metadata_file_path'] = pv_metadata_path
 
-        # TODO drop site capacity mode for the moment
+        # drop site capacity mode for the moment,
+        # this will come in a later release of ocf-data-sampler
         if "capacity_mode" in site_config:
             site_config.pop("capacity_mode")
 

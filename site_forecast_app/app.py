@@ -13,7 +13,7 @@ import pandas as pd
 import sentry_sdk
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
-from pvsite_datamodel.sqlmodels import SiteAssetType, SiteSQL
+from pvsite_datamodel.sqlmodels import SiteSQL
 from pvsite_datamodel.write import insert_forecast_values
 from sqlalchemy.orm import Session
 
@@ -21,7 +21,7 @@ import site_forecast_app
 from site_forecast_app.adjuster import adjust_forecast_with_adjuster
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
-from site_forecast_app.sentry import traces_sampler
+from site_forecast_app import __version__
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
@@ -30,8 +30,10 @@ version = site_forecast_app.__version__
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     environment=os.getenv("ENVIRONMENT", "local"),
-    traces_sampler=traces_sampler,
 )
+
+sentry_sdk.set_tag("app_name", "site_forecast_app")
+sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(db_session: Session) -> list[SiteSQL]:
@@ -55,12 +57,12 @@ def get_sites(db_session: Session) -> list[SiteSQL]:
 
 
 def get_model(
-    asset_type: str,
     timestamp: dt.datetime,
     generation_data,
     hf_repo: str,
     hf_version: str,
     name: str,
+    asset_type: str = "pv"
 ) -> PVNetModel:
     """
     Instantiates and returns the forecast model ready for running inference
@@ -81,7 +83,7 @@ def get_model(
     model_cls = PVNetModel
 
     model = model_cls(
-        asset_type, timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version, name=name
+        timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version, name=name
     )
     return model
 
@@ -239,11 +241,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
         # 1. Get sites
         log.info("Getting sites...")
         sites = get_sites(session)
-
-        pv_sites = [site for site in sites if site.asset_type == SiteAssetType.pv]
-        log.info(f"Found {len(pv_sites)} pv sites")
-        wind_sites = [site for site in sites if site.asset_type == SiteAssetType.wind]
-        log.info(f"Found {len(wind_sites)} wind sites")
+        log.info(f"Found {len(sites)} sites")
 
         # 2. Load data/models
         all_model_configs = get_all_models(client_abbreviation=os.getenv("CLIENT_NAME", "nl"))
@@ -251,21 +249,17 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
         runs = 0
         for model_config in all_model_configs.models:
 
-            asset_sites = pv_sites if model_config.asset_type == "pv" else wind_sites
-            asset_type = model_config.asset_type
-
-            for site in asset_sites:
+            for site in sites:
                 runs += 1
 
-                log.info(f"Reading latest historic {asset_type} generation data...")
+                log.info(f"Reading latest historic {site} generation data...")
                 generation_data = get_generation_data(session, [site], timestamp)
 
                 log.debug(f"{generation_data['data']=}")
                 log.debug(f"{generation_data['metadata']=}")
 
-                log.info(f"Loading {asset_type} model {model_config.name}...")
+                log.info(f"Loading {site} model {model_config.name}...")
                 ml_model = get_model(
-                    asset_type,
                     timestamp,
                     generation_data,
                     hf_repo=model_config.id,
@@ -274,7 +268,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                 )
                 ml_model.site_uuid = site.site_uuid
 
-                log.info(f"{asset_type} model loaded")
+                log.info(f"{site} model loaded")
 
                 # 3. Run model for each site
                 site_id = ml_model.site_uuid
