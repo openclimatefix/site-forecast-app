@@ -6,6 +6,7 @@ import datetime as dt
 import logging
 import os
 import shutil
+import json
 
 import numpy as np
 import pandas as pd
@@ -57,7 +58,7 @@ class PVNetModel:
         hf_repo: str,
         hf_version: str,
         name: str,
-        asset_type: str = "pv"
+        asset_type: str = "pv",
     ):
         """Initializer for the model"""
 
@@ -125,8 +126,6 @@ class PVNetModel:
         # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
 
-        # TODO add 10th and 90th percentage
-
         values_df = pd.DataFrame(
             [
                 {
@@ -139,6 +138,14 @@ class PVNetModel:
         )
         # remove any negative values
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
+
+        # add 10th and 90th percentage
+        values_df["p10"] = normed_preds[0, :, 1]
+        values_df["p90"] = normed_preds[0, :, 5]
+        values_df["probabilistic_values"] = values_df[["p10", "p90"]].apply(
+            lambda row: json.dumps(row.to_dict()), axis=1
+        )
+        values_df.drop(columns=["p10", "p90"], inplace=True)
 
         return values_df.to_dict("records")
 
@@ -186,7 +193,7 @@ class PVNetModel:
         generation_xr = self.generation_data["data"]
 
         forecast_timesteps = pd.date_range(
-            start=self.t0 - pd.Timedelta("52H"), periods=4*24*4.5, freq="15min"
+            start=self.t0 - pd.Timedelta("52H"), periods=4 * 24 * 4.5, freq="15min"
         )
 
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
@@ -204,9 +211,7 @@ class PVNetModel:
 
         # Pull the data config from huggingface
 
-        data_config_filename = PVNetBaseModel.get_data_config(
-            self.id, revision=self.version
-        )
+        data_config_filename = PVNetBaseModel.get_data_config(self.id, revision=self.version)
 
         # Populate the data config with production data paths
         populated_data_config_filename = f"data/data_config.yaml"
@@ -234,6 +239,4 @@ class PVNetModel:
         """Load model"""
         log.info(f"Loading model: {self.id} - {self.version} ({self.name})")
 
-        return PVNetBaseModel.from_pretrained(
-            model_id=self.id, revision=self.version
-        ).to(DEVICE)
+        return PVNetBaseModel.from_pretrained(model_id=self.id, revision=self.version).to(DEVICE)

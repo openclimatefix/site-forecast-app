@@ -3,6 +3,7 @@ Tests for functions in app.py
 """
 
 import datetime as dt
+import json
 import multiprocessing as mp
 import os
 import uuid
@@ -138,8 +139,12 @@ def test_app(
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
-        assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (n * 2 * 192)
         assert db_session.query(MLModelSQL).count() == n * 2
+        forecast_values = db_session.query(ForecastValueSQL).all()
+        assert len(forecast_values) == init_n_forecast_values + (n * 2 * 192)
+        assert forecast_values[0].probabilistic_values is not None
+        assert json.loads(forecast_values[0].probabilistic_values)['p10'] is not None
+
     else:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts
         assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values
