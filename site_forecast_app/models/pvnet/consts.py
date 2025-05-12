@@ -1,4 +1,4 @@
-"""Constants for PVNet data paths"""
+"""Constants for PVNet data paths."""
 
 root_data_path = "data"
 nwp_path = f"{root_data_path}/nwp.zarr"

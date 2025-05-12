@@ -58,7 +58,7 @@ where = ["."]
 exclude = ["test*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.csv"]
+"*" = ["*.csv", "*.yaml"]
 
 [tool.setuptools-git-versioning]
 enabled = true
