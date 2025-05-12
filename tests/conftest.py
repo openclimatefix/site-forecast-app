@@ -53,7 +53,7 @@ def db_conn(engine):
 
 
 @pytest.fixture()
-def db_session(db_conn, engine):
+def db_session(db_conn, engine):  # noqa: ARG001
     """Return a sqlalchemy session, which tears down everything properly post-test."""
 
     with db_conn.get_session() as session:
@@ -103,7 +103,7 @@ def generation_db_values(db_session, sites, init_timestamp):
     del start_times[3]
 
     # Random power values in the range 0-10000kw
-    power_values = [random.random() * 10000 for _ in range(len(start_times))]
+    power_values = [random.random() * 10000 for _ in range(len(start_times))]  # noqa: S311
 
     all_generations = []
     for site in sites:
@@ -128,7 +128,7 @@ def forecast_values():
 
     n = 10  # number of forecast values
     step = 15  # in minutes
-    init_utc = dt.datetime.now(dt.timezone.utc)
+    init_utc = dt.datetime.now(dt.UTC)
     start_utc = [init_utc + dt.timedelta(minutes=i * step) for i in range(n)]
     end_utc = [d + dt.timedelta(minutes=step) for d in start_utc]
     forecast_power_kw = [i * 10 for i in range(n)]
@@ -144,16 +144,16 @@ def forecast_values():
 def generate_probabilistic_values():
     """Generate probabilistic values for forecast"""
     return {
-        "p10": round(random.uniform(0, 5000), 2),
-        "p50": round(random.uniform(5000, 10000), 2),
-        "p90": round(random.uniform(10000, 15000), 2),
+        "p10": round(random.uniform(0, 5000), 2),   # noqa: S311
+        "p50": round(random.uniform(5000, 10000), 2),   # noqa: S311
+        "p90": round(random.uniform(10000, 15000), 2),   # noqa: S311
     }
 
 
 @pytest.fixture()
 def forecasts(db_session, sites):
     """Make fake forecasts"""
-    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))
+    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))   # noqa: DTZ005
 
     n = 24 * 4  # 24 hours of readings of 15
     start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]
@@ -175,7 +175,7 @@ def forecasts(db_session, sites):
         for i in range(0, len(start_times)):
             forecast_value = ForecastValueSQL(
                 horizon_minutes=i * 15,
-                forecast_power_kw=random.random() * 10000,
+                forecast_power_kw=random.random() * 10000,  # noqa: S311
                 start_utc=start_times[i],
                 end_utc=start_times[i] + dt.timedelta(minutes=15),
                 ml_model_uuid=model.model_uuid,
@@ -192,7 +192,7 @@ def forecasts(db_session, sites):
 def init_timestamp():
     """Returns a datetime floored to the last 15 mins"""
 
-    return pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))
+    return pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))  # noqa: DTZ005
 
 
 @pytest.fixture(scope="session")

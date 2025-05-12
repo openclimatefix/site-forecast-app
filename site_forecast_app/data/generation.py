@@ -1,3 +1,4 @@
+"""Functions for getting site generation data."""
 import datetime as dt
 import logging
 
@@ -15,7 +16,7 @@ log = logging.getLogger(__name__)
 def get_generation_data(
     db_session: Session, sites: list[SiteSQL], timestamp: dt.datetime,
 ) -> dict[str, pd.DataFrame]:
-    """Gets generation data values for given sites
+    """Gets generation data values for given sites.
 
     Args:
             db_session: A SQLAlchemy session
@@ -117,8 +118,8 @@ def get_generation_data(
     return {"data": generation_xr, "metadata": sites_df}
 
 
-def filter_on_sun_elevation(generation_df, site) -> pd.DataFrame:
-    """Filter the data on sun elevation
+def filter_on_sun_elevation(generation_df: pd.DataFrame, site: SiteSQL) -> pd.DataFrame:
+    """Filter the data on sun elevation.
 
     If the sun is up, the generation values should be above zero
     param:

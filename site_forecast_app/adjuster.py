@@ -1,4 +1,4 @@
-"""Adjuster code, adjust forecast by last 7 days of ME. """
+"""Adjuster code, adjust forecast by last 7 days of ME."""
 
 import logging
 from datetime import datetime, timedelta
@@ -14,6 +14,7 @@ from pvsite_datamodel.sqlmodels import (
     SiteAssetType,
 )
 from sqlalchemy import INT, cast, text
+from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
 log = logging.getLogger(__name__)
@@ -24,37 +25,37 @@ log = logging.getLogger(__name__)
 """
 Here is the SQL query that it based off:
 
-select 
+select
 AVG(forecast_values.forecast_power_kw - generation.generation_power_kw)
 -- generation.generation_power_kw,
 -- forecast_values.forecast_power_kw,
 -- forecast_values.start_utc,
 ,horizon_minutes
 -- *
-from forecast_values 
-JOIN forecasts ON forecasts.forecast_uuid = forecast_values.forecast_uuid 
+from forecast_values
+JOIN forecasts ON forecasts.forecast_uuid = forecast_values.forecast_uuid
 join generation on generation.start_utc = forecast_values.start_utc
-WHERE forecast_values.start_utc >= '2024-11-05' 
+WHERE forecast_values.start_utc >= '2024-11-05'
 AND forecasts.site_uuid = 'adaf6be8-4e30-4c98-ac27-964447e9c8e6'
 AND generation.site_uuid = 'adaf6be8-4e30-4c98-ac27-964447e9c8e6'
 and extract(hour from forecasts.created_utc) = 7
 group by horizon_minutes
 -- order by forecast_values.start_utc
 
-I've left some sql comments in, so its easier to remove the group by, when debugging. 
+I've left some sql comments in, so its easier to remove the group by, when debugging.
 The site_uuid is hardcoded, but this should be updated.
 """
 
 
 def get_me_values(
-    session,
+    session: Session,
     hour: int,
     site_uuid: str,
     start_datetime: datetime | None = None,
     ml_model_name: str | None = None,
     average_minutes: int | None = 60,
 ) -> pd.DataFrame:
-    """Get the ME values for the last 7 days for a given hour, for a given hour creation time
+    """Get the ME values for the last 7 days for a given hour, for a given hour creation time.
 
     Args:
     hour: the hour of when the forecast is created
@@ -66,10 +67,12 @@ def get_me_values(
         For solar data this should be 15, because of the sunrise and sunset,
         for wind data this should be 60.
     """
-    assert average_minutes <= 60, "Average minutes for adjuster should be <= 60"
+    if average_minutes > 60:
+        raise Exception(f"Average minutes for adjuster should be <= 60, it is {average_minutes}")
 
     if start_datetime is None:
-        start_datetime = datetime.now() - timedelta(days=7)
+        # TODO add timezone
+        start_datetime = datetime.now() - timedelta(days=7) # noqa: DTZ005
 
     query = session.query(
         func.avg(ForecastValueSQL.forecast_power_kw - GenerationSQL.generation_power_kw),
@@ -145,12 +148,12 @@ def get_me_values(
 
 
 def zero_out_night_time_for_pv(
-    db_session,
+    db_session: Session,
     forecast_values_df: pd.DataFrame,
     site_uuid: str,
     elevation_limit: float | None = 0,
-):
-    """Zero out night time values in forecast, only for pv sites
+) -> pd.DataFrame:
+    """Zero out night time values in forecast, only for pv sites.
 
     Args:
     db_session: sqlalchemy session
@@ -189,13 +192,13 @@ def zero_out_night_time_for_pv(
 
 
 def adjust_forecast_with_adjuster(
-    db_session,
+    db_session: Session,
     forecast_meta: dict,
     forecast_values_df: pd.DataFrame,
     ml_model_name: str,
     average_minutes: int | None = 60,
-):
-    """Adjust forecast values with ME values
+) ->  pd.DataFrame:
+    """Adjust forecast values with ME values.
 
     Args:
     db_session: sqlalchemy session

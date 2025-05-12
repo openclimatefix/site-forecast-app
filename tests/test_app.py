@@ -5,7 +5,6 @@ Tests for functions in app.py
 import datetime as dt
 import json
 import multiprocessing as mp
-import os
 import uuid
 
 import pytest
@@ -13,7 +12,6 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL
 
 from site_forecast_app.app import (
     app,
-    app_run,
     get_model,
     get_sites,
     run_model,
@@ -41,12 +39,12 @@ def test_get_sites(db_session, sites):
 
 
 def test_get_model(
-    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
+    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data,  # noqa: ARG001
 ):
     """Test for getting valid model"""
 
     all_models = get_all_models()
-    ml_model = [model for model in all_models.models][0]
+    ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_site_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
     model = get_model(
@@ -63,12 +61,12 @@ def test_get_model(
 
 
 def test_run_model(
-    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data
+    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data,  # noqa: ARG001
 ):
     """Test for running PV and wind models"""
 
     all_models = get_all_models()
-    ml_model = [model for model in all_models.models][0]
+    ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_site_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
     model_cls = PVNetModel
@@ -83,9 +81,9 @@ def test_run_model(
 
     assert isinstance(forecast, list)
     assert len(forecast) == 192  # value for every 15mins over 2 days
-    assert all([isinstance(value["start_utc"], dt.datetime) for value in forecast])
-    assert all([isinstance(value["end_utc"], dt.datetime) for value in forecast])
-    assert all([isinstance(value["forecast_power_kw"], int) for value in forecast])
+    assert all(isinstance(value["start_utc"], dt.datetime) for value in forecast)
+    assert all(isinstance(value["end_utc"], dt.datetime) for value in forecast)
+    assert all(isinstance(value["forecast_power_kw"], int) for value in forecast)
 
 
 def test_save_forecast(db_session, sites, forecast_values):
@@ -103,7 +101,7 @@ def test_save_forecast(db_session, sites, forecast_values):
     }
 
     save_forecast(
-        db_session, forecast, write_to_db=True, ml_model_name="test", ml_model_version="0.0.0"
+        db_session, forecast, write_to_db=True, ml_model_name="test", ml_model_version="0.0.0",
     )
 
     assert db_session.query(ForecastSQL).count() == 2
@@ -112,7 +110,7 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 
 @pytest.mark.parametrize("write_to_db", [True, False])
-def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data):
+def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data):  # noqa: ARG001
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
@@ -140,7 +138,7 @@ def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, sat
         assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values
 
 
-def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):
+def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: ARG001
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()

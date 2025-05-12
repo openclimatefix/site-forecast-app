@@ -21,10 +21,10 @@ def test_get_me_values_no_values(db_session, sites):
     assert len(me_df) == 0
 
 
-def test_get_me_values(db_session, sites, generation_db_values, forecasts):
+def test_get_me_values(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check ME results are found"""
 
-    hour = pd.Timestamp(datetime.now()).hour
+    hour = pd.Timestamp(datetime.now()).hour  # noqa: DTZ005
     me_df = get_me_values(db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) != 0
@@ -35,10 +35,10 @@ def test_get_me_values(db_session, sites, generation_db_values, forecasts):
     assert me_df["me_kw"][90] != 0
 
 
-def test_get_me_values_15(db_session, sites, generation_db_values, forecasts):
+def test_get_me_values_15(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check ME results are found"""
 
-    hour = pd.Timestamp(datetime.now()).hour
+    hour = pd.Timestamp(datetime.now()).hour  # noqa: DTZ005
     me_df_15 = get_me_values(
         db_session,
         hour,
@@ -65,27 +65,27 @@ def test_get_me_values_15(db_session, sites, generation_db_values, forecasts):
     assert me_df_15["me_kw"][90] != me_df_60["me_kw"][90]
 
 
-def test_get_me_values_no_generation(db_session, sites, forecasts):
+def test_get_me_values_no_generation(db_session, sites, forecasts):  # noqa: ARG001
     """Check no ME results are found with no generation values"""
 
-    hour = pd.Timestamp(datetime.now()).hour
+    hour = pd.Timestamp(datetime.now()).hour  # noqa: DTZ005
     me_df = get_me_values(db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) == 0
 
 
-def test_get_me_values_no_forecasts(db_session, sites, generation_db_values):
+def test_get_me_values_no_forecasts(db_session, sites, generation_db_values):  # noqa: ARG001
     """Check no ME results are found with no generation values"""
 
-    hour = pd.Timestamp(datetime.now()).hour
+    hour = pd.Timestamp(datetime.now()).hour  # noqa: DTZ005
     me_df = get_me_values(db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) == 0
 
 
-def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):
+def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check forecast gets adjuster"""
-    forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].site_uuid}
+    forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].site_uuid}  # noqa: DTZ005
     forecast_values_df = pd.DataFrame(
         {
             "forecast_power_kw": [1, 2, 3, 4, 5],
@@ -101,20 +101,20 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
                 {"p50": 40},
                 {"p50": 50},
             ],
-        }
+        },
     )
 
     adjusted_forecast_df = adjust_forecast_with_adjuster(
-        db_session, forecast_meta, forecast_values_df, ml_model_name="test"
+        db_session, forecast_meta, forecast_values_df, ml_model_name="test",
     )
 
     # check that the forecast_values_df has been adjusted for the horizon_minutes=90
     original_p50 = forecast_values_df.loc[
-        forecast_values_df["horizon_minutes"] == 1200, "probabilistic_values"
+        forecast_values_df["horizon_minutes"] == 1200, "probabilistic_values",
     ].iloc[0]["p50"]
 
     adjusted_p50 = adjusted_forecast_df.loc[
-        adjusted_forecast_df["horizon_minutes"] == 1200, "probabilistic_values"
+        adjusted_forecast_df["horizon_minutes"] == 1200, "probabilistic_values",
     ].iloc[0]["p50"]
 
     assert adjusted_p50 != original_p50
@@ -129,7 +129,7 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
 
 def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
     """Check forecast doesnt adjuster, no me values"""
-    forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].site_uuid}
+    forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].site_uuid}  # noqa: DTZ005
     forecast_values_df = pd.DataFrame(
         {
             "forecast_power_kw": [1, 2, 3, 4, 5],
@@ -137,11 +137,11 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
             "start_utc": [
                 pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(f"{i}H") for i in range(0, 5)
             ],
-        }
+        },
     )
 
     forecast_values_df = adjust_forecast_with_adjuster(
-        db_session, forecast_meta, forecast_values_df, ml_model_name="test"
+        db_session, forecast_meta, forecast_values_df, ml_model_name="test",
     )
 
     assert len(forecast_values_df) == 5
@@ -158,13 +158,13 @@ def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
             "start_utc": [
                 pd.Timestamp("2024-11-01 05:00:00") + pd.Timedelta(f"{i}H") for i in range(0, 5)
             ],
-        }
+        },
     )
 
     sites[0].asset_type = asset_type
 
     forecast_values_df = zero_out_night_time_for_pv(
-        db_session, forecast_values_df=forecast_values_df, site_uuid=sites[0].site_uuid
+        db_session, forecast_values_df=forecast_values_df, site_uuid=sites[0].site_uuid,
     )
 
     assert len(forecast_values_df) == 5

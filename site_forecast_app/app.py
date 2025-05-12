@@ -1,5 +1,4 @@
-"""Main forecast app entrypoint
-"""
+"""Main forecast app entrypoint."""
 
 import datetime as dt
 import logging
@@ -35,7 +34,7 @@ sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(db_session: Session) -> list[SiteSQL]:
-    """Gets all available sites in India
+    """Gets all available sites.
 
     Args:
             db_session: A SQLAlchemy session
@@ -54,13 +53,12 @@ def get_sites(db_session: Session) -> list[SiteSQL]:
 
 def get_model(
     timestamp: dt.datetime,
-    generation_data,
+    generation_data: pd.DataFrame,
     hf_repo: str,
     hf_version: str,
     name: str,
-    asset_type: str = "pv",
 ) -> PVNetModel:
-    """Instantiates and returns the forecast model ready for running inference
+    """Instantiates and returns the forecast model ready for running inference.
 
     Args:
             asset_type: One or "pv" or "wind"
@@ -80,8 +78,8 @@ def get_model(
     return model
 
 
-def run_model(model, site_id: str, timestamp: dt.datetime):
-    """Runs inference on model for the given site & timestamp
+def run_model(model:PVNetModel, site_id: str, timestamp: dt.datetime) -> dict | None:
+    """Runs inference on model for the given site & timestamp.
 
     Args:
             model: A forecasting model
@@ -105,14 +103,14 @@ def run_model(model, site_id: str, timestamp: dt.datetime):
 
 def save_forecast(
     db_session: Session,
-    forecast,
+    forecast: dict,
     write_to_db: bool,
     ml_model_name: str | None = None,
     ml_model_version: str | None = None,
     use_adjuster: bool = True,
     adjuster_average_minutes: int | None = 60,
-):
-    """Saves a forecast for a given site & timestamp
+) -> None:
+    """Saves a forecast for a given site & timestamp.
 
     Args:
             db_session: A SQLAlchemy session
@@ -196,15 +194,14 @@ Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
     help="Set the python logging log level",
     show_default=True,
 )
-def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str):
-    """Main click function for running forecasts for sites in India
-    """
+def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> None:
+    """Main click function for running forecasts for sites."""
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
-def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info"):
-    """Main function for running forecasts for sites in India
-    """
+def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info") \
+        -> None:
+    """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
     log.info(f"Running India forecast app:{version}")

@@ -1,3 +1,4 @@
+"""This module contains functions to load and regrid NWP data."""
 import logging
 
 import xarray as xr
@@ -6,7 +7,9 @@ logger = logging.getLogger(__name__)
 
 
 def regrid_nwp_data(nwp_ds: xr.Dataset, target_coords_path: str) -> xr.Dataset:
-    """This function loads the  NWP data, then regrids and saves it back out if the data is not
+    """This function loads regrid the NWP data.
+
+    This function loads the  NWP data, then regrids and saves it back out if the data is not
     on the same grid as expected. The data is resaved in-place.
     """
     logger.info(f"Regridding NWP data to expected grid to {target_coords_path}")
