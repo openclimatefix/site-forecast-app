@@ -1,10 +1,9 @@
 import datetime as dt
-import pandas as pd
-import os
 
+import pandas as pd
 from pvsite_datamodel.sqlmodels import SiteAssetType
 
-from site_forecast_app.data.generation import get_generation_data, filter_on_sun_elevation
+from site_forecast_app.data.generation import filter_on_sun_elevation, get_generation_data
 
 
 def test_filter_on_sun_elevation(sites):
@@ -30,7 +29,7 @@ def test_filter_on_sun_elevation(sites):
     assert filter_generation_df.index[2] == "2023-10-01 20:00"
 
 
-def test_get_generation_data_pv(db_session, sites, generation_db_values, init_timestamp):
+def test_get_generation_data_pv(db_session, sites, generation_db_values, init_timestamp):  # noqa: ARG001
     """Test for correct generation data"""
 
     # Test only checks for wind data as solar data not ready yet
