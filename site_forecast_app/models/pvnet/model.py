@@ -6,33 +6,27 @@ import datetime as dt
 import logging
 import os
 import shutil
-import tempfile
 
 import numpy as np
 import pandas as pd
 import torch
 
 from ocf_data_sampler.torch_datasets.datasets.site import SitesDataset
-from ocf_data_sampler.config.save import save_yaml_configuration
 from ocf_data_sampler.torch_datasets.datasets.site import convert_netcdf_to_numpy_sample
 from ocf_data_sampler.numpy_sample.collate import stack_np_samples_into_batch
+from ocf_data_sampler.torch_datasets.sample.base import (
+    batch_to_tensor,
+)
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
-from pvsite_datamodel.sqlmodels import SiteAssetType
-from torch.utils.data import DataLoader
 
 
 from .consts import (
     nwp_ecmwf_path,
-    nwp_gfs_path,
-    nwp_mo_global_path,
     pv_metadata_path,
     pv_netcdf_path,
     pv_path,
     root_data_path,
     satellite_path,
-    wind_metadata_path,
-    wind_netcdf_path,
-    wind_path,
 )
 from .utils import (
     NWPProcessAndCacheConfig,
@@ -41,7 +35,6 @@ from .utils import (
     process_and_cache_nwp,
     save_batch,
     set_night_time_zeros,
-    worker_init_fn,
 )
 
 # Global settings for running the model
@@ -59,12 +52,12 @@ class PVNetModel:
 
     def __init__(
         self,
-        asset_type: str,
         timestamp: dt.datetime,
         generation_data: dict[str, pd.DataFrame],
         hf_repo: str,
         hf_version: str,
         name: str,
+        asset_type: str = "pv"
     ):
         """Initializer for the model"""
 
@@ -77,13 +70,12 @@ class PVNetModel:
         log.info(f"Model initialised at t0={self.t0}")
 
         self.client = os.getenv("CLIENT_NAME", "nl")
-        self.hf_token = os.getenv("HUGGINGFACE_TOKEN")
 
         # Setup the data, dataloader, and model
         self.generation_data = generation_data
         self._get_config()
         self._prepare_data_sources()
-        self.dataloader = self._create_dataloader()
+        self._create_dataloader()
         self.model = self._load_model()
 
     def predict(self, site_id: str, timestamp: dt.datetime):
@@ -93,38 +85,47 @@ class PVNetModel:
 
         normed_preds = []
         with torch.no_grad():
-            for i, batch in enumerate(self.dataloader):
-                log.info(f"Predicting for batch: {i}")
 
-                # TODO convert site xarry to torch
-                batch["satellite_actual"] = batch["satellite"]
-                batch = convert_netcdf_to_numpy_sample(batch)
+            # note this only running ones site, and the latest timestamp
+            samples = self.dataset.valid_t0_and_site_ids
+            sample_t0 = samples.iloc[-1].t0
+            sample_site_id = samples.iloc[-1].site_id
 
-                # save batch
-                save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
+            batch = self.dataset.get_sample(t0=sample_t0, site_id=sample_site_id)
+            i = 0
 
-                # Run batch through model
-                preds = self.model(batch).detach().cpu().numpy()
+            # for i, batch in enumerate(self.dataloader):
+            log.info(f"Predicting for batch: {i}, for {sample_t0=}, {sample_site_id=}")
 
-                # filter out night time
-                if self.asset_type == SiteAssetType.pv.name:
-                    preds = set_night_time_zeros(batch, preds)
+            batch = convert_netcdf_to_numpy_sample(batch)
+            batch = stack_np_samples_into_batch([batch])
+            batch = batch_to_tensor(batch)
 
-                # Store predictions
-                normed_preds += [preds]
+            # save batch
+            save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
 
-                # log max prediction
-                log.info(f"Max prediction: {np.max(preds, axis=1)}")
-                log.info(f"Completed batch: {i}")
+            # Run batch through model
+            preds = self.model(batch).detach().cpu().numpy()
+
+            preds = set_night_time_zeros(batch, preds, t0_idx=192)
+
+            # Store predictions
+            normed_preds += [preds]
+
+            # log max prediction
+            log.info(f"Max prediction: {np.max(preds, axis=1)}")
+            log.info(f"Completed batch: {i}")
 
         normed_preds = np.concatenate(normed_preds)
         n_times = normed_preds.shape[1]
         valid_times = pd.to_datetime(
-            [self.t0 + dt.timedelta(minutes=15 * (i + 1)) for i in range(n_times)]
+            [sample_t0 + dt.timedelta(minutes=15 * i) for i in range(n_times)]
         )
 
         # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
+
+        # TODO add 10th and 90th percentage
 
         values_df = pd.DataFrame(
             [
@@ -173,9 +174,8 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"].keys():
-            pass # TODO
-            # shutil.rmtree(satellite_path, ignore_errors=True)
-            # download_satellite_data(satellite_source_file_path)
+            shutil.rmtree(satellite_path, ignore_errors=True)
+            download_satellite_data(satellite_source_file_path)
 
         log.info("Preparing PV data sources")
         # Clear local cached wind data if already exists
@@ -205,7 +205,7 @@ class PVNetModel:
         # Pull the data config from huggingface
 
         data_config_filename = PVNetBaseModel.get_data_config(
-            self.id, revision=self.version, token=self.hf_token
+            self.id, revision=self.version
         )
 
         # Populate the data config with production data paths
@@ -228,34 +228,12 @@ class PVNetModel:
             )
 
         # Location and time datapipes
-        dataset = SitesDataset(config_filename=self.populated_data_config_filename)
-
-        n_workers = 0
-
-        # Set up dataloader for parallel loading
-        dataloader_kwargs = dict(
-            shuffle=False,
-            batch_size=1,
-            sampler=None,
-            batch_sampler=None,
-            num_workers=n_workers,
-            pin_memory=False,
-            drop_last=False,
-            timeout=0,
-            worker_init_fn=worker_init_fn,
-            prefetch_factor=None,
-            persistent_workers=False,
-            collate_fn=None,
-        )
-
-        dataloader = DataLoader(dataset, **dataloader_kwargs)
-
-        return dataloader
+        self.dataset = SitesDataset(config_filename=self.populated_data_config_filename)
 
     def _load_model(self):
         """Load model"""
         log.info(f"Loading model: {self.id} - {self.version} ({self.name})")
 
         return PVNetBaseModel.from_pretrained(
-            model_id=self.id, revision=self.version, token=self.hf_token
+            model_id=self.id, revision=self.version
         ).to(DEVICE)

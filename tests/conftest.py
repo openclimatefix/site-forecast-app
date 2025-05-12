@@ -241,18 +241,29 @@ def nwp_data(tmp_path_factory, time_before_present):
         coords=[ds[c] for c in ds.xindexes],
     )
 
+    # change variables values
+    ds.variable.values[0:14] = [
+        "temperature_sl",
+        "wind_u_component_10m",
+        "wind_v_component_10m",
+        "downward_shortwave_radiation_flux_gl",
+        "direct_shortwave_radiation_flux_gl",
+        "downward_longwave_radiation_flux_gl",
+        "downward_ultraviolet_radiation_flux_gl",
+        "cloud_cover_high",
+        "cloud_cover_low",
+        "cloud_cover_medium",
+        "cloud_cover_total",
+        "snow_depth_gl",
+        "visibility_sl",
+        "total_precipitation_rate_gl",
+    ]
+
     # AS NWP data is loaded by the app from environment variable,
     # save out data and set paths as environmental variables
     temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
     os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
-
-
-
-@pytest.fixture(scope="session")
-def client_ruvnl():
-    """Set ruvnl client env var"""
-    os.environ["CLIENT_NAME"] = "ruvnl"
 
 
 @pytest.fixture(scope="session")
@@ -269,11 +280,12 @@ def satellite_data(tmp_path_factory, init_timestamp):
     times = pd.date_range(
         t0_datetime_utc - dt.timedelta(hours=n_hours),
         t0_datetime_utc,
-        freq=dt.timedelta(minutes=15),
+        freq=dt.timedelta(minutes=5),
     )
     ds = ds.expand_dims(time=times)
 
     # set geostationary cords for India
+    # TODO update for NL
     ds = ds.expand_dims(
         x_geostationary=np.arange(5000000.0, -5000000.0, -5000),
         y_geostationary=np.arange(-5000000.0, 5000000.0, 5000),

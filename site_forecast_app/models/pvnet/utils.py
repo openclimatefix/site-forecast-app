@@ -8,23 +8,17 @@ import numpy as np
 import torch
 import xarray as xr
 import yaml
-# from ocf_datapipes.batch import BatchKey
+import zipfile
 from ocf_data_sampler.config.model import Configuration
 from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
 from ocf_data_sampler.config.model import NWP
 
-from site_forecast_app.data import nwp
-
 from .consts import (
     nwp_ecmwf_path,
-    nwp_gfs_path,
-    nwp_mo_global_path,
     pv_metadata_path,
     pv_netcdf_path,
     satellite_path,
-    wind_metadata_path,
-    wind_netcdf_path,
 )
 
 log = logging.getLogger(__name__)
@@ -37,22 +31,6 @@ class NWPProcessAndCacheConfig(BaseModel):
     dest_nwp_path: str
     source: str
     config: Optional[NWP] = None
-
-
-def worker_init_fn(worker_id):
-    """
-    Clear reference to the loop and thread.
-
-    This is a nasty hack that was suggested but NOT recommended by the lead fsspec developer!
-    This appears necessary otherwise gcsfs hangs when used after forking multiple worker processes.
-    Only required for fsspec >= 0.9.0
-    See:
-    - https://github.com/fsspec/gcsfs/issues/379#issuecomment-839929801
-    - https://github.com/fsspec/filesystem_spec/pull/963#issuecomment-1131709948
-    TODO: Try deleting this two lines to make sure this is still relevant.
-    """
-    fsspec.asyn.iothread[0] = None
-    fsspec.asyn.loop[0] = None
 
 
 def populate_data_config_sources(input_path, output_path):
@@ -86,7 +64,7 @@ def populate_data_config_sources(input_path, output_path):
                 nwp_config[nwp_source]["dropout_timedeltas_minutes"] = []
                 nwp_config[nwp_source]["dropout_fraction"] = 0
 
-            nwp_config[nwp_source]["interval_end_minutes"] = nwp_config[nwp_source]["interval_end_minutes"]-60
+            nwp_config[nwp_source]["interval_end_minutes"] = nwp_config[nwp_source]["interval_end_minutes"]
 
     if "satellite" in config["input_data"]:
         satellite_config = config["input_data"]["satellite"]
@@ -97,7 +75,7 @@ def populate_data_config_sources(input_path, output_path):
         if "satellite_image_size_pixels_width" in satellite_config:
             satellite_config["image_size_pixels_width"] = satellite_config.pop("satellite_image_size_pixels_width")
 
-        # TODO is this right?
+        # Remove any hard coding about satellite delay
         if "live_delay_minutes" in satellite_config:
             satellite_config.pop("live_delay_minutes")
 
@@ -106,9 +84,15 @@ def populate_data_config_sources(input_path, output_path):
         site_config['file_path'] = pv_netcdf_path
         site_config['metadata_file_path'] = pv_metadata_path
 
-        # TODO drop site capacity mode for the moment
+        # drop site capacity mode for the moment,
+        # this will come in a later release of ocf-data-sampler
         if "capacity_mode" in site_config:
             site_config.pop("capacity_mode")
+
+    # add solar position
+    config["input_data"]["solar_position"] = {}
+    for k in ["time_resolution_minutes", "interval_end_minutes", "interval_start_minutes"]:
+        config["input_data"]["solar_position"][k] = config["input_data"]["site"][k]
 
     configuration = Configuration(**config)
     save_yaml_configuration(configuration, output_path)
@@ -143,117 +127,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig):
         if ds[v].dtype == object:
             ds[v].encoding.clear()
 
-    if nwp_config.source == "ecmwf":
-
-        if "hres-ifs_india" in ds.data_vars:
-            # rename from hres-ifs_india to ECMWF_INDIA
-            ds = ds.rename({"hres-ifs_india": "ECMWF_INDIA"})
-
-            # rename variable names in the variable coordinate
-            # This is a renaming from ECMWF variables to what we use in the ML Model
-            # This change happened in the new nwp-consumer>=1.0.0
-            # Ideally we won't need this step in the future
-            variable_coords = ds.variable.values
-            rename = {'cloud_cover_high': 'hcc',
-                      'cloud_cover_low': 'lcc',
-                      'cloud_cover_medium': 'mcc',
-                      'cloud_cover_total': 'tcc',
-                      'snow_depth_gl': 'sde',
-                      'direct_shortwave_radiation_flux_gl': 'sr',
-                      'downward_longwave_radiation_flux_gl': 'dlwrf',
-                      'downward_shortwave_radiation_flux_gl': 'dswrf',
-                      'downward_ultraviolet_radiation_flux_gl': 'duvrs',
-                      'temperature_sl': 't',
-                      'total_precipitation_rate_gl': 'prate',
-                      'visibility_sl': 'vis',
-                      'wind_u_component_100m': 'u100',
-                      'wind_u_component_10m': 'u10',
-                      'wind_u_component_200m': 'u200',
-                      'wind_v_component_100m': 'v100',
-                      'wind_v_component_10m': 'v10',
-                      'wind_v_component_200m': 'v200'}
-
-            for k, v in rename.items():
-                variable_coords[variable_coords == k] = v
-
-            # assign the new variable names
-            ds = ds.assign_coords(variable=variable_coords)
-
-        # Rename t variable to t2m
-        variables = list(ds.variable.values)
-        new_variables = []
-        for var in variables:
-            if "t" == var:
-                new_variables.append("t2m")
-                log.debug(f"Renamed t to t2m in NWP data {ds.variable.values}")
-            elif "clt" == var:
-                new_variables.append("tcc")
-                log.debug(f"Renamed clt to tcc in NWP data {ds.variable.values}")
-            else:
-                new_variables.append(var)
-        ds.__setitem__("variable", new_variables)
-
-    # Hack to resolve some NWP data format differences between providers
-    elif nwp_config.source == "gfs":
-
-        if "ncep-gfs" in ds.data_vars:
-
-            ds = ds.rename({"ncep-gfs": "NOAA_GLOBAL"})
-
-            # rename variable names in the variable coordinate
-            # This is a renaming from GFS variables to what we use in the ML Model
-            # This change happened in the new nwp-consumer>=1.0.0
-            # Ideally we won't need this step in the future
-            variable_coords = ds.variable.values
-            rename = {'cloud_cover_high': 'hcc',
-                      'cloud_cover_low': 'lcc',
-                      'cloud_cover_medium': 'mcc',
-                      'cloud_cover_total': 'tcc',
-                      'snow_depth_gl': 'sde',
-                      'direct_shortwave_radiation_flux_gl': 'sr',
-                      'downward_longwave_radiation_flux_gl': 'dlwrf',
-                      'downward_shortwave_radiation_flux_gl': 'dswrf',
-                      'downward_ultraviolet_radiation_flux_gl': 'duvrs',
-                      'temperature_sl': 't',
-                      'total_precipitation_rate_gl': 'prate',
-                      "relative_humidity_sl": "r",
-                      'visibility_sl': 'vis',
-                      'wind_u_component_100m': 'u100',
-                      'wind_u_component_10m': 'u10',
-                      'wind_u_component_200m': 'u200',
-                      'wind_v_component_100m': 'v100',
-                      'wind_v_component_10m': 'v10',
-                      'wind_v_component_200m': 'v200'}
-
-            for k, v in rename.items():
-                variable_coords[variable_coords == k] = v
-
-            # assign the new variable names
-            ds = ds.assign_coords(variable=variable_coords)
-
-        # change to list of data variables
-        # note we need this for ocf-datapipes, but not for ocf-data-sampler
-        data_var = ds[list(ds.data_vars.keys())[0]]
-        # # Use .to_dataset() to split the data variable based on 'variable' dim
-        ds = data_var.to_dataset(dim="variable")
-
-        if "t2m" in ds.data_vars:
-            ds = ds.rename({"t2m": "t"})
-
-    if nwp_config.source == "mo_global":
-
-        # COMMENTED this out for the moment, as different models use different mo global variables
-        # only select the variables we need
-        # nwp_channels = list(nwp_config.config.nwp_channels)
-        # log.info(f"Selecting NWP channels {nwp_channels} for mo_global data")
-        # ds = ds.sel(variable=nwp_channels)
-
-        # get directory of file
-        regrid_coords = os.path.dirname(nwp.__file__)
-
-        # regrid data
-        ds = nwp.regrid_nwp_data(ds, f"{regrid_coords}/mo_global/india_coords.nc")
-
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
     ds.to_zarr(dest_nwp_path, mode="a")
@@ -262,63 +135,55 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig):
 def download_satellite_data(satellite_source_file_path: str) -> None:
     """Download the sat data"""
 
+    temporary_satellite_data = "temporary_satellite_data.zarr"
+
     # download satellite data
     fs = fsspec.open(satellite_source_file_path).fs
     if fs.exists(satellite_source_file_path):
         log.info(
             f"Downloading satellite data from {satellite_source_file_path} "
-            f"to sat_15_min.zarr.zip"
+            f"to sat_min.zarr.zip"
         )
-        fs.get(satellite_source_file_path, "sat_15_min.zarr.zip")
-        log.info(f"Unzipping sat_15_min.zarr.zip to {satellite_path}")
-        os.system(f"unzip -qq sat_15_min.zarr.zip -d {satellite_path}")
+        fs.get(satellite_source_file_path, "sat_min.zarr.zip")
+        log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
+
+        with zipfile.ZipFile("sat_min.zarr.zip", 'r') as zip_ref:
+            zip_ref.extractall(temporary_satellite_data)
     else:
         log.error(f"Could not find satellite data at {satellite_source_file_path}")
 
     # log the timestamps for satellite data
-    ds = xr.open_zarr(satellite_path)
-    log.info(f"Satellite data timestamps: {ds.time.values}")
+    ds = xr.open_zarr(temporary_satellite_data)
+    log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
+
+    # scale
+    ds = ds / 1023
+
+    # save the dataset
+    ds.to_zarr(satellite_path, mode="a")
 
 
-def set_night_time_zeros(batch, preds, sun_elevation_limit=0.0):
+def set_night_time_zeros(batch, preds, t0_idx:int, sun_elevation_limit=0.0):
     """
     Set all predictions to zero for night time values
     """
 
+    log.debug("Setting night time values to zero")
+    # get sun elevation values and if less 0, set to 0
+    key = "solar_elevation"
+
+    sun_elevation = batch[key]
+    if not isinstance(sun_elevation, np.ndarray):
+        sun_elevation = sun_elevation.detach().cpu().numpy()
+
+    # expand dimension from (1,197) to (1,197,7), 7 is due to the number plevels
+    n_plevels = preds.shape[2]
+    sun_elevation = np.repeat(sun_elevation[:, :, np.newaxis], n_plevels, axis=2)
+    # only take future time steps
+    sun_elevation = sun_elevation[:, t0_idx + 1:, :]
+    preds[sun_elevation < sun_elevation_limit] = 0
+
     return preds
-
-    # TODO
-
-    # log.debug("Setting night time values to zero")
-    # # get sun elevation values and if less 0, set to 0
-    # if BatchKey.wind_solar_elevation in batch.keys():
-    #     key = BatchKey.wind_solar_elevation
-    #     t0_key = BatchKey.wind_t0_idx
-    # elif BatchKey.pv_solar_elevation in batch.keys():
-    #     key = BatchKey.pv_solar_elevation
-    #     t0_key = BatchKey.pv_t0_idx
-    # else:
-    #     log.warning(
-    #         f'Could not find "wind_solar_elevation" or "pv_solar_elevation" '
-    #         f"key in {batch.keys()}"
-    #     )
-    #     raise Exception('Could not find "wind_solar_elevation" or "pv_solar_elevation" ')
-    #
-    # sun_elevation = batch[key]
-    # if not isinstance(sun_elevation, np.ndarray):
-    #     sun_elevation = sun_elevation.detach().cpu().numpy()
-    #
-    # # un normalize elevation
-    # # sun_elevation = sun_elevation * ELEVATION_STD + ELEVATION_MEAN
-    #
-    # # expand dimension from (1,197) to (1,197,7), 7 is due to the number plevels
-    # n_plevels = preds.shape[2]
-    # sun_elevation = np.repeat(sun_elevation[:, :, np.newaxis], n_plevels, axis=2)
-    # # only take future time steps
-    # sun_elevation = sun_elevation[:, batch[t0_key] + 1 :, :]
-    # preds[sun_elevation < sun_elevation_limit] = 0
-    #
-    # return preds
 
 
 def save_batch(batch, i: int, model_name, site_uuid, save_batches_dir: Optional[str] = None):

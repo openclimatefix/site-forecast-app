@@ -30,7 +30,7 @@ def test_filter_on_sun_elevation(sites):
     assert filter_generation_df.index[2] == "2023-10-01 20:00"
 
 
-def test_get_generation_data_pv(db_session, sites, generation_db_values, init_timestamp, client_ruvnl):
+def test_get_generation_data_pv(db_session, sites, generation_db_values, init_timestamp):
     """Test for correct generation data"""
 
     # Test only checks for wind data as solar data not ready yet
