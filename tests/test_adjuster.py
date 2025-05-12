@@ -16,9 +16,7 @@ from site_forecast_app.adjuster import (
 def test_get_me_values_no_values(db_session, sites):
     """Check no ME results are found with no forecast or generation values"""
 
-    me_df = get_me_values(
-        db_session, 10, site_uuid=sites[0].site_uuid, ml_model_name="test"
-    )
+    me_df = get_me_values(db_session, 10, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) == 0
 
@@ -27,9 +25,7 @@ def test_get_me_values(db_session, sites, generation_db_values, forecasts):
     """Check ME results are found"""
 
     hour = pd.Timestamp(datetime.now()).hour
-    me_df = get_me_values(
-        db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test"
-    )
+    me_df = get_me_values(db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) != 0
     assert len(me_df) == 97
@@ -73,9 +69,7 @@ def test_get_me_values_no_generation(db_session, sites, forecasts):
     """Check no ME results are found with no generation values"""
 
     hour = pd.Timestamp(datetime.now()).hour
-    me_df = get_me_values(
-        db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test"
-    )
+    me_df = get_me_values(db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) == 0
 
@@ -84,16 +78,12 @@ def test_get_me_values_no_forecasts(db_session, sites, generation_db_values):
     """Check no ME results are found with no generation values"""
 
     hour = pd.Timestamp(datetime.now()).hour
-    me_df = get_me_values(
-        db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test"
-    )
+    me_df = get_me_values(db_session, hour, site_uuid=sites[0].site_uuid, ml_model_name="test")
 
     assert len(me_df) == 0
 
 
-def test_adjust_forecast_with_adjuster(
-    db_session, sites, generation_db_values, forecasts
-):
+def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):
     """Check forecast gets adjuster"""
     forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].site_uuid}
     forecast_values_df = pd.DataFrame(
@@ -101,8 +91,7 @@ def test_adjust_forecast_with_adjuster(
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(hours=i)
-                for i in range(5)
+                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(hours=i) for i in range(5)
             ],
             # Provide initial probabilistic_values
             "probabilistic_values": [
@@ -118,23 +107,23 @@ def test_adjust_forecast_with_adjuster(
     adjusted_forecast_df = adjust_forecast_with_adjuster(
         db_session, forecast_meta, forecast_values_df, ml_model_name="test"
     )
-    
+
     # check that the forecast_values_df has been adjusted for the horizon_minutes=90
     original_p50 = forecast_values_df.loc[
         forecast_values_df["horizon_minutes"] == 1200, "probabilistic_values"
     ].iloc[0]["p50"]
-    
+
     adjusted_p50 = adjusted_forecast_df.loc[
         adjusted_forecast_df["horizon_minutes"] == 1200, "probabilistic_values"
     ].iloc[0]["p50"]
-    
+
     assert adjusted_p50 != original_p50
-    
+
     assert len(adjusted_forecast_df) == 5
-    
+
     assert adjusted_forecast_df["forecast_power_kw"][0:4].sum() == 10.0
     assert adjusted_forecast_df["forecast_power_kw"][4] != 5
-    
+
     # note the way the tests are setup, only the horizon_minutes=90 has some ME values
 
 
@@ -146,8 +135,7 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(f"{i}H")
-                for i in range(0, 5)
+                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(f"{i}H") for i in range(0, 5)
             ],
         }
     )
@@ -168,8 +156,7 @@ def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 05:00:00") + pd.Timedelta(f"{i}H")
-                for i in range(0, 5)
+                pd.Timestamp("2024-11-01 05:00:00") + pd.Timedelta(f"{i}H") for i in range(0, 5)
             ],
         }
     )

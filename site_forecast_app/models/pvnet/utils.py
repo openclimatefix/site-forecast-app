@@ -64,16 +64,22 @@ def populate_data_config_sources(input_path, output_path):
                 nwp_config[nwp_source]["dropout_timedeltas_minutes"] = []
                 nwp_config[nwp_source]["dropout_fraction"] = 0
 
-            nwp_config[nwp_source]["interval_end_minutes"] = nwp_config[nwp_source]["interval_end_minutes"]
+            nwp_config[nwp_source]["interval_end_minutes"] = nwp_config[nwp_source][
+                "interval_end_minutes"
+            ]
 
     if "satellite" in config["input_data"]:
         satellite_config = config["input_data"]["satellite"]
         assert "satellite" in production_paths, "Missing production path: satellite"
         satellite_config["zarr_path"] = production_paths["satellite"]["filepath"]
         if "satellite_image_size_pixels_height" in satellite_config:
-            satellite_config["image_size_pixels_height"] = satellite_config.pop("satellite_image_size_pixels_height")
+            satellite_config["image_size_pixels_height"] = satellite_config.pop(
+                "satellite_image_size_pixels_height"
+            )
         if "satellite_image_size_pixels_width" in satellite_config:
-            satellite_config["image_size_pixels_width"] = satellite_config.pop("satellite_image_size_pixels_width")
+            satellite_config["image_size_pixels_width"] = satellite_config.pop(
+                "satellite_image_size_pixels_width"
+            )
 
         # Remove any hard coding about satellite delay
         if "live_delay_minutes" in satellite_config:
@@ -81,8 +87,8 @@ def populate_data_config_sources(input_path, output_path):
 
     if "site" in config["input_data"]:
         site_config = config["input_data"]["site"]
-        site_config['file_path'] = pv_netcdf_path
-        site_config['metadata_file_path'] = pv_metadata_path
+        site_config["file_path"] = pv_netcdf_path
+        site_config["metadata_file_path"] = pv_metadata_path
 
         # drop site capacity mode for the moment,
         # this will come in a later release of ocf-data-sampler
@@ -141,13 +147,12 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
     fs = fsspec.open(satellite_source_file_path).fs
     if fs.exists(satellite_source_file_path):
         log.info(
-            f"Downloading satellite data from {satellite_source_file_path} "
-            f"to sat_min.zarr.zip"
+            f"Downloading satellite data from {satellite_source_file_path} " f"to sat_min.zarr.zip"
         )
         fs.get(satellite_source_file_path, "sat_min.zarr.zip")
         log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
 
-        with zipfile.ZipFile("sat_min.zarr.zip", 'r') as zip_ref:
+        with zipfile.ZipFile("sat_min.zarr.zip", "r") as zip_ref:
             zip_ref.extractall(temporary_satellite_data)
     else:
         log.error(f"Could not find satellite data at {satellite_source_file_path}")
@@ -163,7 +168,7 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
     ds.to_zarr(satellite_path, mode="a")
 
 
-def set_night_time_zeros(batch, preds, t0_idx:int, sun_elevation_limit=0.0):
+def set_night_time_zeros(batch, preds, t0_idx: int, sun_elevation_limit=0.0):
     """
     Set all predictions to zero for night time values
     """
@@ -180,7 +185,7 @@ def set_night_time_zeros(batch, preds, t0_idx:int, sun_elevation_limit=0.0):
     n_plevels = preds.shape[2]
     sun_elevation = np.repeat(sun_elevation[:, :, np.newaxis], n_plevels, axis=2)
     # only take future time steps
-    sun_elevation = sun_elevation[:, t0_idx + 1:, :]
+    sun_elevation = sun_elevation[:, t0_idx + 1 :, :]
     preds[sun_elevation < sun_elevation_limit] = 0
 
     return preds

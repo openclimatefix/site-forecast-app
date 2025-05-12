@@ -1,5 +1,4 @@
 import datetime as dt
-import os
 import logging
 
 import numpy as np
@@ -10,15 +9,13 @@ from pvsite_datamodel.read import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import SiteAssetType
 from sqlalchemy.orm import Session
 
-
 log = logging.getLogger(__name__)
 
 
 def get_generation_data(
-    db_session: Session, sites: list[SiteSQL], timestamp: dt.datetime
+    db_session: Session, sites: list[SiteSQL], timestamp: dt.datetime,
 ) -> dict[str, pd.DataFrame]:
-    """
-    Gets generation data values for given sites
+    """Gets generation data values for given sites
 
     Args:
             db_session: A SQLAlchemy session
@@ -30,7 +27,6 @@ def get_generation_data(
             - "data": Dataframe containing 15-minutely generation data
             - "metadata": Dataframe containing information about the site
     """
-
     site_uuids = [s.site_uuid for s in sites]
     start = timestamp - dt.timedelta(hours=48)
     # pad by 1 second to ensure get_pv_generation_by_sites returns correct data
@@ -38,16 +34,16 @@ def get_generation_data(
 
     log.info(f"Getting generation data for sites: {site_uuids}, from {start=} to {end=}")
     generation_data = get_pv_generation_by_sites(
-        session=db_session, site_uuids=site_uuids, start_utc=start, end_utc=end
+        session=db_session, site_uuids=site_uuids, start_utc=start, end_utc=end,
     )
     # get the ml id, this only works for one site right now
     system_id = sites[0].ml_id
-    system_id = 0 # TODO
+    system_id = 0  # TODO
 
     if len(generation_data) == 0:
         log.warning("No generation found for the specified sites/period")
         # created empty data frame with dimesion of time_utc
-        generation_xr = pd.DataFrame(columns=['generation_kw']).to_xarray()
+        generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
         # add dimension of site_id
         generation_xr = generation_xr.expand_dims("site_id")
         generation_xr = generation_xr.assign_coords(
@@ -114,10 +110,7 @@ def get_generation_data(
 
     # Site metadata dataframe
     sites_df = pd.DataFrame(
-        [
-            (system_id, s.latitude, s.longitude, s.capacity_kw, 0)
-            for s in sites
-        ],
+        [(system_id, s.latitude, s.longitude, s.capacity_kw, 0) for s in sites],
         columns=["system_id", "latitude", "longitude", "capacity_kwp", "site_id"],
     )
 
@@ -153,7 +146,7 @@ def filter_on_sun_elevation(generation_df, site) -> pd.DataFrame:
             f"Will be dropping {len(dropping_datetimes)} rows "
             f"from generation data: {dropping_datetimes.values} "
             f"due to sun elevation > 5 degrees and generation <= 0.0 kW. "
-            f"This is likely due error in the generation data)"
+            f"This is likely due error in the generation data)",
         )
 
     generation_df = generation_df[~mask]

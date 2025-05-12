@@ -23,6 +23,7 @@ log = logging.getLogger(__name__)
 
 random.seed(42)
 
+
 @pytest.fixture(scope="session")
 def engine():
     """Database engine fixture."""
@@ -148,6 +149,7 @@ def generate_probabilistic_values():
         "p90": round(random.uniform(10000, 15000), 2),
     }
 
+
 @pytest.fixture()
 def forecasts(db_session, sites):
     """Make fake forecasts"""
@@ -180,7 +182,6 @@ def forecasts(db_session, sites):
                 forecast_uuid=forecast_uuid,
                 created_utc=start_times[-1],
                 probabilistic_values=generate_probabilistic_values(),
-                
             )
             forecast_values.append(forecast_value)
 

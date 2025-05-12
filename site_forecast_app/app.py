@@ -1,12 +1,10 @@
-"""
-Main forecast app entrypoint
+"""Main forecast app entrypoint
 """
 
 import datetime as dt
 import logging
 import os
 import sys
-from typing import Optional
 
 import click
 import pandas as pd
@@ -18,10 +16,10 @@ from pvsite_datamodel.write import insert_forecast_values
 from sqlalchemy.orm import Session
 
 import site_forecast_app
+from site_forecast_app import __version__
 from site_forecast_app.adjuster import adjust_forecast_with_adjuster
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
-from site_forecast_app import __version__
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
@@ -37,8 +35,7 @@ sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(db_session: Session) -> list[SiteSQL]:
-    """
-    Gets all available sites in India
+    """Gets all available sites in India
 
     Args:
             db_session: A SQLAlchemy session
@@ -46,7 +43,6 @@ def get_sites(db_session: Session) -> list[SiteSQL]:
     Returns:
             A list of SiteSQL objects
     """
-
     client = os.getenv("CLIENT_NAME", "nl")
     log.info(f"Getting sites for client: {client}")
 
@@ -62,10 +58,9 @@ def get_model(
     hf_repo: str,
     hf_version: str,
     name: str,
-    asset_type: str = "pv"
+    asset_type: str = "pv",
 ) -> PVNetModel:
-    """
-    Instantiates and returns the forecast model ready for running inference
+    """Instantiates and returns the forecast model ready for running inference
 
     Args:
             asset_type: One or "pv" or "wind"
@@ -78,19 +73,15 @@ def get_model(
     Returns:
             A forecasting model
     """
-
     # Only Windnet and PVnet is now used
     model_cls = PVNetModel
 
-    model = model_cls(
-        timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version, name=name
-    )
+    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version, name=name)
     return model
 
 
 def run_model(model, site_id: str, timestamp: dt.datetime):
-    """
-    Runs inference on model for the given site & timestamp
+    """Runs inference on model for the given site & timestamp
 
     Args:
             model: A forecasting model
@@ -100,7 +91,6 @@ def run_model(model, site_id: str, timestamp: dt.datetime):
     Returns:
             A forecast or None if model inference fails
     """
-
     try:
         forecast = model.predict(site_id=site_id, timestamp=timestamp)
     except Exception:
@@ -117,13 +107,12 @@ def save_forecast(
     db_session: Session,
     forecast,
     write_to_db: bool,
-    ml_model_name: Optional[str] = None,
-    ml_model_version: Optional[str] = None,
+    ml_model_name: str | None = None,
+    ml_model_version: str | None = None,
     use_adjuster: bool = True,
-    adjuster_average_minutes: Optional[int] = 60,
+    adjuster_average_minutes: int | None = 60,
 ):
-    """
-    Saves a forecast for a given site & timestamp
+    """Saves a forecast for a given site & timestamp
 
     Args:
             db_session: A SQLAlchemy session
@@ -138,7 +127,6 @@ def save_forecast(
     Raises:
             IOError: An error if database save fails
     """
-
     forecast_meta = {
         "site_uuid": forecast["meta"]["site_id"],
         "timestamp_utc": forecast["meta"]["timestamp"],
@@ -209,16 +197,13 @@ Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
     show_default=True,
 )
 def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str):
+    """Main click function for running forecasts for sites in India
     """
-    Main click function for running forecasts for sites in India
-    """
-
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
 def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info"):
-    """
-    Main function for running forecasts for sites in India
+    """Main function for running forecasts for sites in India
     """
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
@@ -301,7 +286,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
 
         log.info(
             f"Completed forecasts for {successful_runs} runs for "
-            f"{runs} model runs. This was for {len(sites)} sites"
+            f"{runs} model runs. This was for {len(sites)} sites",
         )
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
