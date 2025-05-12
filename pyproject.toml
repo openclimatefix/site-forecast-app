@@ -30,7 +30,8 @@ dependencies = [
 "ocf-data-sampler==0.2.19",
 "pyproj==3.6.0", # 3.7.1 seems to cause an error at the moment
 "pyogrio==0.8.0", # 0.9.0 seems to cause an error at the moment
-"torch==2.2.2",
+    "torchvision==0.17.2",
+    "torch==2.2.2",
 "sentry-sdk==2.1.1",
 "pvlib==0.12.0"
 ]
