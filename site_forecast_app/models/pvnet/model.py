@@ -22,11 +22,11 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 from .consts import (
     nwp_ecmwf_path,
+    root_data_path,
+    satellite_path,
     site_metadata_path,
     site_netcdf_path,
     site_path,
-    root_data_path,
-    satellite_path,
 )
 from .utils import (
     NWPProcessAndCacheConfig,

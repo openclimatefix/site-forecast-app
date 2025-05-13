@@ -15,9 +15,9 @@ from pydantic import BaseModel
 
 from .consts import (
     nwp_ecmwf_path,
+    satellite_path,
     site_metadata_path,
     site_netcdf_path,
-    satellite_path,
 )
 
 log = logging.getLogger(__name__)
