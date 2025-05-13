@@ -22,11 +22,11 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 from .consts import (
     nwp_ecmwf_path,
-    pv_metadata_path,
-    pv_netcdf_path,
-    pv_path,
     root_data_path,
     satellite_path,
+    site_metadata_path,
+    site_netcdf_path,
+    site_path,
 )
 from .utils import (
     NWPProcessAndCacheConfig,
@@ -187,10 +187,10 @@ class PVNetModel:
             shutil.rmtree(satellite_path, ignore_errors=True)
             download_satellite_data(satellite_source_file_path)
 
-        log.info("Preparing PV data sources")
-        # Clear local cached wind data if already exists
-        shutil.rmtree(pv_path, ignore_errors=True)
-        os.mkdir(pv_path)
+        log.info("Preparing Site data sources")
+        # Clear local cached site data if already exists
+        shutil.rmtree(site_path, ignore_errors=True)
+        os.mkdir(site_path)
 
         # Save generation data as netcdf file
         generation_xr = self.generation_data["data"]
@@ -204,10 +204,10 @@ class PVNetModel:
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
         log.info(forecast_timesteps)
 
-        generation_xr.to_netcdf(pv_netcdf_path, engine="h5netcdf")
+        generation_xr.to_netcdf(site_netcdf_path, engine="h5netcdf")
 
         # Save metadata as csv
-        self.generation_data["metadata"].to_csv(pv_metadata_path, index=False)
+        self.generation_data["metadata"].to_csv(site_metadata_path, index=False)
 
     def _get_config(self) -> None:
         """Setup dataloader with prepared data sources."""
