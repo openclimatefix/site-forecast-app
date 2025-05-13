@@ -5,11 +5,11 @@ SRC = site_forecast_app scripts tests
 
 .PHONY: lint
 lint:
-	ruff $(SRC)
+	ruff check $(SRC)
 
 .PHONY: format
 format:
-	ruff --fix $(SRC)
+	ruff check --fix $(SRC)
 
 .PHONY: test
 test:

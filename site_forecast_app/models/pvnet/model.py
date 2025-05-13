@@ -144,16 +144,26 @@ class PVNetModel:
         # remove any negative values
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
 
+        values_df = self.add_probabilistic_values(capacity_kw, normed_preds, values_df)
+
+        return values_df.to_dict("records")
+
+    @staticmethod
+    def add_probabilistic_values(capacity_kw:int, normed_preds: np.array, values_df: pd.DataFrame) \
+            -> pd.DataFrame:
+        """Add probabilistic values to the dataframe."""
         # add 10th and 90th percentage
-        values_df["p10"] = normed_preds[0, :, 1]
-        values_df["p90"] = normed_preds[0, :, 5]
+        values_df["p10"] = normed_preds[0, :, 1] * capacity_kw
+        values_df["p90"] = normed_preds[0, :, 5] * capacity_kw
+        # change to intergers
+        values_df["p10"] = values_df["p10"].astype(int)
+        values_df["p90"] = values_df["p90"].astype(int)
         values_df["probabilistic_values"] = values_df[["p10", "p90"]].apply(
             lambda row: json.dumps(row.to_dict()),
             axis=1,
         )
         values_df.drop(columns=["p10", "p90"], inplace=True)
-
-        return values_df.to_dict("records")
+        return values_df
 
     def _prepare_data_sources(self) -> None:
         """Pull and prepare data sources required for inference."""
