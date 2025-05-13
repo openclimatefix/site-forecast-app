@@ -137,6 +137,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
 
 def download_satellite_data(satellite_source_file_path: str) -> None:
     """Download the sat data."""
+    # TODO make this file temporary
     temporary_satellite_data = "temporary_satellite_data.zarr"
 
     # download satellite data
