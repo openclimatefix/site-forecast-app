@@ -257,9 +257,9 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                 asset_type = ml_model.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")
                 forecast_values = run_model(
-                    model=ml_model, 
+                    model=ml_model,
                     site_uuid=site_uuid,
-                    timestamp=timestamp
+                    timestamp=timestamp,
                 )
 
                 if forecast_values is None:
