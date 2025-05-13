@@ -53,7 +53,7 @@ def get_sites(db_session: Session) -> list[SiteSQL]:
 
 def get_model(
     timestamp: dt.datetime,
-    generation_data: pd.DataFrame,
+    generation_data: dict,
     hf_repo: str,
     hf_version: str,
     name: str,
@@ -78,22 +78,22 @@ def get_model(
     return model
 
 
-def run_model(model:PVNetModel, site_id: str, timestamp: dt.datetime) -> dict | None:
+def run_model(model:PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict | None:
     """Runs inference on model for the given site & timestamp.
 
     Args:
             model: A forecasting model
-            site_id: A specific site ID
+            site_uuid: A specific site uuid
             timestamp: timestamp to run a forecast for
 
     Returns:
             A forecast or None if model inference fails
     """
     try:
-        forecast = model.predict(site_id=site_id, timestamp=timestamp)
+        forecast = model.predict(site_uuid=site_uuid, timestamp=timestamp)
     except Exception:
         log.error(
-            f"Error while running model.predict for site_id={site_id}. Skipping",
+            f"Error while running model.predict for site_uuid={site_uuid}. Skipping",
             exc_info=True,
         )
         return None
@@ -126,7 +126,7 @@ def save_forecast(
             IOError: An error if database save fails
     """
     forecast_meta = {
-        "site_uuid": forecast["meta"]["site_id"],
+        "site_uuid": forecast["meta"]["site_uuid"],
         "timestamp_utc": forecast["meta"]["timestamp"],
         "forecast_version": forecast["meta"]["version"],
     }
@@ -253,19 +253,23 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                 log.info(f"{site} model loaded")
 
                 # 3. Run model for each site
-                site_id = ml_model.site_uuid
+                site_uuid = ml_model.site_uuid
                 asset_type = ml_model.asset_type
-                log.info(f"Running {asset_type} model for site={site_id}...")
-                forecast_values = run_model(model=ml_model, site_id=site_id, timestamp=timestamp)
+                log.info(f"Running {asset_type} model for site={site_uuid}...")
+                forecast_values = run_model(
+                    model=ml_model,
+                    site_uuid=site_uuid,
+                    timestamp=timestamp,
+                )
 
                 if forecast_values is None:
-                    log.info(f"No forecast values for site_id={site_id}")
+                    log.info(f"No forecast values for site_uuid={site_uuid}")
                 else:
                     # 4. Write forecast to DB or stdout
-                    log.info(f"Writing forecast for site_id={site_id}")
+                    log.info(f"Writing forecast for site_uuid={site_uuid}")
                     forecast = {
                         "meta": {
-                            "site_id": site_id,
+                            "site_uuid": site_uuid,
                             "version": version,
                             "timestamp": timestamp,
                         },

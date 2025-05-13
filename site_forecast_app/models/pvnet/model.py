@@ -75,7 +75,7 @@ class PVNetModel:
         self._create_dataloader()
         self.model = self._load_model()
 
-    def predict(self, site_id: str, timestamp: dt.datetime) -> dict:
+    def predict(self, site_uuid: str, timestamp: dt.datetime) -> dict:
         """Make a prediction for the model."""
         capacity_kw = self.generation_data["metadata"].iloc[0]["capacity_kwp"]
 
@@ -90,9 +90,9 @@ class PVNetModel:
             batch = self.dataset.get_sample(t0=sample_t0, site_id=sample_site_id)
             i = 0
 
-            if site_id != sample_site_id:
+            if site_uuid != sample_site_id:
                 log.warning(
-                    f"Site id different from the one in the batch: {site_id} != {sample_site_id}",
+                    f"Site id different from the one in the batch: {site_uuid} != {sample_site_id}",
                 )
 
             if timestamp != sample_t0:
