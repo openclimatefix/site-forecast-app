@@ -15,8 +15,8 @@ from pydantic import BaseModel
 
 from .consts import (
     nwp_ecmwf_path,
-    pv_metadata_path,
-    pv_netcdf_path,
+    site_metadata_path,
+    site_netcdf_path,
     satellite_path,
 )
 
@@ -43,7 +43,7 @@ def populate_data_config_sources(input_path:str, output_path:str) -> dict:
         config = yaml.load(infile, Loader=yaml.FullLoader)  # noqa S506
 
     production_paths = {
-        "pv": {"filename": pv_netcdf_path, "metadata_filename": pv_metadata_path},
+        "pv": {"filename": site_netcdf_path, "metadata_filename": site_metadata_path},
         "nwp": {"ecmwf": nwp_ecmwf_path},
         "satellite": {"filepath": satellite_path},
     }
@@ -85,8 +85,8 @@ def populate_data_config_sources(input_path:str, output_path:str) -> dict:
 
     if "site" in config["input_data"]:
         site_config = config["input_data"]["site"]
-        site_config["file_path"] = pv_netcdf_path
-        site_config["metadata_file_path"] = pv_metadata_path
+        site_config["file_path"] = site_netcdf_path
+        site_config["metadata_file_path"] = site_metadata_path
 
         # drop site capacity mode for the moment,
         # this will come in a later release of ocf-data-sampler
