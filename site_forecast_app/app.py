@@ -33,11 +33,12 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 
-def get_sites(db_session: Session) -> list[SiteSQL]:
+def get_sites(db_session: Session, country: str = 'nl') -> list[SiteSQL]:
     """Gets all available sites.
 
     Args:
             db_session: A SQLAlchemy session
+            country: The country to get sites for
 
     Returns:
             A list of SiteSQL objects
@@ -45,7 +46,7 @@ def get_sites(db_session: Session) -> list[SiteSQL]:
     client = os.getenv("CLIENT_NAME", "nl")
     log.info(f"Getting sites for client: {client}")
 
-    sites = get_sites_by_country(db_session, country="nl", client_name=client)
+    sites = get_sites_by_country(db_session, country=country, client_name=client)
 
     log.info(f"Found {len(sites)} sites for {client} in NL")
     return sites
@@ -217,12 +218,15 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
     # 0. Initialise DB connection
     url = os.environ["DB_URL"]
     db_conn = DatabaseConnection(url, echo=False)
+    country = os.environ.get("COUNTRY", "nl")
+    log.info(f"Country {country}...")
+    log.info(f"write_to_db {write_to_db}...")
 
     with db_conn.get_session() as session:
 
         # 1. Get sites
         log.info("Getting sites...")
-        sites = get_sites(session)
+        sites = get_sites(db_session=session, country=country)
         log.info(f"Found {len(sites)} sites")
 
         # 2. Load data/models
@@ -231,7 +235,10 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
         runs = 0
         for model_config in all_model_configs.models:
 
-            for site in sites:
+            # reduce to only pv or wind, depending on the model
+            sites_for_model = [site for site in sites if site.asset_type.name == model_config.asset_type]
+
+            for site in sites_for_model:
                 runs += 1
 
                 log.info(f"Reading latest historic {site} generation data...")

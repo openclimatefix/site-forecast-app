@@ -22,6 +22,7 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 from .consts import (
     nwp_ecmwf_path,
+    nwp_mo_global_path,
     root_data_path,
     satellite_path,
     site_metadata_path,
@@ -186,6 +187,14 @@ class PVNetModel:
                     source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
                     dest_nwp_path=nwp_ecmwf_path,
                     source="ecmwf",
+                ),
+            )
+        if "mo_global" in nwp_keys:
+            nwp_configs.append(
+                NWPProcessAndCacheConfig(
+                    source_nwp_path=os.environ["NWP_MO_GLOBAL_ZARR_PATH"],
+                    dest_nwp_path=nwp_mo_global_path,
+                    source="mo_global",
                 ),
             )
 

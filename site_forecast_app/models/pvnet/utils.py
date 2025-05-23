@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 from .consts import (
     nwp_ecmwf_path,
+    nwp_mo_global_path,
     satellite_path,
     site_metadata_path,
     site_netcdf_path,
@@ -44,7 +45,7 @@ def populate_data_config_sources(input_path:str, output_path:str) -> dict:
 
     production_paths = {
         "pv": {"filename": site_netcdf_path, "metadata_filename": site_metadata_path},
-        "nwp": {"ecmwf": nwp_ecmwf_path},
+        "nwp": {"ecmwf": nwp_ecmwf_path, "mo_global": nwp_mo_global_path},
         "satellite": {"filepath": satellite_path},
     }
 
