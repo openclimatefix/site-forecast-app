@@ -33,7 +33,7 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 
-def get_sites(db_session: Session, country: str = 'nl') -> list[SiteSQL]:
+def get_sites(db_session: Session, country: str = "nl") -> list[SiteSQL]:
     """Gets all available sites.
 
     Args:
@@ -79,7 +79,7 @@ def get_model(
     return model
 
 
-def run_model(model:PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict | None:
+def run_model(model: PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict | None:
     """Runs inference on model for the given site & timestamp.
 
     Args:
@@ -156,8 +156,6 @@ def save_forecast(
             ml_model_name=ml_model_name,
             average_minutes=adjuster_average_minutes,
         )
-
-        log.info(forecast_values_df_adjust)
 
         if write_to_db:
             insert_forecast_values(
@@ -238,7 +236,9 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
         for model_config in all_model_configs.models:
 
             # reduce to only pv or wind, depending on the model
-            sites_for_model = [site for site in sites if site.asset_type.name == model_config.asset_type]
+            sites_for_model = [
+                site for site in sites if site.asset_type.name == model_config.asset_type
+            ]
 
             for site in sites_for_model:
                 runs += 1
