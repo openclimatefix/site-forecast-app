@@ -40,7 +40,12 @@ def test_get_sites(db_session, sites):
 
 
 def test_get_model(
-    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data,  # noqa: ARG001
+    db_session,
+    sites,
+    nwp_data,
+    generation_db_values,
+    init_timestamp,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for getting valid model"""
 
@@ -62,7 +67,12 @@ def test_get_model(
 
 
 def test_run_model(
-    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data,  # noqa: ARG001
+    db_session,
+    sites,
+    nwp_data,
+    generation_db_values,
+    init_timestamp,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running PV and wind models"""
 
@@ -102,7 +112,11 @@ def test_save_forecast(db_session, sites, forecast_values):
     }
 
     save_forecast(
-        db_session, forecast, write_to_db=True, ml_model_name="test", ml_model_version="0.0.0",
+        db_session,
+        forecast,
+        write_to_db=True,
+        ml_model_name="test",
+        ml_model_version="0.0.0",
     )
 
     assert db_session.query(ForecastSQL).count() == 2
@@ -111,7 +125,9 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 
 @pytest.mark.parametrize("write_to_db", [True, False])
-def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data):  # noqa: ARG001
+def test_app(
+    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data
+):  # noqa: ARG001
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
@@ -140,7 +156,9 @@ def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, sat
 
 
 # TODO might need to add HF TOKEN
-def test_app_ad(db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data):  # noqa: ARG001
+def test_app_ad(
+    db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data  # noqa: ARG001
+):
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()

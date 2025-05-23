@@ -85,7 +85,8 @@ def sites(db_session):
     db_session.add(site)
     sites.append(site)
 
-    # Althought this site is an indai site, we want it to be in the test data so we adjust the lat and lon
+    # Although this site is an indai site,
+    # we want it to be in the test data so we adjust the lat and lon
     site = SiteSQL(
         client_site_id=1,
         client_site_name="test_site_ad",
@@ -167,9 +168,9 @@ def generate_probabilistic_values():
 @pytest.fixture()
 def forecasts(db_session, sites):
     """Make fake forecasts"""
-    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(
-        dt.timedelta(minutes=15)
-    )  # noqa: DTZ005
+    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(  # noqa: DTZ005
+        dt.timedelta(minutes=15),
+    )
 
     n = 24 * 4  # 24 hours of readings of 15
     start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]
