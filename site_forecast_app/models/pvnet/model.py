@@ -215,7 +215,7 @@ class PVNetModel:
         generation_xr = self.generation_data["data"]
 
         forecast_timesteps = pd.date_range(
-            start=self.t0 - pd.Timedelta("52H"),
+            start=self.t0 - pd.Timedelta("52h"),
             periods=4 * 24 * 4.5,
             freq="15min",
         )

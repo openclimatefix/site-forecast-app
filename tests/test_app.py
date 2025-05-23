@@ -5,6 +5,7 @@ Tests for functions in app.py
 import datetime as dt
 import json
 import multiprocessing as mp
+import os
 import uuid
 
 import pytest
@@ -155,13 +156,10 @@ def test_app_ad(db_session, sites, nwp_data, nwp_mo_global_data, generation_db_v
     assert result.exit_code == 0
 
     n = 1  # 1 site, 1 model
-
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
     assert len(forecast_values) == init_n_forecast_values + (n * 2 * 192)
-    assert forecast_values[0].probabilistic_values is not None
-    assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
 
 def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: ARG001

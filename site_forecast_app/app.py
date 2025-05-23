@@ -126,6 +126,8 @@ def save_forecast(
     Raises:
             IOError: An error if database save fails
     """
+    log.info(f"Saving forecast for site_id={forecast['meta']['site_uuid']}...")
+
     forecast_meta = {
         "site_uuid": forecast["meta"]["site_uuid"],
         "timestamp_utc": forecast["meta"]["timestamp"],
