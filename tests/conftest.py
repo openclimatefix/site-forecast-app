@@ -158,16 +158,18 @@ def forecast_values():
 def generate_probabilistic_values():
     """Generate probabilistic values for forecast"""
     return {
-        "p10": round(random.uniform(0, 5000), 2),   # noqa: S311
-        "p50": round(random.uniform(5000, 10000), 2),   # noqa: S311
-        "p90": round(random.uniform(10000, 15000), 2),   # noqa: S311
+        "p10": round(random.uniform(0, 5000), 2),  # noqa: S311
+        "p50": round(random.uniform(5000, 10000), 2),  # noqa: S311
+        "p90": round(random.uniform(10000, 15000), 2),  # noqa: S311
     }
 
 
 @pytest.fixture()
 def forecasts(db_session, sites):
     """Make fake forecasts"""
-    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))   # noqa: DTZ005
+    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(
+        dt.timedelta(minutes=15)
+    )  # noqa: DTZ005
 
     n = 24 * 4  # 24 hours of readings of 15
     start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]
@@ -286,9 +288,7 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
     """Dummy NWP data"""
 
     # Load dataset which only contains coordinates, but no data
-    ds = xr.open_zarr(
-        f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data.zarr"
-    )
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data.zarr")
 
     # Last t0 to at least 4 hours ago and floor to 3-hour interval
     t0_datetime_utc = time_before_present(dt.timedelta(hours=0)).floor("3h")
