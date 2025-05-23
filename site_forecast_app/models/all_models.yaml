@@ -4,7 +4,7 @@ models:
   - name: nl
     type: pvnet
     id: openclimatefix/pvnet_nl
-    version: 941785df8d6e87f01e088f555ea81c400131d440
+    version: 239542ea24439a734d02950d48b8749c863721fa
     client: nl
     asset_type: pv
 
