@@ -154,8 +154,9 @@ class PVNetModel:
             -> pd.DataFrame:
         """Add probabilistic values to the dataframe."""
         # add 10th and 90th percentage
-        values_df["p10"] = normed_preds[0, :, 1] * capacity_kw
-        values_df["p90"] = normed_preds[0, :, 5] * capacity_kw
+        # TODO make dynamic
+        values_df["p10"] = normed_preds[0, :, 0] * capacity_kw
+        values_df["p90"] = normed_preds[0, :, 2] * capacity_kw
         # change to intergers
         values_df["p10"] = values_df["p10"].astype(int)
         values_df["p90"] = values_df["p90"].astype(int)
