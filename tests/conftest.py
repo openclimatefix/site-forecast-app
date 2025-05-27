@@ -75,7 +75,7 @@ def sites(db_session):
     site = SiteSQL(
         client_site_id=1,
         client_site_name="test_site_nl",
-        latitude=52,
+        latitude=51,
         longitude=5,
         capacity_kw=20000,
         ml_id=1,
