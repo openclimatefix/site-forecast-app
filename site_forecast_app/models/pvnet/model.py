@@ -68,6 +68,7 @@ class PVNetModel:
         log.info(f"Model initialised at t0={self.t0}")
 
         self.client = os.getenv("CLIENT_NAME", "nl")
+        self.hf_token = os.getenv("HUGGINGFACE_TOKEN", None)
 
         # Setup the data, dataloader, and model
         self.generation_data = generation_data
@@ -264,4 +265,6 @@ class PVNetModel:
         """Load model."""
         log.info(f"Loading model: {self.id} - {self.version} ({self.name})")
 
-        return PVNetBaseModel.from_pretrained(model_id=self.id, revision=self.version).to(DEVICE)
+        return PVNetBaseModel.from_pretrained(
+            model_id=self.id, revision=self.version, token=self.hf_token
+        ).to(DEVICE)
