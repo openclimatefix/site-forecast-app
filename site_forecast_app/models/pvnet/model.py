@@ -241,7 +241,9 @@ class PVNetModel:
 
         # Pull the data config from huggingface
 
-        data_config_filename = PVNetBaseModel.get_data_config(self.id, revision=self.version)
+        data_config_filename = PVNetBaseModel.get_data_config(
+            self.id, revision=self.version, token=self.hf_token
+        )
 
         # Populate the data config with production data paths
         populated_data_config_filename = "data/data_config.yaml"
@@ -271,5 +273,7 @@ class PVNetModel:
         log.info(f"Loading model: {self.id} - {self.version} ({self.name})")
 
         return PVNetBaseModel.from_pretrained(
-            model_id=self.id, revision=self.version, token=self.hf_token,
+            model_id=self.id,
+            revision=self.version,
+            token=self.hf_token,
         ).to(DEVICE)
