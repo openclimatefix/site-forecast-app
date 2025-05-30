@@ -71,9 +71,9 @@ class PVNetModel:
         self.hf_token = os.getenv("HUGGINGFACE_TOKEN", None)
 
         if self.hf_token is not None:
-            log.info('We are using a Hugging Face token for authentication.')
+            log.info("We are using a Hugging Face token for authentication.")
         else:
-            log.warning('No Hugging Face token provided, using anonymous access.')
+            log.warning("No Hugging Face token provided, using anonymous access.")
 
         # Setup the data, dataloader, and model
         self.generation_data = generation_data
