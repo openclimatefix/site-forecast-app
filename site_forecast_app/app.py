@@ -48,7 +48,7 @@ def get_sites(db_session: Session, country: str = "nl") -> list[SiteSQL]:
 
     sites = get_sites_by_country(db_session, country=country, client_name=client)
 
-    log.info(f"Found {len(sites)} sites for {client} in NL")
+    log.info(f"Found {len(sites)} sites for {client} in {country}")
     return sites
 
 
