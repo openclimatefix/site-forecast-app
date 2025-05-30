@@ -5,6 +5,7 @@ Tests for functions in app.py
 import datetime as dt
 import json
 import multiprocessing as mp
+import os
 import uuid
 
 import pytest
@@ -39,7 +40,12 @@ def test_get_sites(db_session, sites):
 
 
 def test_get_model(
-    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data,  # noqa: ARG001
+    db_session,
+    sites,
+    nwp_data, # noqa: ARG001
+    generation_db_values,  # noqa: ARG001
+    init_timestamp,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for getting valid model"""
 
@@ -61,7 +67,12 @@ def test_get_model(
 
 
 def test_run_model(
-    db_session, sites, nwp_data, generation_db_values, init_timestamp, satellite_data,  # noqa: ARG001
+    db_session,
+    sites,
+    nwp_data,  # noqa: ARG001
+    generation_db_values,  # noqa: ARG001
+    init_timestamp,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running PV and wind models"""
 
@@ -101,7 +112,11 @@ def test_save_forecast(db_session, sites, forecast_values):
     }
 
     save_forecast(
-        db_session, forecast, write_to_db=True, ml_model_name="test", ml_model_version="0.0.0",
+        db_session,
+        forecast,
+        write_to_db=True,
+        ml_model_name="test",
+        ml_model_version="0.0.0",
     )
 
     assert db_session.query(ForecastSQL).count() == 2
@@ -110,7 +125,9 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 
 @pytest.mark.parametrize("write_to_db", [True, False])
-def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data):  # noqa: ARG001
+def test_app(
+    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data,  # noqa: ARG001
+):
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
@@ -138,6 +155,31 @@ def test_app(write_to_db, db_session, sites, nwp_data, generation_db_values, sat
         assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values
 
 
+# TODO might need to add HF TOKEN
+def test_app_ad(
+    db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data,  # noqa: ARG001
+):
+    """Test for running app from command line"""
+
+    init_n_forecasts = db_session.query(ForecastSQL).count()
+    init_n_forecast_values = db_session.query(ForecastValueSQL).count()
+
+    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
+    args.append("--write-to-db")
+
+    os.environ["CLIENT_NAME"] = "ad"
+    os.environ["COUNTRY"] = "india"
+
+    result = run_click_script(app, args)
+    assert result.exit_code == 0
+
+    n = 1  # 1 site, 1 model
+    assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
+    assert db_session.query(MLModelSQL).count() == n * 2
+    forecast_values = db_session.query(ForecastValueSQL).all()
+    assert len(forecast_values) == init_n_forecast_values + (n * 2 * 16)
+
+
 def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: ARG001
     """Test for running app from command line"""
 
@@ -153,4 +195,4 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     n = 1  # 1 site, 1 model
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
-    assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 192)
+    assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 16)
