@@ -242,7 +242,7 @@ class PVNetModel:
         # Pull the data config from huggingface
 
         data_config_filename = PVNetBaseModel.get_data_config(
-            self.id, revision=self.version, token=self.hf_token
+            self.id, revision=self.version, token=self.hf_token,
         )
 
         # Populate the data config with production data paths
