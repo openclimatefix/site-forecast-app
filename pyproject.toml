@@ -20,20 +20,20 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-"click==8.1.7",
-"pvsite-datamodel==1.0.55",
-"pandas==2.2.3",
-"pvnet==4.1.17",
-"pytz==2024.1",
-"numpy==1.26.4",
-"huggingface-hub==0.20.3",
-"ocf-data-sampler==0.2.23",
-"pyproj==3.6.0", # 3.7.1 seems to cause an error at the moment
-"pyogrio==0.8.0", # 0.9.0 seems to cause an error at the moment
-"torchvision==0.17.2",
-"torch==2.2.2",
-"sentry-sdk==2.1.1",
-"pvlib==0.12.0"
+    "click==8.1.7",
+    "pvsite-datamodel==1.0.55",
+    "pandas==2.2.3",
+    "pvnet==4.1.18",
+    "pytz==2024.1",
+    "numpy==1.26.4",
+    "huggingface-hub==0.20.3",
+    "ocf-data-sampler==0.2.23",
+    "pyproj==3.6.0", # 3.7.1 seems to cause an error at the moment
+    "pyogrio==0.8.0", # 0.9.0 seems to cause an error at the moment
+    "torchvision==0.17.2",
+    "torch==2.2.2",
+    "sentry-sdk==2.1.1",
+    "pvlib==0.12.0",
 ]
 
 [dependency-groups]
