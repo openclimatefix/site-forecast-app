@@ -22,6 +22,7 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
 from .consts import (
     nwp_ecmwf_path,
+    nwp_mo_global_path,
     root_data_path,
     satellite_path,
     site_metadata_path,
@@ -67,6 +68,12 @@ class PVNetModel:
         log.info(f"Model initialised at t0={self.t0}")
 
         self.client = os.getenv("CLIENT_NAME", "nl")
+        self.hf_token = os.getenv("HUGGINGFACE_TOKEN", None)
+
+        if self.hf_token is not None:
+            log.info("We are using a Hugging Face token for authentication.")
+        else:
+            log.warning("No Hugging Face token provided, using anonymous access.")
 
         # Setup the data, dataloader, and model
         self.generation_data = generation_data
@@ -153,8 +160,9 @@ class PVNetModel:
             -> pd.DataFrame:
         """Add probabilistic values to the dataframe."""
         # add 10th and 90th percentage
-        values_df["p10"] = normed_preds[0, :, 1] * capacity_kw
-        values_df["p90"] = normed_preds[0, :, 5] * capacity_kw
+        # TODO make dynamic
+        values_df["p10"] = normed_preds[0, :, 0] * capacity_kw
+        values_df["p90"] = normed_preds[0, :, 2] * capacity_kw
         # change to intergers
         values_df["p10"] = values_df["p10"].astype(int)
         values_df["p90"] = values_df["p90"].astype(int)
@@ -188,6 +196,14 @@ class PVNetModel:
                     source="ecmwf",
                 ),
             )
+        if "mo_global" in nwp_keys:
+            nwp_configs.append(
+                NWPProcessAndCacheConfig(
+                    source_nwp_path=os.environ["NWP_MO_GLOBAL_ZARR_PATH"],
+                    dest_nwp_path=nwp_mo_global_path,
+                    source="mo_global",
+                ),
+            )
 
         # Remove local cached zarr if already exists
         for nwp_config in nwp_configs:
@@ -206,7 +222,7 @@ class PVNetModel:
         generation_xr = self.generation_data["data"]
 
         forecast_timesteps = pd.date_range(
-            start=self.t0 - pd.Timedelta("52H"),
+            start=self.t0 - pd.Timedelta("52h"),
             periods=4 * 24 * 4.5,
             freq="15min",
         )
@@ -225,7 +241,9 @@ class PVNetModel:
 
         # Pull the data config from huggingface
 
-        data_config_filename = PVNetBaseModel.get_data_config(self.id, revision=self.version)
+        data_config_filename = PVNetBaseModel.get_data_config(
+            self.id, revision=self.version, token=self.hf_token,
+        )
 
         # Populate the data config with production data paths
         populated_data_config_filename = "data/data_config.yaml"
@@ -254,4 +272,8 @@ class PVNetModel:
         """Load model."""
         log.info(f"Loading model: {self.id} - {self.version} ({self.name})")
 
-        return PVNetBaseModel.from_pretrained(model_id=self.id, revision=self.version).to(DEVICE)
+        return PVNetBaseModel.from_pretrained(
+            model_id=self.id,
+            revision=self.version,
+            token=self.hf_token,
+        ).to(DEVICE)

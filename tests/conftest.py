@@ -85,6 +85,21 @@ def sites(db_session):
     db_session.add(site)
     sites.append(site)
 
+    # Although this site is an india site,
+    # we want it to be in the test data so we adjust the lat and lon
+    site = SiteSQL(
+        client_site_id=1,
+        client_site_name="test_site_ad",
+        latitude=52,
+        longitude=5,
+        capacity_kw=20000,
+        ml_id=1,
+        asset_type="pv",
+        country="india",
+    )
+    db_session.add(site)
+    sites.append(site)
+
     db_session.commit()
 
     return sites
@@ -144,16 +159,18 @@ def forecast_values():
 def generate_probabilistic_values():
     """Generate probabilistic values for forecast"""
     return {
-        "p10": round(random.uniform(0, 5000), 2),   # noqa: S311
-        "p50": round(random.uniform(5000, 10000), 2),   # noqa: S311
-        "p90": round(random.uniform(10000, 15000), 2),   # noqa: S311
+        "p10": round(random.uniform(0, 5000), 2),  # noqa: S311
+        "p50": round(random.uniform(5000, 10000), 2),  # noqa: S311
+        "p90": round(random.uniform(10000, 15000), 2),  # noqa: S311
     }
 
 
 @pytest.fixture()
 def forecasts(db_session, sites):
     """Make fake forecasts"""
-    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))   # noqa: DTZ005
+    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(  # noqa: DTZ005
+        dt.timedelta(minutes=15),
+    )
 
     n = 24 * 4  # 24 hours of readings of 15
     start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]
@@ -265,6 +282,70 @@ def nwp_data(tmp_path_factory, time_before_present):
     temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
     os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
+
+
+@pytest.fixture(scope="session")
+def nwp_mo_global_data(tmp_path_factory, time_before_present):
+    """Dummy NWP data"""
+
+    # Load dataset which only contains coordinates, but no data
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data.zarr")
+
+    # Last t0 to at least 4 hours ago and floor to 3-hour interval
+    t0_datetime_utc = time_before_present(dt.timedelta(hours=0)).floor("3h")
+    t0_datetime_utc = t0_datetime_utc - dt.timedelta(hours=4)
+    ds.init_time.values[:] = pd.date_range(
+        t0_datetime_utc - dt.timedelta(hours=12 * (len(ds.init_time) - 1)),
+        t0_datetime_utc,
+        freq=dt.timedelta(hours=1),
+    )
+
+    # force lat and lon to be in 0.1 steps
+    ds.latitude.values[:] = [65.0 - i * 0.1 for i in range(len(ds.latitude))]
+    ds.longitude.values[:] = [3.0 + i * 0.1 for i in range(len(ds.longitude))]
+
+    # This is important to avoid saving errors
+    for v in list(ds.coords.keys()):
+        if ds.coords[v].dtype == object:
+            ds[v].encoding.clear()
+
+    for v in list(ds.variables.keys()):
+        if ds[v].dtype == object:
+            ds[v].encoding.clear()
+
+    # change variables values to for MO global
+    ds.variable.values[0:14] = [
+        "temperature_sl",
+        "wind_u_component_10m",
+        "wind_v_component_10m",
+        "downward_shortwave_radiation_flux_gl",
+        "cloud_cover_high",
+        "cloud_cover_low",
+        "cloud_cover_medium",
+        "cloud_cover_total",
+        "relative_humidity_sl",
+        "snow_depth_gl",
+        "visibility_sl",
+        "downward_longwave_radiation_flux_gl",
+        "direct_shortwave_radiation_flux_gl",
+        "total_precipitation_rate_gl",
+    ]
+
+    # interpolate 3 hourly step to 1 hour steps
+    steps = pd.TimedeltaIndex(np.arange(49) * 3600 * 1e9, freq="infer")
+    ds = ds.interp(step=steps, method="linear")
+
+    ds["mo_global"] = xr.DataArray(
+        np.zeros([len(ds[c]) for c in ds.xindexes]),
+        coords=[ds[c] for c in ds.xindexes],
+    )
+
+    # AS NWP data is loaded by the app from environment variable,
+    # save out data and set paths as environmental variables
+    temp_nwp_path_gfs = f"{tmp_path_factory.mktemp('data')}/nwp_mo_global.zarr"
+
+    os.environ["NWP_MO_GLOBAL_ZARR_PATH"] = temp_nwp_path_gfs
+    ds.to_zarr(temp_nwp_path_gfs)
 
 
 @pytest.fixture(scope="session")
