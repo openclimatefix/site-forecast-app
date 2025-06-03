@@ -85,7 +85,7 @@ def sites(db_session):
     db_session.add(site)
     sites.append(site)
 
-    # Although this site is an indai site,
+    # Although this site is an india site,
     # we want it to be in the test data so we adjust the lat and lon
     site = SiteSQL(
         client_site_id=1,
