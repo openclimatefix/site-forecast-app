@@ -1,6 +1,7 @@
 """Useful functions for setting up PVNet model."""
 import logging
 import os
+import tempfile
 import zipfile
 from uuid import UUID
 
@@ -138,36 +139,38 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
 
 def download_satellite_data(satellite_source_file_path: str) -> None:
     """Download the sat data."""
-    # TODO make this file temporary
-    temporary_satellite_data = "temporary_satellite_data.zarr"
 
     if os.path.exists(satellite_path):
         log.info(f"File already exists at {satellite_path}")
         return
 
-    # download satellite data
-    fs = fsspec.open(satellite_source_file_path).fs
-    if fs.exists(satellite_source_file_path):
-        log.info(
-            f"Downloading satellite data from {satellite_source_file_path} " f"to sat_min.zarr.zip",
-        )
-        fs.get(satellite_source_file_path, "sat_min.zarr.zip")
-        log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-        with zipfile.ZipFile("sat_min.zarr.zip", "r") as zip_ref:
-            zip_ref.extractall(temporary_satellite_data)
-    else:
-        log.error(f"Could not find satellite data at {satellite_source_file_path}")
+        temporary_satellite_data = f"{tmpdir.name}/temporary_satellite_data.zarr"
 
-    # log the timestamps for satellite data
-    ds = xr.open_zarr(temporary_satellite_data)
-    log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
+        # download satellite data
+        fs = fsspec.open(satellite_source_file_path).fs
+        if fs.exists(satellite_source_file_path):
+            log.info(
+                f"Downloading satellite data from {satellite_source_file_path} " f"to sat_min.zarr.zip",
+            )
+            fs.get(satellite_source_file_path, "sat_min.zarr.zip")
+            log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
 
-    # scale
-    ds = ds / 1023
+            with zipfile.ZipFile("sat_min.zarr.zip", "r") as zip_ref:
+                zip_ref.extractall(temporary_satellite_data)
+        else:
+            log.error(f"Could not find satellite data at {satellite_source_file_path}")
 
-    # save the dataset
-    ds.to_zarr(satellite_path, mode="a")
+        # log the timestamps for satellite data
+        ds = xr.open_zarr(temporary_satellite_data)
+        log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
+
+        # scale
+        ds = ds / 1023
+
+        # save the dataset
+        ds.to_zarr(satellite_path, mode="a")
 
 
 def set_night_time_zeros(
