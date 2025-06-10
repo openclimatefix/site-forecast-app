@@ -156,25 +156,25 @@ class PVNetModel:
         return values_df.to_dict("records")
 
     def add_probabilistic_values(
-        self, capacity_kw: int, normed_preds: np.array, values_df: pd.DataFrame
+        self, capacity_kw: int, normed_preds: np.array, values_df: pd.DataFrame,
     ) -> pd.DataFrame:
         """Add probabilistic values to the dataframe."""
-        if isattr(self.model, "output_quantiles") and self.model.output_quantiles is not None:
+        if hasattr(self.model, "output_quantiles") and self.model.output_quantiles is not None:
             output_quantiles = self.model.output_quantiles
             if 0.1 in output_quantiles and 0.9 in output_quantiles:
                 idx_10 = output_quantiles.index(0.1)
                 idx_90 = output_quantiles.index(0.9)
             else:
                 log.warning(
-                    f"Model output quantiles ({output_quantiles}) do not contain 10th and 90th percentiles, "
-                    "using first and last indices.",
+                    f"Model output quantiles ({output_quantiles}) do not contain ",
+                    "10th and 90th percentiles, using first and last indices.",
                 )
                 idx_10 = 0
                 idx_90 = -1
         else:
             log.warning(
-                f"Model does not contain output quantiles, "
-                f"going to try with using second and penultimate indices.",
+                "Model does not contain output quantiles, ",
+                "going to try with using second and penultimate indices.",
             )
             idx_10 = 1
             idx_90 = 5
