@@ -210,7 +210,6 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"]:
-            shutil.rmtree(satellite_path, ignore_errors=True)
             download_satellite_data(satellite_source_file_path)
 
         log.info("Preparing Site data sources")
