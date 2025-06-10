@@ -100,6 +100,11 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
         if "capacity_mode" in site_config:
             site_config.pop("capacity_mode")
 
+        # remove any dropout timedeltas
+        if "dropout_timedeltas_minutes" in site_config:
+            site_config["dropout_timedeltas_minutes"] = []
+            site_config["dropout_fraction"] = 0
+
     # add solar position
     config["input_data"]["solar_position"] = {}
     for k in ["time_resolution_minutes", "interval_end_minutes", "interval_start_minutes"]:
@@ -150,13 +155,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         for cloud_var in cloud_vars:
             idx = list(ds.variable.values).index(cloud_var)
             ds[name][:, :, idx] = ds[name][:, :, idx] / 100.0
-
-    mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_NAN_TOTAL_CLOUD_COVER", "1") == "1"
-    if nwp_config.source == "mo_global" and mo_global_nan_total_cloud_cover:
-        log.warning("Setting MO Global total cloud cover variables to nans")
-        # In training cloud_cover_total was nans, lets do the same here
-        idx = list(ds.variable.values).index("cloud_cover_total")
-        ds[name][:, :, idx] = np.nan
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")

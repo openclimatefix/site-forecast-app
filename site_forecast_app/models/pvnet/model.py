@@ -113,6 +113,14 @@ class PVNetModel:
             batch = stack_np_samples_into_batch([batch])
             batch = batch_to_tensor(batch)
 
+            # set MO GLOBAL cloud_cover_total to 0
+            mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_NAN_TOTAL_CLOUD_COVER", "1") == "1"
+            if "mo_global" in self.config['input_data']['nwp'] and mo_global_nan_total_cloud_cover:
+                log.warning("Setting MO Global total cloud cover variables to nans")
+                # In training cloud_cover_total were 0, lets do the same here
+                idx = list(batch['nwp']['mo_global']['nwp_channel_names']).index("cloud_cover_total")
+                batch['nwp']['mo_global']['nwp'][:, :, idx] = 0
+
             # save batch
             save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
 
