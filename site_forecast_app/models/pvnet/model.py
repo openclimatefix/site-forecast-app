@@ -155,14 +155,33 @@ class PVNetModel:
 
         return values_df.to_dict("records")
 
-    @staticmethod
-    def add_probabilistic_values(capacity_kw:int, normed_preds: np.array, values_df: pd.DataFrame) \
-            -> pd.DataFrame:
+    def add_probabilistic_values(
+        self, capacity_kw: int, normed_preds: np.array, values_df: pd.DataFrame
+    ) -> pd.DataFrame:
         """Add probabilistic values to the dataframe."""
+        if isattr(self.model, "output_quantiles") and self.model.output_quantiles is not None:
+            output_quantiles = self.model.output_quantiles
+            if 0.1 in output_quantiles and 0.9 in output_quantiles:
+                idx_10 = output_quantiles.index(0.1)
+                idx_90 = output_quantiles.index(0.9)
+            else:
+                log.warning(
+                    f"Model output quantiles ({output_quantiles}) do not contain 10th and 90th percentiles, "
+                    "using first and last indices.",
+                )
+                idx_10 = 0
+                idx_90 = -1
+        else:
+            log.warning(
+                f"Model does not contain output quantiles, "
+                f"going to try with using second and penultimate indices.",
+            )
+            idx_10 = 1
+            idx_90 = 5
+
         # add 10th and 90th percentage
-        # TODO make dynamic
-        values_df["p10"] = normed_preds[0, :, 0] * capacity_kw
-        values_df["p90"] = normed_preds[0, :, 2] * capacity_kw
+        values_df["p10"] = normed_preds[0, :, idx_10] * capacity_kw
+        values_df["p90"] = normed_preds[0, :, idx_90] * capacity_kw
         # change to intergers
         values_df["p10"] = values_df["p10"].astype(int)
         values_df["p90"] = values_df["p90"].astype(int)
@@ -242,7 +261,9 @@ class PVNetModel:
         # Pull the data config from huggingface
 
         data_config_filename = PVNetBaseModel.get_data_config(
-            self.id, revision=self.version, token=self.hf_token,
+            self.id,
+            revision=self.version,
+            token=self.hf_token,
         )
 
         # Populate the data config with production data paths
