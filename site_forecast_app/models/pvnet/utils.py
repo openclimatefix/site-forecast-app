@@ -141,6 +141,10 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
     # TODO make this file temporary
     temporary_satellite_data = "temporary_satellite_data.zarr"
 
+    if os.path.exists(satellite_path):
+        log.info(f"File already exists at {satellite_path}")
+        return
+
     # download satellite data
     fs = fsspec.open(satellite_source_file_path).fs
     if fs.exists(satellite_source_file_path):

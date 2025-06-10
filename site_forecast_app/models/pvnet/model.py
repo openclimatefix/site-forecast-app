@@ -24,7 +24,6 @@ from .consts import (
     nwp_ecmwf_path,
     nwp_mo_global_path,
     root_data_path,
-    satellite_path,
     site_metadata_path,
     site_netcdf_path,
     site_path,
@@ -210,7 +209,6 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"]:
-            shutil.rmtree(satellite_path, ignore_errors=True)
             download_satellite_data(satellite_source_file_path)
 
         log.info("Preparing Site data sources")
