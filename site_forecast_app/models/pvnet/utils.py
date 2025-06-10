@@ -139,7 +139,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
 
 def download_satellite_data(satellite_source_file_path: str) -> None:
     """Download the sat data."""
-
     if os.path.exists(satellite_path):
         log.info(f"File already exists at {satellite_path}")
         return
@@ -152,7 +151,8 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
         fs = fsspec.open(satellite_source_file_path).fs
         if fs.exists(satellite_source_file_path):
             log.info(
-                f"Downloading satellite data from {satellite_source_file_path} " f"to sat_min.zarr.zip",
+                f"Downloading satellite data from {satellite_source_file_path} "
+                "to sat_min.zarr.zip",
             )
             fs.get(satellite_source_file_path, "sat_min.zarr.zip")
             log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
