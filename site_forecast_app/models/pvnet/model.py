@@ -114,12 +114,16 @@ class PVNetModel:
             batch = batch_to_tensor(batch)
 
             # set MO GLOBAL cloud_cover_total to 0
-            mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_NAN_TOTAL_CLOUD_COVER", "1") == "1"
-            if "mo_global" in self.config['input_data']['nwp'] and mo_global_nan_total_cloud_cover:
+            mo_global_nan_total_cloud_cover = (
+                os.getenv("MO_GLOBAL_NAN_TOTAL_CLOUD_COVER", "1") == "1"
+            )
+            if "mo_global" in self.config["input_data"]["nwp"] and mo_global_nan_total_cloud_cover:
                 log.warning("Setting MO Global total cloud cover variables to nans")
                 # In training cloud_cover_total were 0, lets do the same here
-                idx = list(batch['nwp']['mo_global']['nwp_channel_names']).index("cloud_cover_total")
-                batch['nwp']['mo_global']['nwp'][:, :, idx] = 0
+                channels = list(batch["nwp"]["mo_global"]["nwp_channel_names"])
+                idx = channels.index("cloud_cover_total")
+
+                batch["nwp"]["mo_global"]["nwp"][:, :, idx] = 0
 
             # save batch
             save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
@@ -163,7 +167,10 @@ class PVNetModel:
         return values_df.to_dict("records")
 
     def add_probabilistic_values(
-        self, capacity_kw: int, normed_preds: np.array, values_df: pd.DataFrame,
+        self,
+        capacity_kw: int,
+        normed_preds: np.array,
+        values_df: pd.DataFrame,
     ) -> pd.DataFrame:
         """Add probabilistic values to the dataframe."""
         if hasattr(self.model, "output_quantiles") and self.model.output_quantiles is not None:
