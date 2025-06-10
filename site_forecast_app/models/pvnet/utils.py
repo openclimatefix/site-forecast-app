@@ -34,7 +34,7 @@ class NWPProcessAndCacheConfig(BaseModel):
     config: NWP | None = None
 
 
-def populate_data_config_sources(input_path:str, output_path:str) -> dict:
+def populate_data_config_sources(input_path: str, output_path: str) -> dict:
     """Re-save the data config and replace the source filepaths.
 
     Args:
@@ -85,6 +85,11 @@ def populate_data_config_sources(input_path:str, output_path:str) -> dict:
         if "live_delay_minutes" in satellite_config:
             satellite_config.pop("live_delay_minutes")
 
+        # remove any dropout timedeltas
+        if "dropout_timedeltas_minutes" in satellite_config:
+            satellite_config["dropout_timedeltas_minutes"] = []
+            satellite_config["dropout_fraction"] = 0
+
     if "site" in config["input_data"]:
         site_config = config["input_data"]["site"]
         site_config["file_path"] = site_netcdf_path
@@ -94,6 +99,11 @@ def populate_data_config_sources(input_path:str, output_path:str) -> dict:
         # this will come in a later release of ocf-data-sampler
         if "capacity_mode" in site_config:
             site_config.pop("capacity_mode")
+
+        # remove any dropout timedeltas
+        if "dropout_timedeltas_minutes" in site_config:
+            site_config["dropout_timedeltas_minutes"] = []
+            site_config["dropout_fraction"] = 0
 
     # add solar position
     config["input_data"]["solar_position"] = {}
@@ -131,6 +141,20 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     for v in list(ds.variables.keys()):
         if ds[v].dtype == object:
             ds[v].encoding.clear()
+
+    name = next(iter(ds.data_vars))
+    scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
+    if nwp_config.source == "mo_global" and scale_mo_global_clouds:
+        log.warning("Scaling MO Global cloud variables by from 0-100 to 0-1")
+
+        cloud_vars = [
+            "cloud_cover_high",
+            "cloud_cover_low",
+            "cloud_cover_medium",
+        ]
+        for cloud_var in cloud_vars:
+            idx = list(ds.variable.values).index(cloud_var)
+            ds[name][:, :, idx] = ds[name][:, :, idx] / 100.0
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
@@ -174,7 +198,10 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
 
 
 def set_night_time_zeros(
-    batch: dict, preds: torch.Tensor, t0_idx: int, sun_elevation_limit: float = 0.0,
+    batch: dict,
+    preds: torch.Tensor,
+    t0_idx: int,
+    sun_elevation_limit: float = 0.0,
 ) -> torch.Tensor:
     """Set all predictions to zero for night time values."""
     log.debug("Setting night time values to zero")

@@ -155,7 +155,6 @@ def test_app(
         assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values
 
 
-# TODO might need to add HF TOKEN
 def test_app_ad(
     db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data,  # noqa: ARG001
 ):
