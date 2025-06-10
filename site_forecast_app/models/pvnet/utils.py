@@ -85,6 +85,11 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
         if "live_delay_minutes" in satellite_config:
             satellite_config.pop("live_delay_minutes")
 
+        # remove any dropout timedeltas
+        if "dropout_timedeltas_minutes" in satellite_config:
+            satellite_config["dropout_timedeltas_minutes"] = []
+            satellite_config["dropout_fraction"] = 0
+
     if "site" in config["input_data"]:
         site_config = config["input_data"]["site"]
         site_config["file_path"] = site_netcdf_path
