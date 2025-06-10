@@ -145,7 +145,7 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
 
     with tempfile.TemporaryDirectory() as tmpdir:
 
-        temporary_satellite_data = f"{tmpdir.name}/temporary_satellite_data.zarr"
+        temporary_satellite_data = f"{tmpdir}/temporary_satellite_data.zarr"
 
         # download satellite data
         fs = fsspec.open(satellite_source_file_path).fs
