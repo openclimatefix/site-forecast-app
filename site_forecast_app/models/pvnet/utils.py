@@ -136,6 +136,8 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     if nwp_config.source == "mo_global" and scale_mo_global_clouds:
         log.warning("Scaling MO Global cloud variables by from 0-100 to 0-1")
 
+        name = list(ds.data_vars)[0]
+
         cloud_vars = [
             "cloud_cover_high",
             "cloud_cover_low",
@@ -143,7 +145,15 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         ]
         for cloud_var in cloud_vars:
             idx = list(ds.variable.values).index(cloud_var)
-            ds["um-global_india"][:, :, idx] = ds["um-global_india"][:, :, idx] / 100.0
+            ds[name][:, :, idx] = ds[name][:, :, idx] / 100.0
+
+    mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_NAN_TOTAL_CLOUD_COVER", "1") == "1"
+    if nwp_config.source == "mo_global" and mo_global_nan_total_cloud_cover:
+        log.warning("Setting MO Global total cloud cover variables to nans")
+        # In training cloud_cover_total was nans, lets do the same here
+        name = list(ds.data_vars)[0]
+        idx = list(ds.variable.values).index("cloud_cover_total")
+        ds[name][:, :, idx] = np.nan
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
