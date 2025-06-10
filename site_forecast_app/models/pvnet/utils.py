@@ -34,7 +34,7 @@ class NWPProcessAndCacheConfig(BaseModel):
     config: NWP | None = None
 
 
-def populate_data_config_sources(input_path:str, output_path:str) -> dict:
+def populate_data_config_sources(input_path: str, output_path: str) -> dict:
     """Re-save the data config and replace the source filepaths.
 
     Args:
@@ -132,6 +132,19 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         if ds[v].dtype == object:
             ds[v].encoding.clear()
 
+    scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
+    if nwp_config.source == "mo_global" and scale_mo_global_clouds:
+        log.warning("Scaling MO Global cloud variables by from 0-100 to 0-1")
+
+        cloud_vars = [
+            "cloud_cover_high",
+            "cloud_cover_low",
+            "cloud_cover_medium",
+        ]
+        for cloud_var in cloud_vars:
+            idx = list(ds.variable.values).index(cloud_var)
+            ds["um-global_india"][:, :, idx] = ds["um-global_india"][:, :, idx] / 100.0
+
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
     ds.to_zarr(dest_nwp_path, mode="a")
@@ -174,7 +187,10 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
 
 
 def set_night_time_zeros(
-    batch: dict, preds: torch.Tensor, t0_idx: int, sun_elevation_limit: float = 0.0,
+    batch: dict,
+    preds: torch.Tensor,
+    t0_idx: int,
+    sun_elevation_limit: float = 0.0,
 ) -> torch.Tensor:
     """Set all predictions to zero for night time values."""
     log.debug("Setting night time values to zero")
