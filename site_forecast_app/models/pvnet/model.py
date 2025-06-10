@@ -115,7 +115,7 @@ class PVNetModel:
 
             # set MO GLOBAL cloud_cover_total to 0
             mo_global_nan_total_cloud_cover = (
-                os.getenv("MO_GLOBAL_NAN_TOTAL_CLOUD_COVER", "1") == "1"
+                os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
             )
             if "mo_global" in self.config["input_data"]["nwp"] and mo_global_nan_total_cloud_cover:
                 log.warning("Setting MO Global total cloud cover variables to nans")
