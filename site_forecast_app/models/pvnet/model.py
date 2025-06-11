@@ -108,7 +108,8 @@ class PVNetModel:
 
             if timestamp != sample_t0:
                 log.warning(
-                    f"Timestamp different from the one in the batch: {timestamp} != {sample_t0} (batch)",
+                    "Timestamp different from the one in the batch: "
+                    f"{timestamp} != {sample_t0} (batch)",
                 )
 
             # for i, batch in enumerate(self.dataloader):
@@ -152,7 +153,8 @@ class PVNetModel:
         )
 
         # horrible fix for one model
-        if self.id == "openclimatefix/pvnet_nl" and self.version == "35083ac4bd7da6ae9e54367ee91993a10a5686ff":
+        if self.id == "openclimatefix/pvnet_nl" \
+                and self.version == "35083ac4bd7da6ae9e54367ee91993a10a5686ff":
             valid_times += pd.Timedelta("12 hours")
 
         # index of the 50th percentile, assumed number of p values odd and in order
