@@ -77,9 +77,14 @@ class PVNetModel:
         # Setup the data, dataloader, and model
         self.generation_data = generation_data
         self._get_config()
-        self._prepare_data_sources()
-        self._create_dataloader()
-        self.model = self._load_model()
+
+        try:
+            self._prepare_data_sources()
+            self._create_dataloader()
+            self.model = self._load_model()
+        except Exception as e:
+            log.exception("Failed to prepare data sources or load model.")
+            log.exception(f"Error: {e}")
 
     def predict(self, site_uuid: str, timestamp: dt.datetime) -> dict:
         """Make a prediction for the model."""
@@ -145,6 +150,10 @@ class PVNetModel:
         valid_times = pd.to_datetime(
             [sample_t0 + dt.timedelta(minutes=15 * i) for i in range(n_times)],
         )
+
+        # horrible fix for one model
+        if self.id == "openclimatefix/pvnet_nl" and self.version == "35083ac4bd7da6ae9e54367ee91993a10a5686ff":
+            valid_times += pd.Timedelta("12 hours")
 
         # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
