@@ -103,7 +103,7 @@ class PVNetModel:
 
             if timestamp != sample_t0:
                 log.warning(
-                    f"Timestamp different from the one in the batch: {timestamp} != {sample_t0}",
+                    f"Timestamp different from the one in the batch: {timestamp} != {sample_t0} (batch)",
                 )
 
             # for i, batch in enumerate(self.dataloader):
