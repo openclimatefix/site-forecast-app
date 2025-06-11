@@ -140,13 +140,17 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 1  # 1 site, 1 model
+    n = 2  # 1 site, 2 model
+    # 1 model does 48 hours
+    # 1 model does 36 hours
+    # average number of forecast is 42
+    n_fv = 42*4
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
         assert db_session.query(MLModelSQL).count() == n * 2
         forecast_values = db_session.query(ForecastValueSQL).all()
-        assert len(forecast_values) == init_n_forecast_values + (n * 2 * 192)
+        assert len(forecast_values) == init_n_forecast_values + (n * 2 * n_fv)
         assert forecast_values[0].probabilistic_values is not None
         assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
