@@ -150,7 +150,7 @@ def test_app(
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
         assert db_session.query(MLModelSQL).count() == n * 2
         forecast_values = db_session.query(ForecastValueSQL).all()
-        assert len(forecast_values) == init_n_forecast_values + (n * 2 * 168)
+        assert len(forecast_values) == init_n_forecast_values + (n * 2 * n_fv)
         assert forecast_values[0].probabilistic_values is not None
         assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
