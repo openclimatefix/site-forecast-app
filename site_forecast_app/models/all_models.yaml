@@ -7,6 +7,7 @@ models:
     version: ec0a150563707745b6e88bd5b2f9293dedcf1bfe
     client: nl
     asset_type: pv
+    # This NL 36 models is a bit broken, it predicts 12 to 48 hours ahead
   - name: nl_36
     type: pvnet
     id: openclimatefix/pvnet_nl
