@@ -1,10 +1,10 @@
 # Here we define all the models that are available in the app
 models:
-  # NL solar
+  # NL solar 48 hour model
   - name: nl
     type: pvnet
     id: openclimatefix/pvnet_nl
-    version: ec0a150563707745b6e88bd5b2f9293dedcf1bfe
+    version: 9ebb76d6497d3f0e53607e99b8ffe33679259464
     client: nl
     asset_type: pv
     # This NL 36 models is a bit broken, it predicts 12 to 48 hours ahead

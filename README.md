@@ -15,6 +15,8 @@ We use ECMWF data and live generation values, to predict 48 hours into the futur
 We are currently running one PVnet model, a Netherlands Solar model.
 The configuration is stored [here](https://huggingface.co/openclimatefix/pvnet_nl)
 
+Also we are running a India Solar model. 
+
 ### Adjuster
 
 The Adjuster model improves forecast accuracy by learning from recent prediction errors. Here's how it works:
@@ -39,6 +41,23 @@ This approach significantly reduces systematic errors and improves overall forec
 | Fixed model behavior | Adapts to changing conditions |
 | Higher overall error | Reduced forecast error |
 
+
+## Enviornemtnal variables
+
+The following environment variables are required to run the app:
+- `DB_URL`: The database connection string to connect to the database
+- `NWP_ECMWF_ZARR_PATH`: The path to the ECWMF NWP zarr file, this can be a local path or a remote path
+- `NWP_MO_GLOBAL_ZARR_PATH`: The path to the Met Office NWP zarr file, this can be a local path or a remote path
+- `SATELLITE_ZARR_PATH`: The path to the satellite zarr file, this can be a local path or a remote path
+- `SAVE_BATCHES_DIR`: The directory to save the batches to, this is required to save the batches of data that are processed by the app- `SAVE_BATCHES_DIR`: The directory to save the batches to, this is required to save the batches of data that are processed by the app
+- `HUGGINGFACE_TOKEN`: Token used for private models
+- `COUNTRY`: Can be `nl` for Netherlands, or `india` for India. 
+- `CLIENT_NAME`: The name of the client, this is used to the sites that should be run
+
+Here are some temporary ones
+- `MO_GLOBAL_SCALE_CLOUDS`: The scale factor for the Met Office global clouds, this is used to scale the clouds in the Met Office NWP data
+- `EXPAND_ECMWF`: Whether to expand the ECMWF NWP data, this is used to expand the NWP data to the required size for the model
+- `MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER`: Whether to set the total cloud cover to zero in the Met Office global NWP data, this is used to set the total cloud cover to zero in the Met Office global NWP data
 
 ## Linting and formatting
 
