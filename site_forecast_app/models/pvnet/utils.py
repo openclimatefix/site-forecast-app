@@ -184,10 +184,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
             ds = xr.concat([ds, new_lower_lat], dim="latitude")
             ds = ds.chunk(chunks)
 
-        log.info(
-            "Done Expanding ECMWF data by 6 hours into the future "
-            "and adding an extra 0.5 degree at the bottom"
-        )
+        log.info("Done Expanding ECMWF")
 
         for var in ds:
             del ds[var].encoding["chunks"]
