@@ -182,12 +182,13 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
             new_lower_lat = ds.sel(latitude=ds.latitude.values[-1])
             new_lower_lat.__setitem__("latitude", ds.latitude.values[-1] - 0.1)
             ds = xr.concat([ds, new_lower_lat], dim="latitude")
+            ds = ds.chunk({"init_time": 1, "step": 1, "latitude": -1, "longitude": -1, "variable": 1})
 
-        ds = ds.chunk({"init_time": 1, "step": 1, "latitude": -1, "longitude": -1, "variable": 1})
-        log.info(
-            "Done Expanding ECMWF data by 6 hours into the future ",
-            "and adding an extra 0.5 degree at the bottom",
-        )
+        log.info("Done Expanding ECMWF data by 6 hours into the future "
+                 "and adding an extra 0.5 degree at the bottom")
+
+        for var in ds:
+            del ds[var].encoding['chunks']
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
