@@ -188,7 +188,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
                  "and adding an extra 0.5 degree at the bottom")
 
         for var in ds:
-            del ds[var].encoding['chunks']
+            del ds[var].encoding["chunks"]
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
