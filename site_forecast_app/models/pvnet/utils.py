@@ -163,17 +163,17 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         log.info(
             "Expanding ECMWF data by 6 hours into the future and adding an extra 0.5 degree down",
         )
-
+        chunks = {"init_time": 1, "step": 1, "latitude": -1, "longitude": -1, "variable": 1}
         # expand time by 6 hours
         for _ in range(6):
             new_step_value = ds.step.values[-1] + 3600000000000
             new_step = ds.interp(
-                step=new_step_value, method="linear", kwargs={"fill_value": "extrapolate"},
+                step=new_step_value,
+                method="linear",
+                kwargs={"fill_value": "extrapolate"},
             )
             ds = xr.concat([ds, new_step], dim="step")
-            ds = ds.chunk(
-                {"init_time": 1, "step": 1, "latitude": -1, "longitude": -1, "variable": 1},
-            )
+            ds = ds.chunk(chunks)
 
         log.info("Done extending by time, now extending by latitude")
         # expand by 0.5 degree down
@@ -182,10 +182,12 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
             new_lower_lat = ds.sel(latitude=ds.latitude.values[-1])
             new_lower_lat.__setitem__("latitude", ds.latitude.values[-1] - 0.1)
             ds = xr.concat([ds, new_lower_lat], dim="latitude")
-            ds = ds.chunk({"init_time": 1, "step": 1, "latitude": -1, "longitude": -1, "variable": 1})
+            ds = ds.chunk(chunks)
 
-        log.info("Done Expanding ECMWF data by 6 hours into the future "
-                 "and adding an extra 0.5 degree at the bottom")
+        log.info(
+            "Done Expanding ECMWF data by 6 hours into the future "
+            "and adding an extra 0.5 degree at the bottom"
+        )
 
         for var in ds:
             del ds[var].encoding["chunks"]
