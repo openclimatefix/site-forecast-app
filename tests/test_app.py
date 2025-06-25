@@ -144,7 +144,7 @@ def test_app(
     # 1 model does 48 hours
     # 2 model does 36 hours
     # average number of forecast is 38
-    n_fv = 38*4
+    n_fv = 40*4
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
