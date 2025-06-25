@@ -140,7 +140,7 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 2  # 1 site, 3 model
+    n = 3  # 1 site, 3 model
     # 1 model does 48 hours
     # 2 model does 36 hours
     # average number of forecast is 38
