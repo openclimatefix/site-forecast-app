@@ -14,6 +14,13 @@ models:
     version: 35083ac4bd7da6ae9e54367ee91993a10a5686ff
     client: nl
     asset_type: pv
+    # NL model that include site history in the fushion layer
+  - name: nl_36_simple_site
+    type: pvnet
+    id: openclimatefix/pvnet_nl
+    version: 246b434b72c68edbbc13f1e5fc74e7699034aede
+    client: nl
+    asset_type: pv
   - name: pvnet_ad_sites_satellite_2_nwp
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
