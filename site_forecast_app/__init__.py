@@ -1,2 +1,12 @@
 """Site Forecast App."""
-__version__ = "0.0.1"
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    # For Python < 3.8
+    from importlib_metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("pvnet-app")
+except PackageNotFoundError:
+    __version__ = "v?"
+
