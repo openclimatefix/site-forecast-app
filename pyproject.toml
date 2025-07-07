@@ -31,7 +31,10 @@ dependencies = [
     "pyproj==3.6.0", # 3.7.1 seems to cause an error at the moment
     "pyogrio==0.8.0", # 0.9.0 seems to cause an error at the moment
     "torchvision==0.17.2",
-    "torch==2.2.2",
+    "torch @ https://download.pytorch.org/whl/cpu/torch-2.3.1-cp312-none-macosx_11_0_arm64.whl ; platform_system == 'Darwin' and platform_machine == 'arm64'",
+    "torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.18.1-cp312-cp312-macosx_11_0_arm64.whl ; platform_system == 'Darwin' and platform_machine == 'arm64'",
+    "torch @ https://download.pytorch.org/whl/cpu/torch-2.3.1%2Bcpu-cp312-cp312-linux_x86_64.whl ; platform_system == 'Linux' and platform_machine == 'x86_64'",
+    "torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.18.1%2Bcpu-cp312-cp312-linux_x86_64.whl ; platform_system == 'Linux' and platform_machine == 'x86_64'",
     "sentry-sdk==2.1.1",
     "pvlib==0.12.0",
 ]
