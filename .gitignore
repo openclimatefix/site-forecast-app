@@ -1,2 +1,4 @@
 /data/
 /site_forecast_app.egg-info/
+build/
+venv/
