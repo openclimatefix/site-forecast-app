@@ -107,9 +107,11 @@ class PVNetModel:
                 )
 
             if timestamp != sample_t0:
+                sample_t0s = set([sample.t0 for sample in samples])
                 log.warning(
                     "Timestamp different from the one in the batch: "
-                    f"{timestamp} != {sample_t0} (batch)",
+                    f"{timestamp} != {sample_t0} (batch)"
+                    f"The other timestamps are: {sample_t0s}",
                 )
 
             # for i, batch in enumerate(self.dataloader):
@@ -151,11 +153,6 @@ class PVNetModel:
         valid_times = pd.to_datetime(
             [sample_t0 + dt.timedelta(minutes=15 * i) for i in range(n_times)],
         )
-
-        # horrible fix for one model
-        if self.id == "openclimatefix/pvnet_nl" \
-                and self.version == "35083ac4bd7da6ae9e54367ee91993a10a5686ff":
-            valid_times += pd.Timedelta("12 hours")
 
         # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
