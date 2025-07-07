@@ -95,7 +95,7 @@ class PVNetModel:
 
             # note this only running ones site
             samples = self.dataset.valid_t0_and_site_ids
-            samples_with_same_t0 = samples[samples['t0'] == timestamp]
+            samples_with_same_t0 = samples[samples["t0"] == timestamp]
 
             if len(samples_with_same_t0) == 0:
 
@@ -117,14 +117,6 @@ class PVNetModel:
             if site_uuid != sample_site_id:
                 log.warning(
                     f"Site id different from the one in the batch: {site_uuid} != {sample_site_id}",
-                )
-
-            if timestamp != sample_t0:
-                sample_t0s = set([sample.t0 for sample in samples])
-                log.warning(
-                    "Timestamp different from the one in the batch: "
-                    f"{timestamp} != {sample_t0} (batch)"
-                    f"The other timestamps are: {samples['t0'].unique()}",
                 )
 
             # for i, batch in enumerate(self.dataloader):
