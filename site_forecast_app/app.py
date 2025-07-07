@@ -5,7 +5,7 @@ import logging
 import os
 import sys
 
-import click
+import typer
 import pandas as pd
 import sentry_sdk
 from pvsite_datamodel import DatabaseConnection
@@ -172,30 +172,13 @@ def save_forecast(
     log.info(output.replace("  ", ""))
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
-
-@click.command()
-@click.option(
-    "--date",
-    "-d",
-    "timestamp",
-    type=click.DateTime(formats=["%Y-%m-%d-%H-%M"]),
-    default=None,
-    help='Date-time (UTC) at which we make the prediction. \
-Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
-)
-@click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database.",
-)
-@click.option(
+def app(timestamp: dt.datetime | None = typer.Option(None,"--date", "-d", formats=["%Y-%m-%d-%H-%M"],  help='Date-time (UTC) at which we make the prediction. \
+Format should be YYYY-MM-DD-HH-mm. Defaults to "now".'), write_to_db: bool = typer.Option(False,"--write-to-db",help="Set this flag to actually write the results to the database.")
+    , log_level: str = typer.Option("info",
     "--log-level",
-    default="info",
     help="Set the python logging log level",
     show_default=True,
-)
-def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> None:
+)) -> None:
     """Main click function for running forecasts for sites."""
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
@@ -309,4 +292,5 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
 
 
 if __name__ == "__main__":
-    app()
+    typer.run(app)
+
