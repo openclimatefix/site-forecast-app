@@ -93,10 +93,23 @@ class PVNetModel:
         normed_preds = []
         with torch.no_grad():
 
-            # note this only running ones site, and the latest timestamp
+            # note this only running ones site
             samples = self.dataset.valid_t0_and_site_ids
-            sample_t0 = samples.iloc[-1].t0
-            sample_site_id = samples.iloc[-1].site_id
+            samples_with_same_t0 = samples[samples["t0"] == timestamp]
+
+            if len(samples_with_same_t0) == 0:
+
+                sample_t0 = samples.iloc[-1].t0
+                sample_site_id = samples.iloc[-1].site_id
+
+                log.warning(
+                    "Timestamp different from the one in the batch: "
+                    f"{timestamp} != {sample_t0} (batch)"
+                    f"The other timestamps are: {samples['t0'].unique()}",
+                )
+            else:
+                sample_t0 = samples_with_same_t0.iloc[0].t0
+                sample_site_id = samples_with_same_t0.iloc[0].site_id
 
             batch = self.dataset.get_sample(t0=sample_t0, site_id=sample_site_id)
             i = 0
@@ -104,12 +117,6 @@ class PVNetModel:
             if site_uuid != sample_site_id:
                 log.warning(
                     f"Site id different from the one in the batch: {site_uuid} != {sample_site_id}",
-                )
-
-            if timestamp != sample_t0:
-                log.warning(
-                    "Timestamp different from the one in the batch: "
-                    f"{timestamp} != {sample_t0} (batch)",
                 )
 
             # for i, batch in enumerate(self.dataloader):
@@ -151,11 +158,6 @@ class PVNetModel:
         valid_times = pd.to_datetime(
             [sample_t0 + dt.timedelta(minutes=15 * i) for i in range(n_times)],
         )
-
-        # horrible fix for one model
-        if self.id == "openclimatefix/pvnet_nl" \
-                and self.version == "35083ac4bd7da6ae9e54367ee91993a10a5686ff":
-            valid_times += pd.Timedelta("12 hours")
 
         # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
