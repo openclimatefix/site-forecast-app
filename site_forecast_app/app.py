@@ -179,7 +179,7 @@ Format should be YYYY-MM-DD-HH-mm. Defaults to "now".'), write_to_db: bool = typ
     help="Set the python logging log level",
     show_default=True,
 )) -> None:
-    """Main click function for running forecasts for sites."""
+    """Main typer function for running forecasts for sites."""
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
