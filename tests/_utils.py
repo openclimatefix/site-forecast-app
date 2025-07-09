@@ -1,6 +1,6 @@
 """Testing utils."""
 
-from click.testing import CliRunner
+from typer.testing import CliRunner
 
 
 def run_typer_script(func, args: list[str], catch_exceptions: bool = False):
