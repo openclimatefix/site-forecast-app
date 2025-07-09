@@ -8,14 +8,14 @@ Runs the site forecast for PVnet, and saves to a database
 ## The model
 
 The ML model is from [PVnet](https://github.com/openclimatefix/PVNet) and uses [ocf_data_sampler](https://github.com/openclimatefix/ocf-data-sampler) for the data processing
-We use ECMWF data and live generation values, to predict 48 hours into the future. 
+We use ECMWF data and live generation values, to predict 48 hours into the future.
 
 ### PV
 
 We are currently running one PVnet model, a Netherlands Solar model.
 The configuration is stored [here](https://huggingface.co/openclimatefix/pvnet_nl)
 
-Also we are running a India Solar model. 
+Also we are running a India Site Solar model. 
 
 ### Adjuster
 
