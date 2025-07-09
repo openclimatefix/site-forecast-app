@@ -20,6 +20,7 @@ from site_forecast_app.adjuster import adjust_forecast_with_adjuster
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 
+typer_app = typer.Typer()
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
 
@@ -171,9 +172,11 @@ def save_forecast(
                version={forecast_meta["forecast_version"]}:'
     log.info(output.replace("  ", ""))
     log.info(f"\n{forecast_values_df.to_string()}\n")
-
-def app(timestamp: dt.datetime | None = typer.Option(None,"--date", "-d", formats=["%Y-%m-%d-%H-%M"],  help='Date-time (UTC) at which we make the prediction. \
-Format should be YYYY-MM-DD-HH-mm. Defaults to "now".'), write_to_db: bool = typer.Option(False,"--write-to-db",help="Set this flag to actually write the results to the database.")
+@typer_app.command()
+def app(timestamp: dt.datetime | None = 
+        typer.Option(None,"--date", "-d", formats=["%Y-%m-%d-%H-%M"],  help='Date-time (UTC) at which we make the prediction. \
+        Format should be YYYY-MM-DD-HH-mm. Defaults to "now".'), 
+        write_to_db: bool = typer.Option(False,"--write-to-db",help="Set this flag to actually write the results to the database.")
     , log_level: str = typer.Option("info",
     "--log-level",
     help="Set the python logging log level",
@@ -292,5 +295,5 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
 
 
 if __name__ == "__main__":
-    typer.run(app)
+    typer_app()
 
