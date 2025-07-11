@@ -129,7 +129,7 @@ def save_forecast(
     log.info(f"Saving forecast for site_id={forecast['meta']['site_uuid']}...")
 
     forecast_meta = {
-        "location_uuid": forecast["meta"]["site_uuid"],
+        "location_uuid": forecast["meta"]["location_uuid"],
         "timestamp_utc": forecast["meta"]["timestamp"],
         "forecast_version": forecast["meta"]["version"],
     }
@@ -281,7 +281,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                     log.info(f"Writing forecast for site_uuid={site_uuid}")
                     forecast = {
                         "meta": {
-                            "site_uuid": site_uuid,
+                            "location_uuid": site_uuid,
                             "version": version,
                             "timestamp": timestamp,
                         },

@@ -85,7 +85,7 @@ def test_get_me_values_no_forecasts(db_session, sites, generation_db_values):  #
 
 def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check forecast gets adjuster"""
-    forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].location_uuid}  # noqa: DTZ005
+    forecast_meta = {"timestamp_utc": datetime.now(), "location_uuid": sites[0].location_uuid}  # noqa: DTZ005
     forecast_values_df = pd.DataFrame(
         {
             "forecast_power_kw": [1, 2, 3, 4, 5],
@@ -129,7 +129,7 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
 
 def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
     """Check forecast doesnt adjuster, no me values"""
-    forecast_meta = {"timestamp_utc": datetime.now(), "site_uuid": sites[0].location_uuid}  # noqa: DTZ005
+    forecast_meta = {"timestamp_utc": datetime.now(), "location_uuid": sites[0].location_uuid}  # noqa: DTZ005
     forecast_values_df = pd.DataFrame(
         {
             "forecast_power_kw": [1, 2, 3, 4, 5],
