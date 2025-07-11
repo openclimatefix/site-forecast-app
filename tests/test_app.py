@@ -31,11 +31,11 @@ def test_get_sites(db_session, sites):
     """Test for correct site ids"""
 
     sites = get_sites(db_session)
-    sites = sorted(sites, key=lambda s: s.client_site_id)
+    sites = sorted(sites, key=lambda s: s.client_location_id)
 
     assert len(sites) == 1
     for site in sites:
-        assert isinstance(site.site_uuid, uuid.UUID)
+        assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
 
 
@@ -51,7 +51,7 @@ def test_get_model(
 
     all_models = get_all_models()
     ml_model = all_models.models[0]
-    gen_sites = [s for s in sites if s.client_site_name == "test_site_nl"]
+    gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
     model = get_model(
         timestamp=init_timestamp,
@@ -78,7 +78,7 @@ def test_run_model(
 
     all_models = get_all_models()
     ml_model = all_models.models[0]
-    gen_sites = [s for s in sites if s.client_site_name == "test_site_nl"]
+    gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
     model_cls = PVNetModel
     model = model_cls(

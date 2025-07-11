@@ -10,7 +10,7 @@ import pandas as pd
 import sentry_sdk
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
-from pvsite_datamodel.sqlmodels import SiteSQL
+from pvsite_datamodel.sqlmodels import LocationSQL
 from pvsite_datamodel.write import insert_forecast_values
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,7 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 
-def get_sites(db_session: Session, country: str = "nl") -> list[SiteSQL]:
+def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
     """Gets all available sites.
 
     Args:
@@ -41,7 +41,7 @@ def get_sites(db_session: Session, country: str = "nl") -> list[SiteSQL]:
             country: The country to get sites for
 
     Returns:
-            A list of SiteSQL objects
+            A list of LocationSQL objects
     """
     client = os.getenv("CLIENT_NAME", "nl")
     log.info(f"Getting sites for client: {client}")
@@ -129,7 +129,7 @@ def save_forecast(
     log.info(f"Saving forecast for site_id={forecast['meta']['site_uuid']}...")
 
     forecast_meta = {
-        "site_uuid": forecast["meta"]["site_uuid"],
+        "location_uuid": forecast["meta"]["site_uuid"],
         "timestamp_utc": forecast["meta"]["timestamp"],
         "forecast_version": forecast["meta"]["version"],
     }
@@ -137,6 +137,9 @@ def save_forecast(
     forecast_values_df["horizon_minutes"] = (
         (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
     ).astype("int")
+
+    if "site_uuid" in forecast_meta and "location_uuid" not in forecast_meta:
+        forecast_meta["location_uuid"] = forecast_meta.pop("site_uuid")
 
     if write_to_db:
         insert_forecast_values(
@@ -148,7 +151,7 @@ def save_forecast(
         )
 
     if use_adjuster:
-        log.info(f"Adjusting forecast for site_id={forecast_meta['site_uuid']}...")
+        log.info(f"Adjusting forecast for site_id={forecast_meta['location_uuid']}...")
         forecast_values_df_adjust = adjust_forecast_with_adjuster(
             db_session,
             forecast_meta,
@@ -166,7 +169,7 @@ def save_forecast(
                 ml_model_version=ml_model_version,
             )
 
-    output = f'Forecast for site_id={forecast_meta["site_uuid"]},\
+    output = f'Forecast for site_id={forecast_meta["location_uuid"]},\
                timestamp={forecast_meta["timestamp_utc"]},\
                version={forecast_meta["forecast_version"]}:'
     log.info(output.replace("  ", ""))
@@ -257,7 +260,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                     hf_version=model_config.version,
                     name=model_config.name,
                 )
-                ml_model.site_uuid = site.site_uuid
+                ml_model.location_uuid = site.location_uuid
 
                 log.info(f"{site} model loaded")
 
