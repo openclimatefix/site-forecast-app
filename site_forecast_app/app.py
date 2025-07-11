@@ -126,7 +126,7 @@ def save_forecast(
     Raises:
             IOError: An error if database save fails
     """
-    log.info(f"Saving forecast for site_id={forecast['meta']['site_uuid']}...")
+    log.info(f"Saving forecast for site_id={forecast['meta']['location_uuid']}...")
 
     forecast_meta = {
         "location_uuid": forecast["meta"]["location_uuid"],
@@ -137,9 +137,6 @@ def save_forecast(
     forecast_values_df["horizon_minutes"] = (
         (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
     ).astype("int")
-
-    if "site_uuid" in forecast_meta and "location_uuid" not in forecast_meta:
-        forecast_meta["location_uuid"] = forecast_meta.pop("site_uuid")
 
     if write_to_db:
         insert_forecast_values(
