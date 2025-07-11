@@ -21,7 +21,7 @@ classifiers = [
 ]
 dependencies = [
     "click==8.1.7",
-    "pvsite-datamodel@git+https://github.com/openclimatefix/pv-site-datamodel.git@site-location",
+    "pvsite-datamodel==1.2.0",
     "pandas==2.2.3",
     "pvnet==4.1.18",
     "pytz==2024.1",
