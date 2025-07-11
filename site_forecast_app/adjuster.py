@@ -72,7 +72,7 @@ def get_me_values(
 
     if start_datetime is None:
         # TODO add timezone
-        start_datetime = datetime.now() - timedelta(days=7) # noqa: DTZ005
+        start_datetime = datetime.now() - timedelta(days=7)  # noqa: DTZ005
 
     query = session.query(
         func.avg(ForecastValueSQL.forecast_power_kw - GenerationSQL.generation_power_kw),
@@ -197,7 +197,7 @@ def adjust_forecast_with_adjuster(
     forecast_values_df: pd.DataFrame,
     ml_model_name: str,
     average_minutes: int | None = 60,
-) ->  pd.DataFrame:
+) -> pd.DataFrame:
     """Adjust forecast values with ME values.
 
     Args:
@@ -209,7 +209,6 @@ def adjust_forecast_with_adjuster(
         this defaults to 60.
 
     """
-
     if "site_uuid" in forecast_meta and "location_uuid" not in forecast_meta:
         forecast_meta["location_uuid"] = forecast_meta.pop("site_uuid")
 
