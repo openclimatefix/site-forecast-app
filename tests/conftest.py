@@ -15,7 +15,13 @@ import xarray as xr
 import zarr
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
-from pvsite_datamodel.sqlmodels import Base, ForecastSQL, ForecastValueSQL, GenerationSQL, LocationSQL
+from pvsite_datamodel.sqlmodels import (
+    Base,
+    ForecastSQL,
+    ForecastValueSQL,
+    GenerationSQL,
+    LocationSQL,
+)
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
