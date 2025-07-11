@@ -104,7 +104,7 @@ def test_save_forecast(db_session, sites, forecast_values):
 
     forecast = {
         "meta": {
-            "site_uuid": site.location_uuid,
+            "location_uuid": site.location_uuid,
             "version": "0.0.0",
             "timestamp": dt.datetime.now(tz=dt.UTC),
         },

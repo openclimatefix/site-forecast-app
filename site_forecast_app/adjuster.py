@@ -209,8 +209,6 @@ def adjust_forecast_with_adjuster(
         this defaults to 60.
 
     """
-    if "site_uuid" in forecast_meta and "location_uuid" not in forecast_meta:
-        forecast_meta["location_uuid"] = forecast_meta.pop("site_uuid")
 
     # get the ME values
     me_values = get_me_values(
