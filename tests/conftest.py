@@ -15,7 +15,13 @@ import xarray as xr
 import zarr
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
-from pvsite_datamodel.sqlmodels import Base, ForecastSQL, ForecastValueSQL, GenerationSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import (
+    Base,
+    ForecastSQL,
+    ForecastValueSQL,
+    GenerationSQL,
+    LocationSQL,
+)
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
@@ -72,9 +78,9 @@ def sites(db_session):
 
     sites = []
     # PV site
-    site = SiteSQL(
-        client_site_id=1,
-        client_site_name="test_site_nl",
+    site = LocationSQL(
+        client_location_id=1,
+        client_location_name="test_site_nl",
         latitude=51,
         longitude=5,
         capacity_kw=20000,
@@ -87,9 +93,9 @@ def sites(db_session):
 
     # Although this site is an india site,
     # we want it to be in the test data so we adjust the lat and lon
-    site = SiteSQL(
-        client_site_id=1,
-        client_site_name="test_site_ad",
+    site = LocationSQL(
+        client_location_id=1,
+        client_location_name="test_site_ad",
         latitude=52,
         longitude=5,
         capacity_kw=20000,
@@ -124,7 +130,7 @@ def generation_db_values(db_session, sites, init_timestamp):
     for site in sites:
         for i in range(0, len(start_times)):
             generation = GenerationSQL(
-                site_uuid=site.site_uuid,
+                location_uuid=site.location_uuid,
                 generation_power_kw=power_values[i],
                 start_utc=start_times[i],
                 end_utc=start_times[i] + dt.timedelta(minutes=3),
@@ -180,7 +186,7 @@ def forecasts(db_session, sites):
         forecast_uuid = uuid4()
         model = get_or_create_model(db_session, "test", "0.0.0")
         forecast = ForecastSQL(
-            site_uuid=site.site_uuid,
+            location_uuid=site.location_uuid,
             timestamp_utc=start_times[-1],
             forecast_version="0.0.0",
             created_utc=start_times[-1],
