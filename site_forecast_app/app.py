@@ -265,7 +265,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                 log.info(f"{site} model loaded")
 
                 # 3. Run model for each site
-                site_uuid = ml_model.site_uuid
+                site_uuid = ml_model.location_uuid
                 asset_type = ml_model.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")
                 forecast_values = run_model(
