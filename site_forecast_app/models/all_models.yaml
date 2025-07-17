@@ -14,10 +14,15 @@ models:
     version: 246b434b72c68edbbc13f1e5fc74e7699034aede
     client: nl
     asset_type: pv
-  - name: pvnet_ad_sites_satellite_2_nwp
+  - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: 50b85c5481847253f1cbf7007c77b257f6ba573a
+    version: 02491b46ab1b4d3ba1fd48ae0492098e62f7869e
     client: ad
     asset_type: pv
-
+  - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
+    type: pvnet
+    id: openclimatefix/pvnet_ad_sites
+    version: cb70034ec8dedb5e32f29616ff98ad0504e7151f
+    client: ad
+    asset_type: pv
