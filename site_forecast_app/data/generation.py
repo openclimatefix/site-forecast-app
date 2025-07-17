@@ -39,7 +39,6 @@ def get_generation_data(
     )
     # get the ml id, this only works for one site right now
     system_id = sites[0].ml_id
-    system_id = 1  # TODO
 
     if len(generation_data) == 0:
         log.warning("No generation found for the specified sites/period")
