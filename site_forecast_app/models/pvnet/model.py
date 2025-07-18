@@ -139,7 +139,7 @@ class PVNetModel:
                 batch["nwp"]["mo_global"]["nwp"][:, :, idx] = 0
 
             # save batch
-            save_batch(batch=batch, i=i, model_name=self.name, site_uuid=self.site_uuid)
+            save_batch(batch=batch, i=i, model_name=self.name, site_uuid=site_uuid)
 
             # Run batch through model
             preds = self.model(batch).detach().cpu().numpy()
