@@ -26,3 +26,9 @@ models:
     version: cb70034ec8dedb5e32f29616ff98ad0504e7151f
     client: ad
     asset_type: pv
+  - name: pvnet_ad_sites_satellite_ecmwf
+    type: pvnet
+    id: openclimatefix/pvnet_ad_sites
+    version: a370795a41835853fcd8196d727fa0daabd17286
+    client: ad
+    asset_type: pv
