@@ -15,9 +15,10 @@ def test_set_night_time_zeros():
     # check that all values are positive
     assert np.all(preds > 0)
 
-    # set up batch, last 3 sun elevations are negative, so should set these to zero
+    # set up batch, last 3 sun elevations are <0.5, so should set these to zero
+    # set_night_time_zeros changes eleveations from [0,1] to [-90, 90]
     batch = {
-        "solar_elevation": np.array([[0, 1, 2, 3, 4, 5, 6, -7, -8, -9]]),
+        "solar_elevation": np.array([[0, 1, 2, 3, 4, 0.62, 0.51, 0.25, 0.26, 0.1]]),
         "t0_idx": 4,
     }
 
