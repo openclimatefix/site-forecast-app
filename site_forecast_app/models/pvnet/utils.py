@@ -245,6 +245,9 @@ def set_night_time_zeros(
     if not isinstance(sun_elevation, np.ndarray):
         sun_elevation = sun_elevation.detach().cpu().numpy()
 
+    # The dataloader normalises solar elevation data to the range [0, 1]
+    sun_elevation = (sun_elevation - 0.5) * 180
+
     # expand dimension from (1,197) to (1,197,7), 7 is due to the number plevels
     n_plevels = preds.shape[2]
     sun_elevation = np.repeat(sun_elevation[:, :, np.newaxis], n_plevels, axis=2)
