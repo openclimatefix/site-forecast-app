@@ -144,7 +144,7 @@ class PVNetModel:
             # Run batch through model
             preds = self.model(batch).detach().cpu().numpy()
 
-            preds = set_night_time_zeros(batch, preds, t0_idx=192)
+            preds = set_night_time_zeros(batch, preds, t0_idx=self.t0_idx)
 
             # Store predictions
             normed_preds += [preds]
@@ -304,6 +304,12 @@ class PVNetModel:
             populated_data_config_filename,
         )
         self.populated_data_config_filename = populated_data_config_filename
+
+        # set t0_idx
+        site_config = self.config["input_data"]["site"]
+        self.t0_idx = int(
+            -site_config["interval_start_minutes"] / site_config["time_resolution_minutes"]
+        )
 
     def _create_dataloader(self) -> None:
 
