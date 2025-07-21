@@ -56,6 +56,7 @@ class PVNetModel:
         hf_version: str,
         name: str,
         asset_type: str = "pv",
+        satellite_scaling_method: str = "constant",
     ) -> None:
         """Initializer for the model."""
         self.asset_type = asset_type
@@ -64,6 +65,8 @@ class PVNetModel:
         self.name = name
         self.site_uuid = None
         self.t0 = timestamp
+        self.satellite_scaling_method = satellite_scaling_method
+
         log.info(f"Model initialised at t0={self.t0}")
 
         self.client = os.getenv("CLIENT_NAME", "nl")
@@ -256,7 +259,7 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"]:
-            download_satellite_data(satellite_source_file_path)
+            download_satellite_data(satellite_source_file_path, self.satellite_scaling_method)
 
         log.info("Preparing Site data sources")
         # Clear local cached site data if already exists

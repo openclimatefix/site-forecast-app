@@ -58,6 +58,7 @@ def get_model(
     hf_repo: str,
     hf_version: str,
     name: str,
+    satellite_scaling_method: str = "constant",
 ) -> PVNetModel:
     """Instantiates and returns the forecast model ready for running inference.
 
@@ -75,7 +76,7 @@ def get_model(
     # Only Windnet and PVnet is now used
     model_cls = PVNetModel
 
-    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version, name=name)
+    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version, name=name, satellite_scaling_method=satellite_scaling_method)
     return model
 
 
@@ -256,6 +257,8 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                     hf_repo=model_config.id,
                     hf_version=model_config.version,
                     name=model_config.name,
+                    satellite_scaling_method=model_config.satellite_scaling_method,
+                    
                 )
                 ml_model.location_uuid = site.location_uuid
 

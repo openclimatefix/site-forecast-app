@@ -36,6 +36,11 @@ class Model(BaseModel):
         "For solar site with regular data, 15 should be used. "
         "For wind sites, 60 minutes should be used.",
     )
+    satellite_scaling_method: str = Field(
+        "constant",
+        title="Satellite Scaling Method",
+        description="The scaling method to use for the satellite data. ",
+    )
 
 
 class Models(BaseModel):
