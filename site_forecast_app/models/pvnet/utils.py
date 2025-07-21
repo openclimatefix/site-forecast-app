@@ -194,7 +194,8 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     ds.to_zarr(dest_nwp_path, mode="a")
 
 
-def download_satellite_data(satellite_source_file_path: str, scaling_method: str = "constant") -> None:
+def download_satellite_data(satellite_source_file_path: str,
+                            scaling_method: str = "constant") -> None:
     """Download the sat data."""
     if os.path.exists(satellite_path):
         log.info(f"File already exists at {satellite_path}")
@@ -238,7 +239,7 @@ def download_satellite_data(satellite_source_file_path: str, scaling_method: str
 def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     """Scale the satellite dataset via min-max to [0,1] range."""
     log.info("Scaling satellite data to 0,1] range via min-max")
-    
+
     channels = ds.variable.values
     # min and max values for each variable (same length as `variable`)
     min_vals = np.array(
@@ -278,18 +279,6 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     scaled_ds = (ds - min_da) / (max_da - min_da)
     scaled_ds = scaled_ds.clip(min=0, max=1)  # Ensure values are within [0, 1]
     return scaled_ds
-
-# Add the scaled variable to the dataset
-ds["temperature_scaled"] = scaled_temp
-    for var in ds.data_vars:
-        data = ds[var].values
-        min_val = np.nanmin(data)
-        max_val = np.nanmax(data)
-        if max_val - min_val > 0:
-            ds[var] = (data - min_val) / (max_val - min_val)
-        else:
-            log.warning(f"Variable {var} has no variation, skipping scaling")
-    return ds
 
 def set_night_time_zeros(
     batch: dict,
