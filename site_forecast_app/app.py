@@ -260,7 +260,6 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                     hf_version=model_config.version,
                     name=model_config.name,
                     satellite_scaling_method=model_config.satellite_scaling_method,
-                
                 )
                 ml_model.location_uuid = site.location_uuid
 
