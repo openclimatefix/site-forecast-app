@@ -308,7 +308,7 @@ class PVNetModel:
         # set t0_idx
         site_config = self.config["input_data"]["site"]
         self.t0_idx = int(
-            -site_config["interval_start_minutes"] / site_config["time_resolution_minutes"]
+            -site_config["interval_start_minutes"] / site_config["time_resolution_minutes"],
         )
 
     def _create_dataloader(self) -> None:
