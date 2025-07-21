@@ -241,7 +241,8 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     log.info("Scaling satellite data to 0,1] range via min-max")
 
     channels = ds.variable.values
-    # min and max values for each variable (same length as `variable`)
+    # min and max values for each variable (same length as `variable` 
+    # and in the same order)
     min_vals = np.array(
             [
                 -2.5118103,
@@ -271,11 +272,11 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
                 286.96323,
             ])
 
-    # Create DataArrays for min and max with the 'level' dimension
+    # Create DataArrays for min and max with the 'variable' dimension
     min_da = xr.DataArray(min_vals, coords={"variable": channels}, dims=["variable"])
     max_da = xr.DataArray(max_vals, coords={"variable": channels}, dims=["variable"])
 
-    # Apply scaling: (value - min) / (max - min)
+    # Apply scaling
     scaled_ds = (ds - min_da) / (max_da - min_da)
     scaled_ds = scaled_ds.clip(min=0, max=1)  # Ensure values are within [0, 1]
     return scaled_ds
