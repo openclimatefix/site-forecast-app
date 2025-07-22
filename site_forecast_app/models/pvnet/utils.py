@@ -225,9 +225,11 @@ def download_satellite_data(satellite_source_file_path: str,
         log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
 
         if scaling_method == "constant":
+            log.info("Scaling satellite data to [0,1] range via constant scaling")
             # scale the dataset to 0-1
             ds = ds / 1023
         elif scaling_method == "minmax":
+            log.info("Scaling satellite data to [0,1] range via min-max scaling")
             # scale the dataset to min-max
             ds = satellite_scale_minmax(ds)
         else:
