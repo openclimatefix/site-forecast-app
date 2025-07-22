@@ -381,7 +381,7 @@ def satellite_data(tmp_path_factory, init_timestamp):
 
     # Add data to dataset with random values between 1 and 100
     ds["data"] = xr.DataArray(
-        np.random.uniform(1, 100, size=[len(ds[c]) for c in ds.xindexes]),
+        np.zeros([len(ds[c]) for c in ds.xindexes]),
         coords=[ds[c] for c in ds.xindexes],
     )
 
