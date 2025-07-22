@@ -379,9 +379,9 @@ def satellite_data(tmp_path_factory, init_timestamp):
         y_geostationary=np.arange(-5000000.0, 5000000.0, 5000),
     )
 
-    # Add data to dataset
+    # Add data to dataset with random values between 1 and 100
     ds["data"] = xr.DataArray(
-        np.zeros([len(ds[c]) for c in ds.xindexes]),
+        np.random.uniform(1, 100, size=[len(ds[c]) for c in ds.xindexes]),
         coords=[ds[c] for c in ds.xindexes],
     )
 

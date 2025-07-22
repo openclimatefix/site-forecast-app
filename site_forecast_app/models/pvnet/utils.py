@@ -241,7 +241,7 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     log.info("Scaling satellite data to 0,1] range via min-max")
 
     channels = ds.variable.values
-    # min and max values for each variable (same length as `variable` 
+    # min and max values for each variable (same length as `variable`
     # and in the same order)
     min_vals = np.array(
             [
