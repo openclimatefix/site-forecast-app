@@ -51,7 +51,7 @@ def test_save_batch():
         # check that batch is saved
         assert os.path.exists(f"{temp_dir}/batch_{i}_{model_name}_fff-fff.pt")
 
-def test_satellite_scale_minmax(satellite_data, # noqa: ARG001
+def test_satellite_scale_minmax(small_satellite_data, # noqa: ARG001
                                 ) -> None:
     """Test for scaling satellite data using min-max scaling."""
 
