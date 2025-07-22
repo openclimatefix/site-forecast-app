@@ -7,6 +7,7 @@ models:
     version: 9ebb76d6497d3f0e53607e99b8ffe33679259464
     client: nl
     asset_type: pv
+    satellite_scaling_method: constant
     # NL model that include site history in the fusion layer
   - name: nl_36_simple_site
     type: pvnet
@@ -14,21 +15,25 @@ models:
     version: 246b434b72c68edbbc13f1e5fc74e7699034aede
     client: nl
     asset_type: pv
+    satellite_scaling_method: constant
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
     version: 02491b46ab1b4d3ba1fd48ae0492098e62f7869e
     client: ad
     asset_type: pv
+    satellite_scaling_method: minmax
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
     version: cb70034ec8dedb5e32f29616ff98ad0504e7151f
     client: ad
     asset_type: pv
+    satellite_scaling_method: minmax
   - name: pvnet_ad_sites_satellite_ecmwf
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
     version: a370795a41835853fcd8196d727fa0daabd17286
     client: ad
     asset_type: pv
+    satellite_scaling_method: minmax
