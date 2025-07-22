@@ -399,7 +399,7 @@ def satellite_data(tmp_path_factory, init_timestamp):
 
 @pytest.fixture(scope="function")
 def small_satellite_data(tmp_path_factory, init_timestamp):
-    """Dummy Satellite data"""
+    """Small amount of non-zero dummy satellite data"""
     # Load dataset which only contains coordinates, but no data
     ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell.zarr")
     # remove time dim and geostationary dims and expand them
@@ -415,8 +415,7 @@ def small_satellite_data(tmp_path_factory, init_timestamp):
     )
     ds = ds.expand_dims(time=times)
 
-    # set geostationary cords for India
-    # TODO update for NL
+    # set geostationary cords for small area
     ds = ds.expand_dims(
         x_geostationary=np.arange(50000.0, -50000.0, -5000),
         y_geostationary=np.arange(-50000.0, 50000.0, 5000),
