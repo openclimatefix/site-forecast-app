@@ -1,6 +1,8 @@
 """A pydantic model for the ML models."""
 
 
+from typing import Literal
+
 import fsspec
 from pyaml_env import parse_config
 from pydantic import BaseModel, Field
@@ -36,7 +38,7 @@ class Model(BaseModel):
         "For solar site with regular data, 15 should be used. "
         "For wind sites, 60 minutes should be used.",
     )
-    satellite_scaling_method: str = Field(
+    satellite_scaling_method: Literal["constant", "minmax"] = Field(
         "constant",
         title="Satellite Scaling Method",
         description="The scaling method to use for the satellite data. ",
