@@ -31,7 +31,7 @@ sentry_sdk.init(
 sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
-typer_app = typer.Typer()
+app = typer.Typer()
 
 
 def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
@@ -169,46 +169,29 @@ def save_forecast(
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
 
-@typer_app.command()
-def app(
-    *,
-    timestamp: dt.datetime | None = None,
-    write_to_db: bool = False,
-    log_level: str = "info",
+@app.callback(invoke_without_command=True)
+def main(
+    timestamp: dt.datetime | None = typer.Option(
+        None,
+        "--date", "-d",
+        formats=["%Y-%m-%d-%H-%M"],
+        help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
+    ),
+    write_to_db: bool = typer.Option(
+        False,
+        "--write-to-db",
+        help="Set this flag to actually write the results to the database.",
+    ),
+    log_level: str = typer.Option(
+        "info",
+        "--log-level",
+        help="Set the python logging level",
+        show_default=True,
+    ),
 ) -> None:
-    """Main typer function for running forecasts for sites."""
-    app_run(
-        timestamp=timestamp,
-        write_to_db=write_to_db,
-        log_level=log_level,
-    )
+    """Main entrypoint for running forecasts for sites."""
+    app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
-
-@typer_app.callback(invoke_without_command=True)
-def typer_options(ctx: typer.Context) -> None:
-    """Typer callback to set command defaults."""
-    ctx.default_map = {
-        "app": {
-            "timestamp": typer.Option(
-                None,
-                "--date",
-                "-d",
-                formats=["%Y-%m-%d-%H-%M"],
-                help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
-            ).default,
-            "write_to_db": typer.Option(
-                False,
-                "--write-to-db",
-                help="Set this flag to actually write the results to the database.",
-            ).default,
-            "log_level": typer.Option(
-                "info",
-                "--log-level",
-                help="Set the python logging log level",
-                show_default=True,
-            ).default,
-        },
-    }
 
 
 def app_run(
@@ -314,4 +297,4 @@ def app_run(
 
 
 if __name__ == "__main__":
-    typer_app()
+    app()
