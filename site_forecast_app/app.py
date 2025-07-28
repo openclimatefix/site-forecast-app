@@ -32,6 +32,8 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 typer_app = typer.Typer()
+
+
 def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
     """Gets all available sites.
 
@@ -71,12 +73,15 @@ def get_model(
     Returns:
             A forecasting model
     """
-    # Only Windnet and PVnet is now used
     model_cls = PVNetModel
-
-    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
-                      name=name, satellite_scaling_method=satellite_scaling_method)
-
+    model = model_cls(
+        timestamp,
+        generation_data,
+        hf_repo=hf_repo,
+        hf_version=hf_version,
+        name=name,
+        satellite_scaling_method=satellite_scaling_method,
+    )
     return model
 
 
@@ -102,7 +107,6 @@ def save_forecast(
     use_adjuster: bool = True,
     adjuster_average_minutes: int | None = 60,
 ) -> None:
-
     """Saves a forecast for a given site & timestamp.
 
     Args:
@@ -167,24 +171,10 @@ def save_forecast(
 
 @typer_app.command()
 def app(
-    timestamp: dt.datetime | None = typer.Option(
-        None,
-        "--date",
-        "-d",
-        formats=["%Y-%m-%d-%H-%M"],
-        help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
-    ),
-    write_to_db: bool = typer.Option(
-        False,
-        "--write-to-db",
-        help="Set this flag to actually write the results to the database.",
-    ),
-    log_level: str = typer.Option(
-        "info",
-        "--log-level",
-        help="Set the python logging log level",
-        show_default=True,
-    ),
+    *,
+    timestamp: dt.datetime | None = None,
+    write_to_db: bool = False,
+    log_level: str = "info",
 ) -> None:
     """Main typer function for running forecasts for sites."""
     app_run(
@@ -192,6 +182,33 @@ def app(
         write_to_db=write_to_db,
         log_level=log_level,
     )
+
+
+@app.callback()
+def typer_options(ctx: typer.Context) -> None:
+    """Typer callback to set command defaults."""
+    ctx.default_map = {
+        "app": {
+            "timestamp": typer.Option(
+                None,
+                "--date",
+                "-d",
+                formats=["%Y-%m-%d-%H-%M"],
+                help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
+            ).default,
+            "write_to_db": typer.Option(
+                False,
+                "--write-to-db",
+                help="Set this flag to actually write the results to the database.",
+            ).default,
+            "log_level": typer.Option(
+                "info",
+                "--log-level",
+                help="Set the python logging log level",
+                show_default=True,
+            ).default,
+        }
+    }
 
 
 def app_run(
@@ -241,11 +258,8 @@ def app_run(
                     satellite_scaling_method=model_config.satellite_scaling_method,
                 )
                 ml_model.location_uuid = site.location_uuid
-
-
                 log.info(f"{site} model loaded")
 
-                # 3. Run model for each site
                 site_uuid = ml_model.location_uuid
                 asset_type = ml_model.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")
