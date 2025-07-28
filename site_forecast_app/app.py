@@ -206,10 +206,9 @@ def typer_options(ctx: typer.Context) -> None:
                 "--log-level",
                 help="Set the python logging log level",
                 show_default=True,
-            ).default,  
-        }
+            ).default,
+        },
     }
-
 
 
 def app_run(
