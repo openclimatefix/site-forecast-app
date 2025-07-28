@@ -32,6 +32,7 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 typer_app = typer.Typer()
+app = typer_app  # alias so @app.callback() works without changing decorators
 
 
 def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
@@ -194,7 +195,7 @@ def typer_options(ctx: typer.Context) -> None:
                 "--date",
                 "-d",
                 formats=["%Y-%m-%d-%H-%M"],
-                help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
+                help="Date-Time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
             ).default,
             "write_to_db": typer.Option(
                 False,
@@ -222,7 +223,7 @@ def app_run(
 
     if timestamp is None:
         # get the timestamp now rounded down the nearest 15 minutes
-        # TODO better to have explicity UTC time here?
+        # TODO better to have explicitly UTC time here?
         timestamp = pd.Timestamp.now(tz="UTC").replace(tzinfo=None).floor("15min")
         log.info(f'Timestamp omitted - will generate forecasts for "now" ({timestamp})')
     else:
@@ -314,4 +315,4 @@ def app_run(
 
 
 if __name__ == "__main__":
-    typer_app()
+    app()
