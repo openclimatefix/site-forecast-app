@@ -32,10 +32,16 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 typer_app = typer.Typer()
-
-
 def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
-    """Gets all available sites."""
+    """Gets all available sites.
+
+    Args:
+            db_session: A SQLAlchemy session
+            country: The country to get sites for
+
+    Returns:
+            A list of LocationSQL objects
+    """
     client = os.getenv("CLIENT_NAME", "nl")
     log.info(f"Getting sites for client: {client}")
     sites = get_sites_by_country(db_session, country=country, client_name=client)
@@ -51,16 +57,26 @@ def get_model(
     name: str,
     satellite_scaling_method: str = "constant",
 ) -> PVNetModel:
-    """Instantiates and returns the forecast model ready for running inference."""
+    """Instantiates and returns the forecast model ready for running inference.
+
+    Args:
+            asset_type: One or "pv" or "wind"
+            timestamp: Datetime at which the forecast will be made
+            generation_data: Latest historic generation data
+            hf_repo: ID of the ML model used for the forecast
+            hf_version: Version of the ML model used for the forecast
+            name: Name of the ML model used for the forecast
+            satellite_scaling_method: Method to scale the satellite data
+
+    Returns:
+            A forecasting model
+    """
+    # Only Windnet and PVnet is now used
     model_cls = PVNetModel
-    model = model_cls(
-        timestamp,
-        generation_data,
-        hf_repo=hf_repo,
-        hf_version=hf_version,
-        name=name,
-        satellite_scaling_method=satellite_scaling_method,
-    )
+
+    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
+                      name=name, satellite_scaling_method=satellite_scaling_method)
+
     return model
 
 
@@ -86,7 +102,22 @@ def save_forecast(
     use_adjuster: bool = True,
     adjuster_average_minutes: int | None = 60,
 ) -> None:
-    """Saves a forecast for a given site & timestamp."""
+
+    """Saves a forecast for a given site & timestamp.
+
+    Args:
+            db_session: A SQLAlchemy session
+            forecast: a forecast dict containing forecast meta and predicted values
+            write_to_db: If true, forecast values are written to db, otherwise to stdout
+            ml_model_name: Name of the ML model used for the forecast
+            ml_model_version: Version of the ML model used for the forecast
+            use_adjuster: Make new model, adjusted by last 7 days of ME values
+            adjuster_average_minutes: The number of minutes that results are average over
+                when calculating adjuster values
+
+    Raises:
+            IOError: An error if database save fails
+    """
     log.info(f"Saving forecast for site_id={forecast['meta']['location_uuid']}...")
 
     forecast_meta = {
@@ -127,12 +158,10 @@ def save_forecast(
                 ml_model_version=ml_model_version,
             )
 
-    output = (
-        f'Forecast for site_id={forecast_meta["location_uuid"]}, '
-        f'timestamp={forecast_meta["timestamp_utc"]}, '
-        f'version={forecast_meta["forecast_version"]}:'
-    )
-    log.info(output)
+    output = f'Forecast for site_id={forecast_meta["location_uuid"]},\
+               timestamp={forecast_meta["timestamp_utc"]},\
+               version={forecast_meta["forecast_version"]}:'
+    log.info(output.replace("  ", ""))
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
 
@@ -207,6 +236,11 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                     satellite_scaling_method=model_config.satellite_scaling_method,
                 )
                 ml_model.location_uuid = site.location_uuid
+
+
+                log.info(f"{site} model loaded")
+
+                # 3. Run model for each site
                 site_uuid = ml_model.location_uuid
                 asset_type = ml_model.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")

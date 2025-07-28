@@ -194,7 +194,8 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     ds.to_zarr(dest_nwp_path, mode="a")
 
 
-def download_satellite_data(satellite_source_file_path: str) -> None:
+def download_satellite_data(satellite_source_file_path: str,
+                            scaling_method: str = "constant") -> None:
     """Download the sat data."""
     if os.path.exists(satellite_path):
         log.info(f"File already exists at {satellite_path}")
@@ -223,12 +224,64 @@ def download_satellite_data(satellite_source_file_path: str) -> None:
         ds = xr.open_zarr(temporary_satellite_data)
         log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
 
-        # scale
-        ds = ds / 1023
+        if scaling_method == "constant":
+            log.info("Scaling satellite data to [0,1] range via constant scaling")
+            # scale the dataset to 0-1
+            ds = ds / 1023
+        elif scaling_method == "minmax":
+            log.info("Scaling satellite data to [0,1] range via min-max scaling")
+            # scale the dataset to min-max
+            ds = satellite_scale_minmax(ds)
+        else:
+            raise ValueError(f"Unknown scaling method: {scaling_method}")
 
         # save the dataset
         ds.to_zarr(satellite_path, mode="a")
 
+def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
+    """Scale the satellite dataset via min-max to [0,1] range."""
+    log.info("Scaling satellite data to 0,1] range via min-max")
+
+    channels = ds.variable.values
+    # min and max values for each variable (same length as `variable`
+    # and in the same order)
+    min_vals = np.array(
+            [
+                -2.5118103,
+                -64.83977,
+                63.404694,
+                2.844452,
+                199.10002,
+                -17.254883,
+                -26.29155,
+                -1.1009827,
+                -2.4184198,
+                199.57048,
+                198.95093,
+            ])
+    max_vals = np.array(
+            [
+                69.60857,
+                339.15588,
+                340.26526,
+                317.86752,
+                313.2767,
+                315.99194,
+                274.82297,
+                93.786545,
+                101.34922,
+                249.91806,
+                286.96323,
+            ])
+
+    # Create DataArrays for min and max with the 'variable' dimension
+    min_da = xr.DataArray(min_vals, coords={"variable": channels}, dims=["variable"])
+    max_da = xr.DataArray(max_vals, coords={"variable": channels}, dims=["variable"])
+
+    # Apply scaling
+    scaled_ds = (ds - min_da) / (max_da - min_da)
+    scaled_ds = scaled_ds.clip(min=0, max=1)  # Ensure values are within [0, 1]
+    return scaled_ds
 
 def set_night_time_zeros(
     batch: dict,
@@ -244,6 +297,9 @@ def set_night_time_zeros(
     sun_elevation = batch[key]
     if not isinstance(sun_elevation, np.ndarray):
         sun_elevation = sun_elevation.detach().cpu().numpy()
+
+    # The dataloader normalises solar elevation data to the range [0, 1]
+    sun_elevation = (sun_elevation - 0.5) * 180
 
     # expand dimension from (1,197) to (1,197,7), 7 is due to the number plevels
     n_plevels = preds.shape[2]
