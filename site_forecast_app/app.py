@@ -32,6 +32,25 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 app = typer.Typer()
+# module‑level Option defaults (to satisfy pylint B008)
+_TIMESTAMP_OPTION = typer.Option(
+    None,
+    "--date", "-d",
+    formats=["%Y-%m-%d-%H-%M"],
+    help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
+)
+_WRITE_TO_DB_OPTION = typer.Option(
+    False,
+    "--write-to-db",
+    help="Set this flag to actually write the results to the database.",
+)
+_LOG_LEVEL_OPTION = typer.Option(
+    "info",
+    "--log-level",
+    help="Set the python logging level",
+    show_default=True,
+)
+
 
 
 def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
@@ -171,23 +190,9 @@ def save_forecast(
 
 @app.callback(invoke_without_command=True)
 def main(
-    timestamp: dt.datetime | None = typer.Option(
-        None,
-        "--date", "-d",
-        formats=["%Y-%m-%d-%H-%M"],
-        help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
-    ),
-    write_to_db: bool = typer.Option(
-        False,
-        "--write-to-db",
-        help="Set this flag to actually write the results to the database.",
-    ),
-    log_level: str = typer.Option(
-        "info",
-        "--log-level",
-        help="Set the python logging level",
-        show_default=True,
-    ),
+    timestamp: dt.datetime | None = _TIMESTAMP_OPTION,
+    write_to_db: bool = _WRITE_TO_DB_OPTION,
+    log_level: str = _LOG_LEVEL_OPTION,
 ) -> None:
     """Main entrypoint for running forecasts for sites."""
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
