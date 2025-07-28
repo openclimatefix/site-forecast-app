@@ -22,7 +22,7 @@ from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
 
-from ._utils import run_click_script
+from ._utils import run_typer_script
 
 mp.set_start_method("spawn", force=True)
 
@@ -31,11 +31,11 @@ def test_get_sites(db_session, sites):
     """Test for correct site ids"""
 
     sites = get_sites(db_session)
-    sites = sorted(sites, key=lambda s: s.client_site_id)
+    sites = sorted(sites, key=lambda s: s.client_location_id)
 
     assert len(sites) == 1
     for site in sites:
-        assert isinstance(site.site_uuid, uuid.UUID)
+        assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
 
 
@@ -51,7 +51,7 @@ def test_get_model(
 
     all_models = get_all_models()
     ml_model = all_models.models[0]
-    gen_sites = [s for s in sites if s.client_site_name == "test_site_nl"]
+    gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
     model = get_model(
         timestamp=init_timestamp,
@@ -78,7 +78,7 @@ def test_run_model(
 
     all_models = get_all_models()
     ml_model = all_models.models[0]
-    gen_sites = [s for s in sites if s.client_site_name == "test_site_nl"]
+    gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
     model_cls = PVNetModel
     model = model_cls(
@@ -104,7 +104,7 @@ def test_save_forecast(db_session, sites, forecast_values):
 
     forecast = {
         "meta": {
-            "site_uuid": site.site_uuid,
+            "location_uuid": site.location_uuid,
             "version": "0.0.0",
             "timestamp": dt.datetime.now(tz=dt.UTC),
         },
@@ -137,7 +137,8 @@ def test_app(
     if write_to_db:
         args.append("--write-to-db")
 
-    result = run_click_script(app, args)
+    result = run_typer_script(app, args)
+
     assert result.exit_code == 0
 
     n = 2  # 1 site, 2 model
@@ -173,10 +174,10 @@ def test_app_ad(
     os.environ["CLIENT_NAME"] = "ad"
     os.environ["COUNTRY"] = "india"
 
-    result = run_click_script(app, args)
+    result = run_typer_script(app, args)
     assert result.exit_code == 0
 
-    n = 1  # 1 site, 1 model
+    n = 3  # 1 site, 3 models
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
@@ -192,10 +193,10 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
 
-    result = run_click_script(app, args)
+    result = run_typer_script(app, args)
     assert result.exit_code == 0
 
-    n = 1  # 1 site, 1 model
+    n = 3  # 1 site, 3 models
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
     assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 16)

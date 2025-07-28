@@ -20,7 +20,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-    "click==8.1.7",
+    "typer[all]",
     "pvsite-datamodel==1.0.55",
     "pandas==2.2.3",
     "pvnet==4.1.18",
