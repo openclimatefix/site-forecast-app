@@ -158,8 +158,10 @@ class PVNetModel:
 
         normed_preds = np.concatenate(normed_preds)
         n_times = normed_preds.shape[1]
+
+        # t0 time not included in forecasts
         valid_times = pd.to_datetime(
-            [sample_t0 + dt.timedelta(minutes=15 * i) for i in range(n_times)],
+            [sample_t0 + dt.timedelta(minutes=15 * (i+1)) for i in range(n_times)],
         )
 
         # index of the 50th percentile, assumed number of p values odd and in order
