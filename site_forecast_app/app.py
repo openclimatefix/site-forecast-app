@@ -38,11 +38,11 @@ def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
     """Gets all available sites.
 
     Args:
-            db_session: A SQLAlchemy session
-            country: The country to get sites for
+        db_session: A SQLAlchemy session
+        country: The country to get sites for
 
     Returns:
-            A list of LocationSQL objects
+        A list of LocationSQL objects
     """
     client = os.getenv("CLIENT_NAME", "nl")
     log.info(f"Getting sites for client: {client}")
@@ -62,16 +62,16 @@ def get_model(
     """Instantiates and returns the forecast model ready for running inference.
 
     Args:
-            asset_type: One or "pv" or "wind"
-            timestamp: Datetime at which the forecast will be made
-            generation_data: Latest historic generation data
-            hf_repo: ID of the ML model used for the forecast
-            hf_version: Version of the ML model used for the forecast
-            name: Name of the ML model used for the forecast
-            satellite_scaling_method: Method to scale the satellite data
+        asset_type: One or "pv" or "wind"
+        timestamp: Datetime at which the forecast will be made
+        generation_data: Latest historic generation data
+        hf_repo: ID of the ML model used for the forecast
+        hf_version: Version of the ML model used for the forecast
+        name: Name of the ML model used for the forecast
+        satellite_scaling_method: Method to scale the satellite data
 
     Returns:
-            A forecasting model
+        A forecasting model
     """
     model_cls = PVNetModel
     model = model_cls(
@@ -110,17 +110,17 @@ def save_forecast(
     """Saves a forecast for a given site & timestamp.
 
     Args:
-            db_session: A SQLAlchemy session
-            forecast: a forecast dict containing forecast meta and predicted values
-            write_to_db: If true, forecast values are written to db, otherwise to stdout
-            ml_model_name: Name of the ML model used for the forecast
-            ml_model_version: Version of the ML model used for the forecast
-            use_adjuster: Make new model, adjusted by last 7 days of ME values
-            adjuster_average_minutes: The number of minutes that results are average over
-                when calculating adjuster values
+        db_session: A SQLAlchemy session
+        forecast: a forecast dict containing forecast meta and predicted values
+        write_to_db: If true, forecast values are written to db, otherwise to stdout
+        ml_model_name: Name of the ML model used for the forecast
+        ml_model_version: Version of the ML model used for the forecast
+        use_adjuster: Make new model, adjusted by last 7 days of ME values
+        adjuster_average_minutes: The number of minutes that results are average over
+            when calculating adjuster values
 
     Raises:
-            IOError: An error if database save fails
+        IOError: An error if database save fails
     """
     log.info(f"Saving forecast for site_id={forecast['meta']['location_uuid']}...")
 
@@ -176,7 +176,7 @@ def app(
     write_to_db: bool = False,
     log_level: str = "info",
 ) -> None:
-    """Main typer function for running forecasts for sites."""
+    """Main click function for running forecasts for sites."""
     app_run(
         timestamp=timestamp,
         write_to_db=write_to_db,
@@ -221,6 +221,8 @@ def app_run(
     log.info(f"Running India forecast app:{version}")
 
     if timestamp is None:
+        # get the timestamp now rounded down the nearest 15 minutes
+        # TODO better to have explicity UTC time here?
         timestamp = pd.Timestamp.now(tz="UTC").replace(tzinfo=None).floor("15min")
         log.info(f'Timestamp omitted - will generate forecasts for "now" ({timestamp})')
     else:
@@ -233,9 +235,12 @@ def app_run(
     log.info(f"write_to_db {write_to_db}...")
 
     with db_conn.get_session() as session:
+        # 1. Get sites
+        log.info("Getting sites...")
         sites = get_sites(db_session=session, country=country)
         log.info(f"Found {len(sites)} sites")
 
+        # 2. Load data/models
         all_model_configs = get_all_models(client_abbreviation=os.getenv("CLIENT_NAME", "nl"))
         successful_runs = 0
         runs = 0
@@ -248,6 +253,7 @@ def app_run(
                 runs += 1
                 log.info(f"Reading latest historic {site} generation data...")
                 generation_data = get_generation_data(session, [site], timestamp)
+
                 log.info(f"Loading {site} model {model_config.name}...")
                 ml_model = get_model(
                     timestamp,
@@ -260,6 +266,7 @@ def app_run(
                 ml_model.location_uuid = site.location_uuid
                 log.info(f"{site} model loaded")
 
+                # 3. Run model for each site
                 site_uuid = ml_model.location_uuid
                 asset_type = ml_model.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")
@@ -272,6 +279,7 @@ def app_run(
                 if forecast_values is None:
                     log.info(f"No forecast values for site_uuid={site_uuid}")
                 else:
+                    # 4. Write forecast to DB or stdout
                     forecast = {
                         "meta": {
                             "location_uuid": site_uuid,
@@ -291,7 +299,7 @@ def app_run(
                     successful_runs += 1
 
         log.info(
-            f"Completed forecasts for {successful_runs} runs for ",
+            f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs. This was for {len(sites)} sites",
         )
 
