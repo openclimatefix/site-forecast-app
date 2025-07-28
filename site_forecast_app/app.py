@@ -172,10 +172,7 @@ def app(
         "--date",
         "-d",
         formats=["%Y-%m-%d-%H-%M"],
-        help=(
-            "Date-time (UTC) at which we make the prediction. "
-            "Format should be YYYY-MM-DD-HH-mm. Defaults to 'now'."
-        ),
+        help="Date-time (UTC) at which we make the prediction. Format: YYYY-MM-DD-HH-mm.",
     ),
     write_to_db: bool = typer.Option(
         False,
@@ -190,10 +187,18 @@ def app(
     ),
 ) -> None:
     """Main typer function for running forecasts for sites."""
-    app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
+    app_run(
+        timestamp=timestamp,
+        write_to_db=write_to_db,
+        log_level=log_level,
+    )
 
 
-def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info") -> None:
+def app_run(
+    timestamp: dt.datetime | None,
+    write_to_db: bool = False,
+    log_level: str = "info",
+) -> None:
     """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
     log.info(f"Running India forecast app:{version}")
@@ -244,7 +249,11 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                 site_uuid = ml_model.location_uuid
                 asset_type = ml_model.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")
-                forecast_values = run_model(model=ml_model, site_uuid=site_uuid, timestamp=timestamp)
+                forecast_values = run_model(
+                    model=ml_model,
+                    site_uuid=site_uuid,
+                    timestamp=timestamp,
+                )
 
                 if forecast_values is None:
                     log.info(f"No forecast values for site_uuid={site_uuid}")
@@ -268,8 +277,8 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                     successful_runs += 1
 
         log.info(
-            f"Completed forecasts for {successful_runs} runs for "
-            f"{runs} model runs. This was for {len(sites)} sites"
+            f"Completed forecasts for {successful_runs} runs for ",
+            f"{runs} model runs. This was for {len(sites)} sites",
         )
 
         if successful_runs == runs:
