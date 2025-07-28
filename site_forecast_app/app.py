@@ -176,7 +176,7 @@ def app(
     write_to_db: bool = False,
     log_level: str = "info",
 ) -> None:
-    """Main click function for running forecasts for sites."""
+    """Main typer function for running forecasts for sites."""
     app_run(
         timestamp=timestamp,
         write_to_db=write_to_db,
@@ -206,9 +206,10 @@ def typer_options(ctx: typer.Context) -> None:
                 "--log-level",
                 help="Set the python logging log level",
                 show_default=True,
-            ).default,
+            ).default,  
         }
     }
+
 
 
 def app_run(
