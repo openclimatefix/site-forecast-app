@@ -32,7 +32,6 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 app = typer.Typer()
-# module‑level Option defaults (to satisfy pylint B008)
 _TIMESTAMP_OPTION = typer.Option(
     None,
     "--date", "-d",
