@@ -104,7 +104,14 @@ def get_model(
 
 
 def run_model(model: PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict | None:
-    """Runs inference on model for the given site & timestamp."""
+    """Runs inference on model for the given site & timestamp.
+    Args:
+            model: A forecasting model
+            site_uuid: A specific site uuid
+            timestamp: timestamp to run a forecast for
+    Returns:
+            A forecast or None if model inference fails
+    """
     try:
         forecast = model.predict(site_uuid=site_uuid, timestamp=timestamp)
     except Exception:
@@ -214,7 +221,7 @@ def app_run(
         log.info(f'Timestamp omitted - will generate forecasts for "now" ({timestamp})')
     else:
         timestamp = pd.Timestamp(timestamp).floor("15min")
-
+    # 0. Initialise DB connection
     url = os.environ["DB_URL"]
     db_conn = DatabaseConnection(url, echo=False)
     country = os.environ.get("COUNTRY", "nl")
@@ -233,6 +240,7 @@ def app_run(
         runs = 0
 
         for model_config in all_model_configs.models:
+            # reduce to only pv or wind, depending on the model
             sites_for_model = [
                 site for site in sites if site.asset_type.name == model_config.asset_type
             ]
@@ -240,7 +248,8 @@ def app_run(
                 runs += 1
                 log.info(f"Reading latest historic {site} generation data...")
                 generation_data = get_generation_data(session, [site], timestamp)
-
+                log.debug(f"{generation_data['data']=}")
+                log.debug(f"{generation_data['metadata']=}")
                 log.info(f"Loading {site} model {model_config.name}...")
                 ml_model = get_model(
                     timestamp,
