@@ -105,6 +105,7 @@ def get_model(
 
 def run_model(model: PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict | None:
     """Runs inference on model for the given site & timestamp.
+    
     Args:
             model: A forecasting model
             site_uuid: A specific site uuid
