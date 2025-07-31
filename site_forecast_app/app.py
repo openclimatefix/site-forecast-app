@@ -91,6 +91,7 @@ def get_model(
     Returns:
         A forecasting model
     """
+    # Only Windnet and PVnet is now used
     model_cls = PVNetModel
     model = model_cls(
         timestamp,
@@ -107,11 +108,12 @@ def run_model(model: PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict
     """Runs inference on model for the given site & timestamp.
 
     Args:
-            model: A forecasting model
-            site_uuid: A specific site uuid
-            timestamp: timestamp to run a forecast for
+        model: A forecasting model
+        site_uuid: A specific site uuid
+        timestamp: timestamp to run a forecast for
+
     Returns:
-            A forecast or None if model inference fails
+        A forecast or None if model inference fails
     """
     try:
         forecast = model.predict(site_uuid=site_uuid, timestamp=timestamp)
