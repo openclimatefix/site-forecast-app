@@ -210,7 +210,9 @@ def app(
 
 
 def app_run(
-    timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info",
+    timestamp: dt.datetime | None,
+    write_to_db: bool = False,
+    log_level: str = "info",
 ) -> None:
     """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
