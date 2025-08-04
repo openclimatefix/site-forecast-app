@@ -22,7 +22,7 @@ from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
 
-from ._utils import run_click_script
+from ._utils import run_typer_script
 
 mp.set_start_method("spawn", force=True)
 
@@ -42,7 +42,7 @@ def test_get_sites(db_session, sites):
 def test_get_model(
     db_session,
     sites,
-    nwp_data, # noqa: ARG001
+    nwp_data,  # noqa: ARG001
     generation_db_values,  # noqa: ARG001
     init_timestamp,
     satellite_data,  # noqa: ARG001
@@ -126,7 +126,12 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
-    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data,  # noqa: ARG001
+    write_to_db,
+    db_session,
+    sites,
+    nwp_data,
+    generation_db_values,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
@@ -137,14 +142,14 @@ def test_app(
     if write_to_db:
         args.append("--write-to-db")
 
-    result = run_click_script(app, args)
+    result = run_typer_script(app, args)
     assert result.exit_code == 0
 
     n = 2  # 1 site, 2 model
     # 1 model does 48 hours
     # 1 model does 36 hours
     # average number of forecast is 42
-    n_fv = 42*4
+    n_fv = 42 * 4
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
@@ -160,7 +165,12 @@ def test_app(
 
 
 def test_app_ad(
-    db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data,  # noqa: ARG001
+    db_session,
+    sites,
+    nwp_data,
+    nwp_mo_global_data,
+    generation_db_values,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
@@ -173,7 +183,7 @@ def test_app_ad(
     os.environ["CLIENT_NAME"] = "ad"
     os.environ["COUNTRY"] = "india"
 
-    result = run_click_script(app, args)
+    result = run_typer_script(app, args)
     assert result.exit_code == 0
 
     n = 1  # 1 site, 1 model
@@ -192,7 +202,7 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
 
-    result = run_click_script(app, args)
+    result = run_typer_script(app, args)
     assert result.exit_code == 0
 
     n = 1  # 1 site, 1 model
