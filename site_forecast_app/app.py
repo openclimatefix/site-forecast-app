@@ -4,7 +4,7 @@ import datetime as dt
 import logging
 import os
 import sys
-from typing import Annotated
+from typing import Annotated, Optional, Union
 
 import pandas as pd
 import sentry_sdk
@@ -83,7 +83,7 @@ def get_model(
     return model
 
 
-def run_model(model: PVNetModel, site_uuid: str, timestamp: dt.datetime) -> dict | None:
+def run_model(model: PVNetModel, site_uuid: str, timestamp: dt.datetime) -> Optional[dict]:
     """Runs inference on model for the given site & timestamp.
 
     Args:
@@ -110,10 +110,10 @@ def save_forecast(
     db_session: Session,
     forecast: dict,
     write_to_db: bool,
-    ml_model_name: str | None = None,
-    ml_model_version: str | None = None,
+    ml_model_name: Optional[str] = None,
+    ml_model_version: Optional[str] = None,
     use_adjuster: bool = True,
-    adjuster_average_minutes: int | None = 60,
+    adjuster_average_minutes: Optional[int] = 60,
 ) -> None:
     """Saves a forecast for a given site & timestamp.
 
@@ -179,7 +179,7 @@ def save_forecast(
 
 def app(
     timestamp: Annotated[
-        dt.datetime | None,
+        Optional[dt.datetime],
         typer.Option(
             "--date",
             "-d",
@@ -210,7 +210,7 @@ def app(
 
 
 def app_run(
-    timestamp: dt.datetime | None,
+    timestamp: Optional[dt.datetime],
     write_to_db: bool = False,
     log_level: str = "info",
 ) -> None:
