@@ -15,7 +15,13 @@ import xarray as xr
 import zarr
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
-from pvsite_datamodel.sqlmodels import Base, ForecastSQL, ForecastValueSQL, GenerationSQL, SiteSQL
+from pvsite_datamodel.sqlmodels import (
+    Base,
+    ForecastSQL,
+    ForecastValueSQL,
+    GenerationSQL,
+    LocationSQL,
+)
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
@@ -72,9 +78,9 @@ def sites(db_session):
 
     sites = []
     # PV site
-    site = SiteSQL(
-        client_site_id=1,
-        client_site_name="test_site_nl",
+    site = LocationSQL(
+        client_location_id=1,
+        client_location_name="test_site_nl",
         latitude=51,
         longitude=5,
         capacity_kw=20000,
@@ -87,9 +93,9 @@ def sites(db_session):
 
     # Although this site is an india site,
     # we want it to be in the test data so we adjust the lat and lon
-    site = SiteSQL(
-        client_site_id=1,
-        client_site_name="test_site_ad",
+    site = LocationSQL(
+        client_location_id=1,
+        client_location_name="test_site_ad",
         latitude=52,
         longitude=5,
         capacity_kw=20000,
@@ -124,7 +130,7 @@ def generation_db_values(db_session, sites, init_timestamp):
     for site in sites:
         for i in range(0, len(start_times)):
             generation = GenerationSQL(
-                site_uuid=site.site_uuid,
+                location_uuid=site.location_uuid,
                 generation_power_kw=power_values[i],
                 start_utc=start_times[i],
                 end_utc=start_times[i] + dt.timedelta(minutes=3),
@@ -180,7 +186,7 @@ def forecasts(db_session, sites):
         forecast_uuid = uuid4()
         model = get_or_create_model(db_session, "test", "0.0.0")
         forecast = ForecastSQL(
-            site_uuid=site.site_uuid,
+            location_uuid=site.location_uuid,
             timestamp_utc=start_times[-1],
             forecast_version="0.0.0",
             created_utc=start_times[-1],
@@ -376,6 +382,48 @@ def satellite_data(tmp_path_factory, init_timestamp):
     # Add data to dataset
     ds["data"] = xr.DataArray(
         np.zeros([len(ds[c]) for c in ds.xindexes]),
+        coords=[ds[c] for c in ds.xindexes],
+    )
+
+    # Add stored attributes to DataArray
+    ds.data.attrs = ds.attrs["_data_attrs"]
+    del ds.attrs["_data_attrs"]
+
+    # In production sat zarr is zipped
+    temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_sat.zarr.zip"
+
+    # save out data and set paths as environmental variables
+    os.environ["SATELLITE_ZARR_PATH"] = temp_sat_path
+    with zarr.storage.ZipStore(temp_sat_path, mode="x") as store:
+        ds.to_zarr(store)
+
+@pytest.fixture(scope="function")
+def small_satellite_data(tmp_path_factory, init_timestamp):
+    """Small amount of non-zero dummy satellite data"""
+    # Load dataset which only contains coordinates, but no data
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell.zarr")
+    # remove time dim and geostationary dims and expand them
+    ds = ds.drop_vars(["time", "x_geostationary", "y_geostationary"])
+    n_hours = 3
+
+    # Add times so they lead up to present
+    t0_datetime_utc = init_timestamp - dt.timedelta(minutes=0)
+    times = pd.date_range(
+        t0_datetime_utc - dt.timedelta(hours=n_hours),
+        t0_datetime_utc,
+        freq=dt.timedelta(minutes=5),
+    )
+    ds = ds.expand_dims(time=times)
+
+    # set geostationary cords for small area
+    ds = ds.expand_dims(
+        x_geostationary=np.arange(50000.0, -50000.0, -5000),
+        y_geostationary=np.arange(-50000.0, 50000.0, 5000),
+    )
+
+    # Add data to dataset with random values between 1 and 100
+    ds["data"] = xr.DataArray(
+        np.random.uniform(1, 100, size=[len(ds[c]) for c in ds.xindexes]),
         coords=[ds[c] for c in ds.xindexes],
     )
 

@@ -5,22 +5,22 @@ import logging
 import numpy as np
 import pandas as pd
 import pvlib
-from pvsite_datamodel import SiteSQL
+from pvsite_datamodel import LocationSQL
 from pvsite_datamodel.read import get_pv_generation_by_sites
-from pvsite_datamodel.sqlmodels import SiteAssetType
+from pvsite_datamodel.sqlmodels import LocationAssetType
 from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
 
 def get_generation_data(
-    db_session: Session, sites: list[SiteSQL], timestamp: dt.datetime,
+    db_session: Session, sites: list[LocationSQL], timestamp: dt.datetime,
 ) -> dict[str, pd.DataFrame]:
     """Gets generation data values for given sites.
 
     Args:
             db_session: A SQLAlchemy session
-            sites: A list of SiteSQL objects
+            sites: A list of LocationSQL objects
             timestamp: The end time from which to retrieve data
 
     Returns:
@@ -28,7 +28,7 @@ def get_generation_data(
             - "data": Dataframe containing 15-minutely generation data
             - "metadata": Dataframe containing information about the site
     """
-    site_uuids = [s.site_uuid for s in sites]
+    site_uuids = [s.location_uuid for s in sites]
     start = timestamp - dt.timedelta(hours=48)
     # pad by 1 second to ensure get_pv_generation_by_sites returns correct data
     end = timestamp + dt.timedelta(seconds=1)
@@ -39,7 +39,6 @@ def get_generation_data(
     )
     # get the ml id, this only works for one site right now
     system_id = sites[0].ml_id
-    system_id = 0  # TODO
 
     if len(generation_data) == 0:
         log.warning("No generation found for the specified sites/period")
@@ -64,7 +63,7 @@ def get_generation_data(
         log.info(generation_df)
 
         # Filter out any 0 values when the sun is up
-        if sites[0].asset_type == SiteAssetType.pv:
+        if sites[0].asset_type == LocationAssetType.pv:
             generation_df = filter_on_sun_elevation(generation_df, sites[0])
 
         # Ensure timestamps line up with 3min intervals
@@ -111,21 +110,21 @@ def get_generation_data(
 
     # Site metadata dataframe
     sites_df = pd.DataFrame(
-        [(system_id, s.latitude, s.longitude, s.capacity_kw, 0) for s in sites],
+        [(system_id, s.latitude, s.longitude, s.capacity_kw, system_id) for s in sites],
         columns=["system_id", "latitude", "longitude", "capacity_kwp", "site_id"],
     )
 
     return {"data": generation_xr, "metadata": sites_df}
 
 
-def filter_on_sun_elevation(generation_df: pd.DataFrame, site: SiteSQL) -> pd.DataFrame:
+def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> pd.DataFrame:
     """Filter the data on sun elevation.
 
     If the sun is up, the generation values should be above zero
     param:
         generation_df: A dataframe containing generation data,
             with a column "power_kw", and index of datetimes
-        site: A SiteSQL object
+        site: A LocationSQL object
 
     return: dataframe with generation data
     """
