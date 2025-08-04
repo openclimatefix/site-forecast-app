@@ -10,7 +10,7 @@ def run_typer_script(app_func, args: list[str], catch_exceptions: bool = False):
     runner = CliRunner()
 
     # Create a temporary Typer app for testing
-    if callable(app_func) and not hasattr(app_func, '_add_completion'):
+    if callable(app_func) and not hasattr(app_func, "_add_completion"):
         temp_app = typer.Typer()
         temp_app.command()(app_func)
         app_to_test = temp_app
