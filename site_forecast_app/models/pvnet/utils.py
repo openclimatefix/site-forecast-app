@@ -227,7 +227,11 @@ def download_satellite_data(satellite_source_file_path: str,
         if scaling_method == "constant":
             log.info("Scaling satellite data to [0,1] range via constant scaling")
             # scale the dataset to 0-1
-            ds = ds / 1023
+
+            scale_factor = int(os.environ.get("SATELLITE_SCALE_FACTOR", 1023))
+            log.info(f"Scaling satellite data by {scale_factor} to be between 0 and 1")
+
+            ds = ds / scale_factor
         elif scaling_method == "minmax":
             log.info("Scaling satellite data to [0,1] range via min-max scaling")
             # scale the dataset to min-max

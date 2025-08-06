@@ -53,6 +53,7 @@ The following environment variables are required to run the app:
 - `HUGGINGFACE_TOKEN`: Token used for private models
 - `COUNTRY`: Can be `nl` for Netherlands, or `india` for India. 
 - `CLIENT_NAME`: The name of the client, this is used to the sites that should be run
+- `SATELLITE_SCALE_FACTOR`: The scale factor for the satellite data. Defaults to 1023. 
 
 Here are some temporary ones
 - `MO_GLOBAL_SCALE_CLOUDS`: The scale factor for the Met Office global clouds, this is used to scale the clouds in the Met Office NWP data
