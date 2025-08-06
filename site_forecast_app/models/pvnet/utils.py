@@ -229,9 +229,7 @@ def download_satellite_data(satellite_source_file_path: str,
             # scale the dataset to 0-1
 
             scale_factor = int(os.environ.get("SATELLITE_SCALE_FACTOR", 1023))
-            logger.info(
-                f"Scaling satellite data by {scale_factor} to be between 0 and 1"
-            )
+            log.info(f"Scaling satellite data by {scale_factor} to be between 0 and 1")
 
             ds = ds / scale_factor
         elif scaling_method == "minmax":
