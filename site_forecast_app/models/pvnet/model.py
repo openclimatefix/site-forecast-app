@@ -13,7 +13,6 @@ import torch
 from ocf_data_sampler.numpy_sample.collate import stack_np_samples_into_batch
 from ocf_data_sampler.torch_datasets.datasets.site import (
     SitesDataset,
-    convert_netcdf_to_numpy_sample,
 )
 from ocf_data_sampler.torch_datasets.sample.base import (
     batch_to_tensor,
@@ -125,7 +124,6 @@ class PVNetModel:
             # for i, batch in enumerate(self.dataloader):
             log.info(f"Predicting for batch: {i}, for {sample_t0=}, {sample_site_id=}")
 
-            batch = convert_netcdf_to_numpy_sample(batch)
             batch = stack_np_samples_into_batch([batch])
             batch = batch_to_tensor(batch)
 
