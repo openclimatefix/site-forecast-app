@@ -127,6 +127,13 @@ class PVNetModel:
             batch = stack_np_samples_into_batch([batch])
             batch = batch_to_tensor(batch)
 
+            # to cover both site_cos_time and cos_time we duplicate some keys
+            # this should get removed in an upgrade of pvnet
+            for key in ['time_cos', 'time_sin', 'date_cos', 'date_sin']:
+                print(batch)
+                if key in batch:
+                    batch[f"site_{key}"] = batch[key]
+
             # set MO GLOBAL cloud_cover_total to 0
             mo_global_nan_total_cloud_cover = (
                 os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
