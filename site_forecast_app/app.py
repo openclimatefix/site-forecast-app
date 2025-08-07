@@ -78,8 +78,14 @@ def get_model(
     # Only Windnet and PVnet is now used
     model_cls = PVNetModel
 
-    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
-                      name=name, satellite_scaling_method=satellite_scaling_method)
+    model = model_cls(
+        timestamp,
+        generation_data,
+        hf_repo=hf_repo,
+        hf_version=hf_version,
+        name=name,
+        satellite_scaling_method=satellite_scaling_method,
+    )
     return model
 
 
@@ -170,9 +176,9 @@ def save_forecast(
                 ml_model_version=ml_model_version,
             )
 
-    output = f'Forecast for site_id={forecast_meta["location_uuid"]},\
-               timestamp={forecast_meta["timestamp_utc"]},\
-               version={forecast_meta["forecast_version"]}:'
+    output = f"Forecast for site_id={forecast_meta['location_uuid']},\
+               timestamp={forecast_meta['timestamp_utc']},\
+               version={forecast_meta['forecast_version']}:"
     log.info(output.replace("  ", ""))
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
