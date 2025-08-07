@@ -129,8 +129,7 @@ class PVNetModel:
 
             # to cover both site_cos_time and cos_time we duplicate some keys
             # this should get removed in an upgrade of pvnet
-            for key in ['time_cos', 'time_sin', 'date_cos', 'date_sin']:
-                print(batch)
+            for key in ["time_cos", "time_sin", "date_cos", "date_sin"]:
                 if key in batch:
                     batch[f"site_{key}"] = batch[key]
 
