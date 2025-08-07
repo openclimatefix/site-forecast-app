@@ -142,6 +142,9 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         if ds[v].dtype == object:
             ds[v].encoding.clear()
 
+    # make the dtype of variables is strings
+    ds["variable"] = ds.variable.astype(str)
+
     name = next(iter(ds.data_vars))
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
     if nwp_config.source == "mo_global" and scale_mo_global_clouds:
