@@ -4,10 +4,11 @@ import datetime as dt
 import logging
 import os
 import sys
+from typing import Annotated
 
-import click
 import pandas as pd
 import sentry_sdk
+import typer
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
 from pvsite_datamodel.sqlmodels import LocationSQL
@@ -77,8 +78,14 @@ def get_model(
     # Only Windnet and PVnet is now used
     model_cls = PVNetModel
 
-    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
-                      name=name, satellite_scaling_method=satellite_scaling_method)
+    model = model_cls(
+        timestamp,
+        generation_data,
+        hf_repo=hf_repo,
+        hf_version=hf_version,
+        name=name,
+        satellite_scaling_method=satellite_scaling_method,
+    )
     return model
 
 
@@ -169,42 +176,50 @@ def save_forecast(
                 ml_model_version=ml_model_version,
             )
 
-    output = f'Forecast for site_id={forecast_meta["location_uuid"]},\
-               timestamp={forecast_meta["timestamp_utc"]},\
-               version={forecast_meta["forecast_version"]}:'
+    output = f"Forecast for site_id={forecast_meta['location_uuid']},\
+               timestamp={forecast_meta['timestamp_utc']},\
+               version={forecast_meta['forecast_version']}:"
     log.info(output.replace("  ", ""))
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
 
-@click.command()
-@click.option(
-    "--date",
-    "-d",
-    "timestamp",
-    type=click.DateTime(formats=["%Y-%m-%d-%H-%M"]),
-    default=None,
-    help='Date-time (UTC) at which we make the prediction. \
-Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
-)
-@click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database.",
-)
-@click.option(
-    "--log-level",
-    default="info",
-    help="Set the python logging log level",
-    show_default=True,
-)
-def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> None:
-    """Main click function for running forecasts for sites."""
+def app(
+    timestamp: Annotated[
+        dt.datetime | None,
+        typer.Option(
+            "--date",
+            "-d",
+            help=(
+                "Date-time (UTC) at which we make the prediction. "
+                'Format should be YYYY-MM-DD-HH-mm. Defaults to "now".'
+            ),
+            formats=["%Y-%m-%d-%H-%M"],
+        ),
+    ] = None,
+    write_to_db: Annotated[
+        bool,
+        typer.Option(
+            "--write-to-db",
+            help="Set this flag to actually write the results to the database.",
+        ),
+    ] = False,
+    log_level: Annotated[
+        str,
+        typer.Option(
+            "--log-level",
+            help="Set the python logging log level",
+        ),
+    ] = "info",
+) -> None:
+    """Main function for running forecasts for sites."""
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
-def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info") \
-        -> None:
+def app_run(
+    timestamp: dt.datetime | None,
+    write_to_db: bool = False,
+    log_level: str = "info",
+) -> None:
     """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
@@ -226,7 +241,6 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
     log.info(f"write_to_db {write_to_db}...")
 
     with db_conn.get_session() as session:
-
         # 1. Get sites
         log.info("Getting sites...")
         sites = get_sites(db_session=session, country=country)
@@ -237,7 +251,6 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
         successful_runs = 0
         runs = 0
         for model_config in all_model_configs.models:
-
             # reduce to only pv or wind, depending on the model
             sites_for_model = [
                 site for site in sites if site.asset_type.name == model_config.asset_type
@@ -313,4 +326,4 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
 
 
 if __name__ == "__main__":
-    app()
+    typer.run(app)
