@@ -283,9 +283,6 @@ def nwp_data(tmp_path_factory, time_before_present):
         "total_precipitation_rate_gl",
     ]
 
-    # make the dtype of variables is strings
-    ds["variable"] = ds.variable.astype(str)
-
     # AS NWP data is loaded by the app from environment variable,
     # save out data and set paths as environmental variables
     temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
@@ -339,9 +336,6 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
         "direct_shortwave_radiation_flux_gl",
         "total_precipitation_rate_gl",
     ]
-
-    # make the dtype of variables is strings
-    ds["variable"] = ds.variable.astype(str)
 
     # interpolate 3 hourly step to 1 hour steps
     steps = pd.TimedeltaIndex(np.arange(49) * 3600 * 1e9, freq="infer")
