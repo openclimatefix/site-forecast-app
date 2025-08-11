@@ -3,7 +3,7 @@ import logging
 import os
 import tempfile
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import fsspec
 import numpy as np
@@ -79,11 +79,15 @@ def download_satellite_data(satellite_source_file_path: str,
 
         # possibily download backup satellite
         # if there are not enough time in the current satellite data
-        latest_satellite_time = times.max().value
-        satellite_delay = datetime.now(UTC) - latest_satellite_time
-        if satellite_backup_source_file_path and satellite_delay < datetime.timedelta(minutes=30):
-            log.info("Not enough satellite data available",
-                     "downloading backup from {satellite_backup_source_file_path}")
+        latest_satellite_time = times.max()
+        now = datetime.now(UTC)
+        latest_satellite_time = datetime.fromtimestamp(
+            int(latest_satellite_time.astype(datetime)/1e9), tz=UTC)
+        satellite_delay = now - latest_satellite_time
+
+        if satellite_backup_source_file_path and satellite_delay < timedelta(minutes=30):
+            log.info("Not enough satellite data available" \
+                f"downloading backup from {satellite_backup_source_file_path}")
 
             temporary_satellite_data = f"{tmpdir}/temporary_satellite_backup_data.zarr"
             download_and_unzip(file_zip=satellite_backup_source_file_path,
