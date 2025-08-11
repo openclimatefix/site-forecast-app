@@ -3,9 +3,9 @@
     11
   ],
   "data_type": {
-    "name": "null_terminated_bytes",
+    "name": "fixed_length_utf32",
     "configuration": {
-      "length_bytes": 6
+      "length_bytes": 24
     }
   },
   "chunk_grid": {
@@ -25,7 +25,10 @@
   "fill_value": "",
   "codecs": [
     {
-      "name": "bytes"
+      "name": "bytes",
+      "configuration": {
+        "endian": "little"
+      }
     },
     {
       "name": "zstd",
@@ -35,9 +38,7 @@
       }
     }
   ],
-  "attributes": {
-    "_Encoding": "utf-8"
-  },
+  "attributes": {},
   "dimension_names": [
     "variable"
   ],

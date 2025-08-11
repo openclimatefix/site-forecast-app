@@ -268,99 +268,6 @@
     "kind": "inline",
     "must_understand": false,
     "metadata": {
-      "time": {
-        "shape": [
-          24
-        ],
-        "data_type": "int32",
-        "chunk_grid": {
-          "name": "regular",
-          "configuration": {
-            "chunk_shape": [
-              24
-            ]
-          }
-        },
-        "chunk_key_encoding": {
-          "name": "default",
-          "configuration": {
-            "separator": "/"
-          }
-        },
-        "fill_value": 0,
-        "codecs": [
-          {
-            "name": "bytes",
-            "configuration": {
-              "endian": "little"
-            }
-          },
-          {
-            "name": "zstd",
-            "configuration": {
-              "level": 0,
-              "checksum": false
-            }
-          }
-        ],
-        "attributes": {
-          "units": "seconds since 1970-01-01",
-          "calendar": "proleptic_gregorian"
-        },
-        "dimension_names": [
-          "time"
-        ],
-        "zarr_format": 3,
-        "node_type": "array",
-        "storage_transformers": []
-      },
-      "variable": {
-        "shape": [
-          11
-        ],
-        "data_type": {
-          "name": "null_terminated_bytes",
-          "configuration": {
-            "length_bytes": 6
-          }
-        },
-        "chunk_grid": {
-          "name": "regular",
-          "configuration": {
-            "chunk_shape": [
-              11
-            ]
-          }
-        },
-        "chunk_key_encoding": {
-          "name": "default",
-          "configuration": {
-            "separator": "/"
-          }
-        },
-        "fill_value": "",
-        "codecs": [
-          {
-            "name": "bytes"
-          },
-          {
-            "name": "zstd",
-            "configuration": {
-              "level": 0,
-              "checksum": false
-            }
-          }
-        ],
-        "attributes": {
-          "_Encoding": "utf-8"
-        },
-        "dimension_names": [
-          "variable"
-        ],
-        "zarr_format": 3,
-        "node_type": "array",
-        "storage_transformers": []
-      },
       "x_geostationary": {
         "shape": [
           614
@@ -408,6 +315,52 @@
         "node_type": "array",
         "storage_transformers": []
       },
+      "time": {
+        "shape": [
+          24
+        ],
+        "data_type": "int32",
+        "chunk_grid": {
+          "name": "regular",
+          "configuration": {
+            "chunk_shape": [
+              24
+            ]
+          }
+        },
+        "chunk_key_encoding": {
+          "name": "default",
+          "configuration": {
+            "separator": "/"
+          }
+        },
+        "fill_value": 0,
+        "codecs": [
+          {
+            "name": "bytes",
+            "configuration": {
+              "endian": "little"
+            }
+          },
+          {
+            "name": "zstd",
+            "configuration": {
+              "level": 0,
+              "checksum": false
+            }
+          }
+        ],
+        "attributes": {
+          "units": "seconds since 1970-01-01",
+          "calendar": "proleptic_gregorian"
+        },
+        "dimension_names": [
+          "time"
+        ],
+        "zarr_format": 3,
+        "node_type": "array",
+        "storage_transformers": []
+      },
       "y_geostationary": {
         "shape": [
           372
@@ -450,6 +403,54 @@
         },
         "dimension_names": [
           "y_geostationary"
+        ],
+        "zarr_format": 3,
+        "node_type": "array",
+        "storage_transformers": []
+      },
+      "variable": {
+        "shape": [
+          11
+        ],
+        "data_type": {
+          "name": "fixed_length_utf32",
+          "configuration": {
+            "length_bytes": 24
+          }
+        },
+        "chunk_grid": {
+          "name": "regular",
+          "configuration": {
+            "chunk_shape": [
+              11
+            ]
+          }
+        },
+        "chunk_key_encoding": {
+          "name": "default",
+          "configuration": {
+            "separator": "/"
+          }
+        },
+        "fill_value": "",
+        "codecs": [
+          {
+            "name": "bytes",
+            "configuration": {
+              "endian": "little"
+            }
+          },
+          {
+            "name": "zstd",
+            "configuration": {
+              "level": 0,
+              "checksum": false
+            }
+          }
+        ],
+        "attributes": {},
+        "dimension_names": [
+          "variable"
         ],
         "zarr_format": 3,
         "node_type": "array",
