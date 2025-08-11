@@ -5,8 +5,8 @@ import tempfile
 import numpy as np
 import xarray as xr
 
+from site_forecast_app.data.satellite import satellite_scale_minmax
 from site_forecast_app.models.pvnet.utils import (
-    satellite_scale_minmax,
     save_batch,
     set_night_time_zeros,
 )
