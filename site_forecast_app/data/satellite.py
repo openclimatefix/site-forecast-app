@@ -3,10 +3,11 @@ import logging
 import os
 import tempfile
 import zipfile
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, timedelta
 
 import fsspec
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 log = logging.getLogger(__name__)
@@ -80,9 +81,7 @@ def download_satellite_data(satellite_source_file_path: str,
         # possibily download backup satellite
         # if there are not enough time in the current satellite data
         latest_satellite_time = times.max()
-        now = datetime.now(UTC)
-        latest_satellite_time = datetime.fromtimestamp(
-            int(latest_satellite_time.astype(datetime)/1e9), tz=UTC)
+        now = pd.Timestamp.now(tz=UTC).replace(tzinfo=None)
         satellite_delay = now - latest_satellite_time
 
         log.info(f"Latest satellite time: {latest_satellite_time}")
@@ -98,7 +97,8 @@ def download_satellite_data(satellite_source_file_path: str,
             ds = xr.open_zarr(temporary_satellite_data)
 
             # resample satellite data to 5 minutely data
-            ds = ds.resample(time="5T").mean()
+            dense_times = pd.date_range(ds.time.values.min(), ds.time.values.max(), freq="5min")
+            ds = ds.interp(time=dense_times, method="linear", assume_sorted=True)
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}")
 
