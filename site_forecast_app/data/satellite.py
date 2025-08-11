@@ -95,6 +95,8 @@ def download_satellite_data(satellite_source_file_path: str,
                                file=temporary_satellite_data)
 
             ds = xr.open_zarr(temporary_satellite_data)
+            times = ds.time.values
+            log.info(f"Satellite data timestamps: {times}, before resampling to 5 min")
 
             # resample satellite data to 5 minutely data
             dense_times = pd.date_range(ds.time.values.min(), ds.time.values.max(), freq="5min")
