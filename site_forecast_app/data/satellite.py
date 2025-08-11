@@ -96,11 +96,11 @@ def download_satellite_data(satellite_source_file_path: str,
                                file=temporary_satellite_data)
 
             ds = xr.open_zarr(temporary_satellite_data)
-            times = ds.time.values
-            log.info(f"Satellite data timestamps: {times}")
 
             # resample satellite data to 5 minutely data
             ds = ds.resample(time="5T").mean()
+            times = ds.time.values
+            log.info(f"Satellite data timestamps: {times}")
 
         if scaling_method == "constant":
             log.info("Scaling satellite data to [0,1] range via constant scaling")
