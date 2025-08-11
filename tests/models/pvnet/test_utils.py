@@ -1,6 +1,7 @@
 """ Tests for utils for pvnet"""
 import os
 import tempfile
+import zipfile
 
 import numpy as np
 import xarray as xr
@@ -55,10 +56,17 @@ def test_satellite_scale_minmax(small_satellite_data, # noqa: ARG001
                                 ) -> None:
     """Test for scaling satellite data using min-max scaling."""
 
-    ds = xr.open_zarr(os.getenv("SATELLITE_ZARR_PATH"))
+    with tempfile.TemporaryDirectory() as tmpdir:
 
-    ds_scaled = satellite_scale_minmax(ds)
+        temporary_satellite_data = f"{tmpdir}/temporary_satellite_data.zarr"
 
-    assert ds_scaled.data.min() >= 0
-    assert ds_scaled.data.max() <= 1
-    assert ds_scaled.data.shape == ds.data.shape
+        with zipfile.ZipFile(os.getenv("SATELLITE_ZARR_PATH"), "r") as zip_ref:
+            zip_ref.extractall(temporary_satellite_data)
+
+        ds = xr.open_zarr(temporary_satellite_data)
+
+        ds_scaled = satellite_scale_minmax(ds)
+
+        assert ds_scaled.data.min() >= 0
+        assert ds_scaled.data.max() <= 1
+        assert ds_scaled.data.shape == ds.data.shape
