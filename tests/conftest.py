@@ -235,7 +235,7 @@ def nwp_data(tmp_path_factory, time_before_present):
     """Dummy NWP data"""
 
     # Load dataset which only contains coordinates, but no data
-    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data.zarr")
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data-3.zarr")
 
     # Last t0 to at least 6 hours ago and floor to 6-hour interval
     t0_datetime_utc = time_before_present(dt.timedelta(hours=0)).floor("6h")
@@ -295,7 +295,7 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
     """Dummy NWP data"""
 
     # Load dataset which only contains coordinates, but no data
-    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data.zarr")
+    ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data-3.zarr")
 
     # Last t0 to at least 4 hours ago and floor to 3-hour interval
     t0_datetime_utc = time_before_present(dt.timedelta(hours=0)).floor("3h")
