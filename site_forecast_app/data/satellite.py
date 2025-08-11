@@ -85,6 +85,8 @@ def download_satellite_data(satellite_source_file_path: str,
             int(latest_satellite_time.astype(datetime)/1e9), tz=UTC)
         satellite_delay = now - latest_satellite_time
 
+        log.info(f"Latest satellite time: {latest_satellite_time}")
+
         if satellite_backup_source_file_path and satellite_delay < timedelta(minutes=30):
             log.info("Not enough satellite data available" \
                 f"downloading backup from {satellite_backup_source_file_path}")
