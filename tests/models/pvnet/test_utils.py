@@ -1,7 +1,6 @@
 """ Tests for utils for pvnet"""
 import os
 import tempfile
-import zipfile
 
 import numpy as np
 

@@ -8,7 +8,6 @@ import zarr
 from site_forecast_app.data.satellite import download_satellite_data, satellite_scale_minmax
 
 
-
 def test_satellite_scale_minmax(small_satellite_data, # noqa: ARG001
                                 ) -> None:
     """Test for scaling satellite data using min-max scaling."""
