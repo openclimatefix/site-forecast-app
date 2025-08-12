@@ -19,6 +19,8 @@ from ocf_data_sampler.torch_datasets.sample.base import (
 )
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
 
+from site_forecast_app.data.satellite import download_satellite_data
+
 from .consts import (
     nwp_ecmwf_path,
     nwp_mo_global_path,
@@ -29,9 +31,9 @@ from .consts import (
 )
 from .utils import (
     NWPProcessAndCacheConfig,
-    download_satellite_data,
     populate_data_config_sources,
     process_and_cache_nwp,
+    satellite_path,
     save_batch,
     set_night_time_zeros,
 )
@@ -238,6 +240,7 @@ class PVNetModel:
         # Load remote zarr source
         use_satellite = os.getenv("USE_SATELLITE", "true").lower() == "true"
         satellite_source_file_path = os.getenv("SATELLITE_ZARR_PATH", None)
+        satellite_backup_source_file_path = os.getenv("SATELLITE_BACKUP_ZARR_PATH", None)
 
         # only load nwp that we need
         nwp_configs = []
@@ -265,7 +268,10 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"]:
-            download_satellite_data(satellite_source_file_path, self.satellite_scaling_method)
+            download_satellite_data(satellite_source_file_path,
+                                    satellite_path,
+                                    self.satellite_scaling_method,
+                                    satellite_backup_source_file_path)
 
         log.info("Preparing Site data sources")
         # Clear local cached site data if already exists

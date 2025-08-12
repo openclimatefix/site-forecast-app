@@ -4,10 +4,8 @@ import tempfile
 import zipfile
 
 import numpy as np
-import xarray as xr
 
 from site_forecast_app.models.pvnet.utils import (
-    satellite_scale_minmax,
     save_batch,
     set_night_time_zeros,
 )
@@ -52,21 +50,3 @@ def test_save_batch():
         # check that batch is saved
         assert os.path.exists(f"{temp_dir}/batch_{i}_{model_name}_fff-fff.pt")
 
-def test_satellite_scale_minmax(small_satellite_data, # noqa: ARG001
-                                ) -> None:
-    """Test for scaling satellite data using min-max scaling."""
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-
-        temporary_satellite_data = f"{tmpdir}/temporary_satellite_data.zarr"
-
-        with zipfile.ZipFile(os.getenv("SATELLITE_ZARR_PATH"), "r") as zip_ref:
-            zip_ref.extractall(temporary_satellite_data)
-
-        ds = xr.open_zarr(temporary_satellite_data)
-
-        ds_scaled = satellite_scale_minmax(ds)
-
-        assert ds_scaled.data.min() >= 0
-        assert ds_scaled.data.max() <= 1
-        assert ds_scaled.data.shape == ds.data.shape
