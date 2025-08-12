@@ -1,8 +1,6 @@
 """Useful functions for setting up PVNet model."""
 import logging
 import os
-import tempfile
-import zipfile
 from uuid import UUID
 
 import fsspec
@@ -196,99 +194,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     log.info(f"Saving NWP data to {dest_nwp_path}")
     ds.to_zarr(dest_nwp_path, mode="a")
 
-
-def download_satellite_data(satellite_source_file_path: str,
-                            scaling_method: str = "constant") -> None:
-    """Download the sat data."""
-    if os.path.exists(satellite_path):
-        log.info(f"File already exists at {satellite_path}")
-        return
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-
-        temporary_satellite_data = f"{tmpdir}/temporary_satellite_data.zarr"
-
-        # download satellite data
-        fs = fsspec.open(satellite_source_file_path).fs
-        if fs.exists(satellite_source_file_path):
-            log.info(
-                f"Downloading satellite data from {satellite_source_file_path} "
-                "to sat_min.zarr.zip",
-            )
-            fs.get(satellite_source_file_path, "sat_min.zarr.zip")
-            log.info(f"Unzipping sat_min.zarr.zip to {satellite_path}")
-
-            with zipfile.ZipFile("sat_min.zarr.zip", "r") as zip_ref:
-                zip_ref.extractall(temporary_satellite_data)
-        else:
-            log.error(f"Could not find satellite data at {satellite_source_file_path}")
-
-        # log the timestamps for satellite data
-        ds = xr.open_zarr(temporary_satellite_data)
-        log.info(f"Satellite data timestamps: {ds.time.values}, now scaling to 0-1")
-
-        if scaling_method == "constant":
-            log.info("Scaling satellite data to [0,1] range via constant scaling")
-            # scale the dataset to 0-1
-
-            scale_factor = int(os.environ.get("SATELLITE_SCALE_FACTOR", 1023))
-            log.info(f"Scaling satellite data by {scale_factor} to be between 0 and 1")
-
-            ds = ds / scale_factor
-        elif scaling_method == "minmax":
-            log.info("Scaling satellite data to [0,1] range via min-max scaling")
-            # scale the dataset to min-max
-            ds = satellite_scale_minmax(ds)
-        else:
-            raise ValueError(f"Unknown scaling method: {scaling_method}")
-
-        # save the dataset
-        ds.to_zarr(satellite_path, mode="a")
-
-def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
-    """Scale the satellite dataset via min-max to [0,1] range."""
-    log.info("Scaling satellite data to 0,1] range via min-max")
-
-    channels = ds.variable.values
-    # min and max values for each variable (same length as `variable`
-    # and in the same order)
-    min_vals = np.array(
-            [
-                -2.5118103,
-                -64.83977,
-                63.404694,
-                2.844452,
-                199.10002,
-                -17.254883,
-                -26.29155,
-                -1.1009827,
-                -2.4184198,
-                199.57048,
-                198.95093,
-            ])
-    max_vals = np.array(
-            [
-                69.60857,
-                339.15588,
-                340.26526,
-                317.86752,
-                313.2767,
-                315.99194,
-                274.82297,
-                93.786545,
-                101.34922,
-                249.91806,
-                286.96323,
-            ])
-
-    # Create DataArrays for min and max with the 'variable' dimension
-    min_da = xr.DataArray(min_vals, coords={"variable": channels}, dims=["variable"])
-    max_da = xr.DataArray(max_vals, coords={"variable": channels}, dims=["variable"])
-
-    # Apply scaling
-    scaled_ds = (ds - min_da) / (max_da - min_da)
-    scaled_ds = scaled_ds.clip(min=0, max=1)  # Ensure values are within [0, 1]
-    return scaled_ds
 
 def set_night_time_zeros(
     batch: dict,
