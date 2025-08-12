@@ -12,7 +12,8 @@ def test_satellite_scale_minmax(small_satellite_data, # noqa: ARG001
                                 ) -> None:
     """Test for scaling satellite data using min-max scaling."""
 
-    ds = xr.open_zarr(os.getenv("SATELLITE_ZARR_PATH"))
+    with zarr.storage.ZipStore(os.getenv("SATELLITE_ZARR_PATH"), mode="r") as store:
+        ds = xr.open_zarr(store)
 
     ds_scaled = satellite_scale_minmax(ds)
 
@@ -36,7 +37,8 @@ def test_satellite_download_backup(small_satellite_data, # noqa: ARG001
                                 ) -> None:
     """Test for scaling satellite data using min-max scaling."""
 
-    ds = xr.open_zarr(os.getenv("SATELLITE_ZARR_PATH"))
+    with zarr.storage.ZipStore(os.getenv("SATELLITE_ZARR_PATH"), mode="r") as store:
+        ds = xr.open_zarr(store)
 
     # only select the first 2 timestamps
     ds = ds.isel(time=slice(0, 2))
