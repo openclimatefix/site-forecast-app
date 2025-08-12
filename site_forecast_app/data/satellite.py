@@ -2,13 +2,13 @@
 import logging
 import os
 import tempfile
-import zipfile
 from datetime import UTC, timedelta
 
 import fsspec
 import numpy as np
 import pandas as pd
 import xarray as xr
+import zarr
 
 log = logging.getLogger(__name__)
 
@@ -71,10 +71,9 @@ def download_satellite_data(satellite_source_file_path: str,
 
         temporary_satellite_data = f"{tmpdir}/temporary_satellite_data.zarr"
 
-        download_and_unzip(file_zip=satellite_source_file_path, file=temporary_satellite_data)
+        ds = download_and_unzip(file_zip=satellite_source_file_path, file=temporary_satellite_data)
 
         # log the timestamps for satellite data
-        ds = xr.open_zarr(temporary_satellite_data)
         times = ds.time.values
         log.info(f"Satellite data timestamps: {times}")
 
@@ -91,10 +90,9 @@ def download_satellite_data(satellite_source_file_path: str,
                 f"downloading backup from {satellite_backup_source_file_path}")
 
             temporary_satellite_data = f"{tmpdir}/temporary_satellite_backup_data.zarr"
-            download_and_unzip(file_zip=satellite_backup_source_file_path,
+            ds = download_and_unzip(file_zip=satellite_backup_source_file_path,
                                file=temporary_satellite_data)
 
-            ds = xr.open_zarr(temporary_satellite_data, chunks=None)
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}, before resampling to 5 min")
 
@@ -140,7 +138,7 @@ def download_and_unzip(file_zip:str, file:str) -> None:
         fs.get(file_zip, "sat_min.zarr.zip")
         log.info(f"Unzipping sat_min.zarr.zip to {file}")
 
-        with zipfile.ZipFile("sat_min.zarr.zip", "r") as zip_ref:
-            zip_ref.extractall(file)
+        store = zarr.storage.ZipStore(path="sat_min.zarr.zip", mode="r")
+        return xr.open_zarr(store, consolidated=True)
     else:
         log.error(f"Could not find satellite data at {file}")
