@@ -120,7 +120,7 @@ def download_satellite_data(satellite_source_file_path: str,
             raise ValueError(f"Unknown scaling method: {scaling_method}")
 
         # save the dataset
-        ds.to_zarr(local_satellite_path, mode="a")
+        ds.to_zarr(local_satellite_path, mode="a", chunks=None)
 
 
 def download_and_unzip(file_zip:str, file:str) -> None:
