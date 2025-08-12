@@ -94,7 +94,7 @@ def download_satellite_data(satellite_source_file_path: str,
             download_and_unzip(file_zip=satellite_backup_source_file_path,
                                file=temporary_satellite_data)
 
-            ds = xr.open_zarr(temporary_satellite_data, chunks={})
+            ds = xr.open_zarr(temporary_satellite_data, chunks=None)
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}, before resampling to 5 min")
 
