@@ -124,8 +124,11 @@ def download_satellite_data(satellite_source_file_path: str,
         for v in list(ds.variables.keys()):
             ds[v].encoding.clear()
 
+        # make the dtype of variables is strings
+        ds["variable"] = ds.variable.astype(str)
+
         # save the dataset
-        ds.chunk()
+        ds = ds.chunk()
         ds.to_zarr(local_satellite_path, mode="a")
 
 
@@ -146,6 +149,6 @@ def download_and_unzip(file_zip:str, file:str) -> None:
         log.info(f"Unzipping sat_min.zarr.zip to {file}")
 
         store = zarr.storage.ZipStore(path="sat_min.zarr.zip", mode="r")
-        return xr.open_zarr(store)
+        return xr.open_zarr(store, chunks=None)
     else:
         log.error(f"Could not find satellite data at {file}")
