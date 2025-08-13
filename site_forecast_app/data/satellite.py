@@ -116,7 +116,7 @@ def download_satellite_data(satellite_source_file_path: str,
             ds = satellite_scale_minmax(ds)
         else:
             raise ValueError(f"Unknown scaling method: {scaling_method}")
-        
+
         # This is important to avoid saving errors
         for v in list(ds.coords.keys()):
             ds[v].encoding.clear()
