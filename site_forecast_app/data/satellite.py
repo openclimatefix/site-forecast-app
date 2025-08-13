@@ -91,7 +91,8 @@ def download_satellite_data(satellite_source_file_path: str,
 
             temporary_satellite_data = f"{tmpdir}/temporary_satellite_backup_data.zarr"
             ds = download_and_unzip(file_zip=satellite_backup_source_file_path,
-                               file=temporary_satellite_data)
+                               file=temporary_satellite_data,
+                               temp_zarr_zip="sat_backup.zarr.zip")
 
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}, before resampling to 5 min")
@@ -128,10 +129,14 @@ def download_satellite_data(satellite_source_file_path: str,
         ds["variable"] = ds.variable.astype(str)
 
         # save the dataset
+        ds = ds.chunk(chunks={"time": len(ds.time),
+                              "y_geostationary": len(ds.y_geostationary)//4,
+                              "x_geostationary": len(ds.x_geostationary)//4,
+                              "variable": len(ds.variable)})
         ds.to_zarr(local_satellite_path, mode="a")
 
 
-def download_and_unzip(file_zip:str, file:str) -> None:
+def download_and_unzip(file_zip:str, file:str, temp_zarr_zip:str="sat_min.zarr.zip") -> None:
     """Download and unzip the satellite data.
 
     :param file_zip: The path to the zip file containing the satellite data.
@@ -142,12 +147,12 @@ def download_and_unzip(file_zip:str, file:str) -> None:
     if fs.exists(file_zip):
         log.info(
             f"Downloading satellite data from {file_zip} "
-            "to sat_min.zarr.zip",
+            f"to {temp_zarr_zip}",
         )
-        fs.get(file_zip, "sat_min.zarr.zip")
-        log.info(f"Unzipping sat_min.zarr.zip to {file}")
+        fs.get(file_zip, temp_zarr_zip)
+        log.info(f"Unzipping {temp_zarr_zip} to {file}")
 
-        store = zarr.storage.ZipStore(path="sat_min.zarr.zip", mode="r")
+        store = zarr.storage.ZipStore(path=temp_zarr_zip, mode="r")
         return xr.open_zarr(store)
     else:
         log.error(f"Could not find satellite data at {file}")
