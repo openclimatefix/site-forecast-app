@@ -129,16 +129,14 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         return
 
     # Load dataset from source
-    ds = xr.open_zarr(source_nwp_path)
+    ds = xr.open_zarr(source_nwp_path, consolidated=False)
 
     # This is important to avoid saving errors
     for v in list(ds.coords.keys()):
-        if ds.coords[v].dtype == object:
-            ds[v].encoding.clear()
+        ds[v].encoding.clear()
 
     for v in list(ds.variables.keys()):
-        if ds[v].dtype == object:
-            ds[v].encoding.clear()
+        ds[v].encoding.clear()
 
     # make the dtype of variables is strings
     ds["variable"] = ds.variable.astype(str)
@@ -186,9 +184,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
             ds = ds.chunk(chunks)
 
         log.info("Done Expanding ECMWF")
-
-        for var in ds:
-            del ds[var].encoding["chunks"]
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")

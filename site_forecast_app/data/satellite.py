@@ -116,6 +116,13 @@ def download_satellite_data(satellite_source_file_path: str,
             ds = satellite_scale_minmax(ds)
         else:
             raise ValueError(f"Unknown scaling method: {scaling_method}")
+        
+        # This is important to avoid saving errors
+        for v in list(ds.coords.keys()):
+            ds[v].encoding.clear()
+
+        for v in list(ds.variables.keys()):
+            ds[v].encoding.clear()
 
         # save the dataset
         ds.chunk()
@@ -139,6 +146,6 @@ def download_and_unzip(file_zip:str, file:str) -> None:
         log.info(f"Unzipping sat_min.zarr.zip to {file}")
 
         store = zarr.storage.ZipStore(path="sat_min.zarr.zip", mode="r")
-        return xr.open_zarr(store, consolidated=True)
+        return xr.open_zarr(store)
     else:
         log.error(f"Could not find satellite data at {file}")
