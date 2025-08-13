@@ -128,7 +128,6 @@ def download_satellite_data(satellite_source_file_path: str,
         ds["variable"] = ds.variable.astype(str)
 
         # save the dataset
-        ds = ds.chunk()
         ds.to_zarr(local_satellite_path, mode="a")
 
 
