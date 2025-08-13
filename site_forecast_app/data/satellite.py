@@ -8,6 +8,7 @@ import fsspec
 import numpy as np
 import pandas as pd
 import xarray as xr
+import yaml
 import zarr
 
 log = logging.getLogger(__name__)
@@ -127,6 +128,10 @@ def download_satellite_data(satellite_source_file_path: str,
 
         # make the dtype of variables is strings
         ds["variable"] = ds.variable.astype(str)
+
+        # make sure d.attrs['area'] is a string
+        if isinstance(ds.attrs['area'], dict):
+            ds.attrs['area'] = yaml.dumps(ds.attrs['area'])
 
         # save the dataset
         ds = ds.chunk(chunks={"time": len(ds.time),
