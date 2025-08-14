@@ -130,7 +130,7 @@ def download_satellite_data(satellite_source_file_path: str,
         ds["variable"] = ds.variable.astype(str)
 
         # make sure d.attrs['area'] is a string
-        if isinstance(ds.attrs["area"], dict):
+        if "area" in ds.attrs and isinstance(ds.attrs["area"], dict):
             ds.attrs["area"] = yaml.dumps(ds.attrs["area"])
 
         # save the dataset
