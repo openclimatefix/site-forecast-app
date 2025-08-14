@@ -130,9 +130,10 @@ def download_satellite_data(satellite_source_file_path: str,
         ds["variable"] = ds.variable.astype(str)
 
         # make sure d.attrs['area'] is a string
-        log.info(ds.attrs["area"])
         if "area" in ds.attrs and isinstance(ds.attrs["area"], dict):
+            log.info(ds.attrs["area"])
             ds.attrs["area"] = yaml.dumps(ds.attrs["area"])
+            log.info(ds.attrs["area"])
 
         # save the dataset
         ds = ds.chunk(chunks={"time": len(ds.time),
