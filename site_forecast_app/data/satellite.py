@@ -139,6 +139,11 @@ def download_satellite_data(satellite_source_file_path: str,
             ds.attrs["area"] = yaml.dumps(ds.attrs["area"])
             log.info(ds.attrs["area"])
 
+        if "area" in ds.data.attrs and isinstance(ds.data.attrs["area"], dict):
+            log.info(ds.data.attrs["area"])
+            ds.data.attrs["area"] = yaml.dumps(ds.data.attrs["area"])
+            log.info(ds.data.attrs["area"])
+
         # save the dataset
         ds = ds.chunk(chunks={"time": len(ds.time),
                               "y_geostationary": len(ds.y_geostationary)//4,
