@@ -58,7 +58,6 @@ The following environment variables are required to run the app:
 
 Here are some temporary ones
 - `MO_GLOBAL_SCALE_CLOUDS`: The scale factor for the Met Office global clouds, this is used to scale the clouds in the Met Office NWP data
-- `EXPAND_ECMWF`: Whether to expand the ECMWF NWP data, this is used to expand the NWP data to the required size for the model
 - `MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER`: Whether to set the total cloud cover to zero in the Met Office global NWP data, this is used to set the total cloud cover to zero in the Met Office global NWP data
 
 ## Linting and formatting
