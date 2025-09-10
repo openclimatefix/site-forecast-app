@@ -176,7 +176,7 @@ def test_app_ad(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 3  # 1 site, 3 models
+    n = 4  # 1 site, 4 models
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
@@ -195,7 +195,7 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 3  # 1 site, 3 models
+    n = 4  # 1 site, 4 models
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
     assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 16)

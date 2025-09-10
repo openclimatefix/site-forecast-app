@@ -37,3 +37,10 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+  - name: pvnet_extra_ad_sites_ecmwf
+    type: pvnet
+    id: openclimatefix/pvnet_ad_sites
+    version: a6ad2d41ad88bb88d5633b8fd0dcba5c9be760b5
+    client: ad
+    asset_type: pv
+    satellite_scaling_method: minmax
