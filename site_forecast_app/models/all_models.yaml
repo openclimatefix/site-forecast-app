@@ -4,7 +4,7 @@ models:
   - name: nl
     type: pvnet
     id: openclimatefix/pvnet_nl
-    version: 9ebb76d6497d3f0e53607e99b8ffe33679259464
+    version: 6e1a99404f6b51dd68227088ac08925f8a69ef7f
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -12,28 +12,28 @@ models:
   - name: nl_36_simple_site
     type: pvnet
     id: openclimatefix/pvnet_nl
-    version: 246b434b72c68edbbc13f1e5fc74e7699034aede
+    version: 0f70a77fde91429ebc4c1a990a35e73d8d7fdd04
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: 02491b46ab1b4d3ba1fd48ae0492098e62f7869e
+    version: ea74f84b606154663772312784ad210d6f4be614
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: cb70034ec8dedb5e32f29616ff98ad0504e7151f
+    version: bdc84c0712fd9cbbd8e049d6b35e11bfb37e2035
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
   - name: pvnet_ad_sites_satellite_ecmwf
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: a370795a41835853fcd8196d727fa0daabd17286
+    version: b8a5193e622ca66065ad472f7a660084ebed8068
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
