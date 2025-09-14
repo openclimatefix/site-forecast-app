@@ -4,10 +4,11 @@ import datetime as dt
 import logging
 import os
 import sys
+from typing import Annotated, Optional
 
-import click
 import pandas as pd
 import sentry_sdk
+import typer
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
 from pvsite_datamodel.sqlmodels import LocationSQL
@@ -176,31 +177,52 @@ def save_forecast(
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
 
-@click.command()
-@click.option(
-    "--date",
-    "-d",
-    "timestamp",
-    type=click.DateTime(formats=["%Y-%m-%d-%H-%M"]),
-    default=None,
-    help='Date-time (UTC) at which we make the prediction. \
-Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
-)
-@click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database.",
-)
-@click.option(
-    "--log-level",
-    default="info",
-    help="Set the python logging log level",
-    show_default=True,
-)
-def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> None:
-    """Main click function for running forecasts for sites."""
-    app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
+def parse_timestamp(timestamp_str: str) -> dt.datetime:
+    """Parse timestamp string in format YYYY-MM-DD-HH-mm."""
+    try:
+        return dt.datetime.strptime(timestamp_str, "%Y-%m-%d-%H-%M")  # noqa: DTZ007
+    except ValueError as e:
+        raise typer.BadParameter(
+            f"Invalid timestamp format. Expected YYYY-MM-DD-HH-mm, got: {timestamp_str}",
+        ) from e
+
+
+# Create the Typer app
+typer_app = typer.Typer(help="Site forecast application for running ML model predictions.")
+
+
+@typer_app.command()
+def app(
+    timestamp: Annotated[
+        Optional[str],  # noqa: UP045
+        typer.Option(
+            "--date",
+            "-d",
+            help='Date-time (UTC) at which we make the prediction. '
+                 'Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
+        ),
+    ] = None,
+    write_to_db: Annotated[
+        bool,
+        typer.Option(
+            "--write-to-db",
+            help="Set this flag to actually write the results to the database.",
+        ),
+    ] = False,
+    log_level: Annotated[
+        str,
+        typer.Option(
+            "--log-level",
+            help="Set the python logging log level",
+        ),
+    ] = "info",
+) -> None:
+    """Main function for running forecasts for sites."""
+    parsed_timestamp = None
+    if timestamp is not None:
+        parsed_timestamp = parse_timestamp(timestamp)
+
+    app_run(timestamp=parsed_timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
 def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info") \
@@ -313,4 +335,4 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
 
 
 if __name__ == "__main__":
-    app()
+    typer_app()
