@@ -86,7 +86,7 @@ class PVNetModel:
             self.model = self._load_model()
         except Exception as e:
             log.exception("Failed to prepare data sources or load model.")
-            log.exception(f"Error: {e}")
+            raise  # re-raise so caller knows init failed
 
     def predict(self, site_uuid: str, timestamp: dt.datetime) -> dict:
         """Make a prediction for the model."""
@@ -94,18 +94,16 @@ class PVNetModel:
 
         normed_preds = []
         with torch.no_grad():
-            # note this only running ones site
             samples = self.dataset.valid_t0_and_site_ids
             samples_with_same_t0 = samples[samples["t0"] == timestamp]
 
             if len(samples_with_same_t0) == 0:
                 sample_t0 = samples.iloc[-1].t0
                 sample_site_id = samples.iloc[-1].site_id
-
                 log.warning(
                     "Timestamp different from the one in the batch: "
-                    f"{timestamp} != {sample_t0} (batch)"
-                    f"The other timestamps are: {samples['t0'].unique()}"
+                    f"{timestamp} != {sample_t0} (batch). "
+                    f"Other timestamps: {samples['t0'].unique()}"
                 )
             else:
                 sample_t0 = samples_with_same_t0.iloc[0].t0
@@ -116,57 +114,43 @@ class PVNetModel:
 
             if site_uuid != sample_site_id:
                 log.warning(
-                    f"Site id different from the one in the batch: {site_uuid} != {sample_site_id}"
+                    f"Site id different from batch: {site_uuid} != {sample_site_id}"
                 )
 
-            # for i, batch in enumerate(self.dataloader):
-            log.info(f"Predicting for batch: {i}, for {sample_t0=}, {sample_site_id=}")
+            log.info(f"Predicting for batch {i}, {sample_t0=}, {sample_site_id=}")
 
             batch = stack_np_samples_into_batch([batch])
             batch = batch_to_tensor(batch)
 
-            # to cover both site_cos_time and cos_time we duplicate some keys
-            # this should get removed in an upgrade of pvnet
             for key in ["time_cos", "time_sin", "date_cos", "date_sin"]:
                 if key in batch:
                     batch[f"site_{key}"] = batch[key]
 
-            # set MO GLOBAL cloud_cover_total to 0
             mo_global_nan_total_cloud_cover = (
                 os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
             )
             if "mo_global" in self.config["input_data"]["nwp"] and mo_global_nan_total_cloud_cover:
-                log.warning("Setting MO Global total cloud cover variables to nans")
-                # In training cloud_cover_total were 0, lets do the same here
+                log.warning("Setting MO Global total cloud cover to zeros")
                 channels = list(batch["nwp"]["mo_global"]["nwp_channel_names"])
                 idx = channels.index("cloud_cover_total")
-
                 batch["nwp"]["mo_global"]["nwp"][:, :, idx] = 0
 
-            # save batch
             save_batch(batch=batch, i=i, model_name=self.name, site_uuid=site_uuid)
 
-            # Run batch through model
             preds = self.model(batch).detach().cpu().numpy()
-
             preds = set_night_time_zeros(batch, preds, t0_idx=self.t0_idx)
 
-            # Store predictions
             normed_preds += [preds]
-
-            # log max prediction
             log.info(f"Max prediction: {np.max(preds, axis=1)}")
             log.info(f"Completed batch: {i}")
 
         normed_preds = np.concatenate(normed_preds)
         n_times = normed_preds.shape[1]
 
-        # t0 time not included in forecasts
         valid_times = pd.to_datetime(
             [sample_t0 + dt.timedelta(minutes=15 * (i + 1)) for i in range(n_times)]
         )
 
-        # index of the 50th percentile, assumed number of p values odd and in order
         middle_plevel_index = normed_preds.shape[2] // 2
 
         values_df = pd.DataFrame(
@@ -179,11 +163,9 @@ class PVNetModel:
                 for i, v in enumerate(normed_preds[0, :, middle_plevel_index])
             ]
         )
-        # remove any negative values
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
 
         values_df = self.add_probabilistic_values(capacity_kw, normed_preds, values_df)
-
         return values_df.to_dict("records")
 
     def add_probabilistic_values(
@@ -200,28 +182,22 @@ class PVNetModel:
                 idx_90 = output_quantiles.index(0.9)
             else:
                 log.warning(
-                    f"Model output quantiles ({output_quantiles}) do not contain ",
-                    "10th and 90th percentiles, using first and last indices.",
+                    f"Model output quantiles ({output_quantiles}) missing 0.1/0.9, "
+                    "using first and last indices."
                 )
                 idx_10 = 0
                 idx_90 = -1
         else:
-            log.warning(
-                "Model does not contain output quantiles, ",
-                "going to try with using second and penultimate indices.",
-            )
+            log.warning("Model lacks output quantiles, using fallback indices.")
             idx_10 = 1
             idx_90 = 5
 
-        # add 10th and 90th percentage
         values_df["p10"] = normed_preds[0, :, idx_10] * capacity_kw
         values_df["p90"] = normed_preds[0, :, idx_90] * capacity_kw
-        # change to integers
         values_df["p10"] = values_df["p10"].astype(int)
         values_df["p90"] = values_df["p90"].astype(int)
         values_df["probabilistic_values"] = values_df[["p10", "p90"]].apply(
-            lambda row: json.dumps(row.to_dict()),
-            axis=1,
+            lambda row: json.dumps(row.to_dict()), axis=1
         )
         values_df.drop(columns=["p10", "p90"], inplace=True)
         return values_df
@@ -231,19 +207,15 @@ class PVNetModel:
         log.info("Preparing data sources")
 
         try:
-            # Create root data directory if not exists
             with contextlib.suppress(FileExistsError):
                 os.mkdir(root_data_path)
 
-            # Load remote zarr source
             use_satellite = os.getenv("USE_SATELLITE", "true").lower() == "true"
             satellite_source_file_path = os.getenv("SATELLITE_ZARR_PATH", None)
             satellite_backup_source_file_path = os.getenv("SATELLITE_BACKUP_ZARR_PATH", None)
 
-            nwp_configs = []
             nwp_keys = self.config["input_data"]["nwp"].keys()
             for nwp_name in nwp_keys:
-                nwp_config = None
                 if nwp_name == "ecmwf":
                     nwp_config = NWPProcessAndCacheConfig(
                         source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
@@ -256,46 +228,59 @@ class PVNetModel:
                         dest_nwp_path=nwp_mo_global_path,
                         source="mo_global",
                     )
-                if nwp_config:
-                    # --- Begin explicit config and data checks ---
-                    try:
-                        ds = xr.open_zarr(nwp_config.source_nwp_path, consolidated=False)
-                    except Exception as e:
-                        error_message = (
-                            f"Could not run the forecast because there wasn't enough NWP data for '{nwp_name}'. "
-                            "Please check your NWP input files and time range."
+                else:
+                    continue
+
+                # --- Begin explicit config and data checks ---
+                try:
+                    ds = xr.open_zarr(nwp_config.source_nwp_path, consolidated=False)
+                except Exception as e:
+                    msg = (
+                        f"Could not open NWP data for '{nwp_name}' at {nwp_config.source_nwp_path}. "
+                        "Please check your NWP input files and time range."
+                    )
+                    log.error(msg)
+                    raise RuntimeError(msg) from e
+
+                # Required variables
+                config_vars = self.config["input_data"]["nwp"][nwp_name].get("nwp_channels", [])
+                missing_vars = [var for var in config_vars if var not in ds.variables]
+                if missing_vars:
+                    msg = (
+                        f"NWP dataset for '{nwp_name}' is missing variables: {missing_vars}. "
+                        "Please check your NWP input files."
+                    )
+                    log.error(msg)
+                    raise RuntimeError(msg)
+
+                # Time coverage check
+                if "time_utc" in ds.variables:
+                    times = pd.to_datetime(ds["time_utc"].values)
+                    if len(times) == 0:
+                        raise RuntimeError(
+                            f"NWP dataset for '{nwp_name}' has no time steps."
                         )
-                        log.error(error_message)
-                        log.error(f"Underlying error: {e}")
-                        warnings.warn(error_message)
-                        raise RuntimeError(error_message) from e
+                    interval_end = self.config["input_data"]["nwp"][nwp_name].get(
+                        "interval_end_minutes", 0
+                    )
+                    forecast_end = self.t0 + pd.Timedelta(minutes=interval_end)
+                    available_start = times.min()
+                    available_end = times.max()
 
-                    # Check variables required by config
-                    config_vars = self.config["input_data"]["nwp"][nwp_name].get("nwp_channels", [])
-                    if config_vars:
-                        for var in config_vars:
-                            if var not in ds.variables:
-                                raise RuntimeError(
-                                    f"Could not run the forecast for '{nwp_name}' because variable '{var}' "
-                                    "was not found in the NWP data. Please check your NWP input files."
-                                )
+                    if available_end < forecast_end:
+                        msg = (
+                            f"NWP dataset for '{nwp_name}' only covers "
+                            f"{available_start} → {available_end}, but forecast requires data until {forecast_end}."
+                        )
+                        log.error(msg)
+                        raise RuntimeError(msg)
+                else:
+                    raise RuntimeError(
+                        f"NWP dataset for '{nwp_name}' has no 'time_utc' variable."
+                    )
+                # --- End checks ---
 
-                    # Check sufficient timestamps
-                    if "time_utc" in ds.variables:
-                        times = pd.to_datetime(ds["time_utc"].values)
-                        # Try to match forecast period
-                        forecast_start = self.t0 - pd.Timedelta("52h")
-                        forecast_end = self.t0 + pd.Timedelta(minutes=15 * 4 * 24 * 4.5)
-                        needed = (times >= forecast_start) & (times <= forecast_end)
-                        if not needed.any():
-                            raise RuntimeError(
-                                f"Could not run the forecast for '{nwp_name}' because there isn't "
-                                "sufficient NWP data covering the required time period. "
-                                "Please check your NWP input files and time range."
-                            )
-                    # --- End checks ---
-
-                    process_and_cache_nwp(nwp_config)
+                process_and_cache_nwp(nwp_config)
 
             if use_satellite and "satellite" in self.config["input_data"]:
                 download_satellite_data(
@@ -306,44 +291,34 @@ class PVNetModel:
                 )
 
             log.info("Preparing Site data sources")
-            # Clear local cached site data if already exists
             shutil.rmtree(site_path, ignore_errors=True)
             os.mkdir(site_path)
 
-            # Save generation data as netcdf file
             generation_xr = self.generation_data["data"]
-
             forecast_timesteps = pd.date_range(
                 start=self.t0 - pd.Timedelta("52h"),
                 periods=int(4 * 24 * 4.5),
                 freq="15min",
             )
-
-            generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
-            log.info(forecast_timesteps)
-
+            generation_xr = generation_xr.reindex(
+                time_utc=forecast_timesteps, fill_value=0.00001
+            )
             generation_xr.to_netcdf(site_netcdf_path, engine="h5netcdf")
-
-            # Save metadata as csv
             self.generation_data["metadata"].to_csv(site_metadata_path, index=False)
 
         except RuntimeError:
-            raise  # re-raise
+            raise
         except Exception as e:
-            error_message = (
-                "Could not run the forecast because there wasn't enough NWP data. "
+            msg = (
+                "Could not run the forecast because NWP data was missing or invalid. "
                 "Please check your NWP input files and time range."
             )
-            log.error(error_message)
-            log.error(f"Underlying error: {e}")
-            warnings.warn(error_message)
-            raise RuntimeError(error_message) from e
+            log.error(msg)
+            raise RuntimeError(msg) from e
 
     def _get_config(self) -> None:
         """Setup dataloader with prepared data sources."""
         log.info("Creating configuration")
-
-        # Pull the data config from huggingface
 
         data_config_filename = PVNetBaseModel.get_data_config(
             self.id,
@@ -351,42 +326,31 @@ class PVNetModel:
             token=self.hf_token,
         )
 
-        # Populate the data config with production data paths
-
         populated_data_config_filename = "data/data_config.yaml"
-        log.info(populated_data_config_filename)
-        # if the file already exists, remove it
         if os.path.exists(populated_data_config_filename):
             os.remove(populated_data_config_filename)
 
         self.config = populate_data_config_sources(
-            data_config_filename,
-            populated_data_config_filename,
+            data_config_filename, populated_data_config_filename
         )
         self.populated_data_config_filename = populated_data_config_filename
 
-        # set t0_idx
         site_config = self.config["input_data"]["site"]
         self.t0_idx = int(
-            -site_config["interval_start_minutes"] / site_config["time_resolution_minutes"],
+            -site_config["interval_start_minutes"] / site_config["time_resolution_minutes"]
         )
 
     def _create_dataloader(self) -> None:
-
         if not os.path.exists(self.populated_data_config_filename):
             raise FileNotFoundError(
-                f"Data config file not found: {self.populated_data_config_filename}",
+                f"Data config file not found: {self.populated_data_config_filename}"
             )
-
-        # Location and time datapipes
         self.dataset = SitesDataset(config_filename=self.populated_data_config_filename)
 
     def _load_model(self) -> PVNetBaseModel:
         """Load model."""
         log.info(f"Loading model: {self.id} - {self.version} ({self.name})")
-
         return PVNetBaseModel.from_pretrained(
-            model_id=self.id,
-            revision=self.version,
-            token=self.hf_token,
+            model_id=self.id, revision=self.version, token=self.hf_token
         ).to(DEVICE)
+
