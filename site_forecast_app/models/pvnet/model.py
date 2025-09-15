@@ -11,6 +11,8 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
+import xarray as xr
+
 from ocf_data_sampler.numpy_sample.collate import stack_np_samples_into_batch
 from ocf_data_sampler.torch_datasets.datasets.site import SitesDataset
 from ocf_data_sampler.torch_datasets.sample.base import batch_to_tensor
@@ -238,30 +240,63 @@ class PVNetModel:
             satellite_source_file_path = os.getenv("SATELLITE_ZARR_PATH", None)
             satellite_backup_source_file_path = os.getenv("SATELLITE_BACKUP_ZARR_PATH", None)
 
-            # only load nwp that we need
             nwp_configs = []
             nwp_keys = self.config["input_data"]["nwp"].keys()
-            if "ecmwf" in nwp_keys:
-                nwp_configs.append(
-                    NWPProcessAndCacheConfig(
+            for nwp_name in nwp_keys:
+                nwp_config = None
+                if nwp_name == "ecmwf":
+                    nwp_config = NWPProcessAndCacheConfig(
                         source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
                         dest_nwp_path=nwp_ecmwf_path,
                         source="ecmwf",
-                    ),
-                )
-            if "mo_global" in nwp_keys:
-                nwp_configs.append(
-                    NWPProcessAndCacheConfig(
+                    )
+                elif nwp_name == "mo_global":
+                    nwp_config = NWPProcessAndCacheConfig(
                         source_nwp_path=os.environ["NWP_MO_GLOBAL_ZARR_PATH"],
                         dest_nwp_path=nwp_mo_global_path,
                         source="mo_global",
-                    ),
-                )
+                    )
+                if nwp_config:
+                    # --- Begin explicit config and data checks ---
+                    try:
+                        ds = xr.open_zarr(nwp_config.source_nwp_path, consolidated=False)
+                    except Exception as e:
+                        error_message = (
+                            f"Could not run the forecast because there wasn't enough NWP data for '{nwp_name}'. "
+                            "Please check your NWP input files and time range."
+                        )
+                        log.error(error_message)
+                        log.error(f"Underlying error: {e}")
+                        warnings.warn(error_message)
+                        raise RuntimeError(error_message) from e
 
-            # Remove local cached zarr if already exists
-            for nwp_config in nwp_configs:
-                # Process/cache remote zarr locally
-                process_and_cache_nwp(nwp_config)
+                    # Check variables required by config
+                    config_vars = self.config["input_data"]["nwp"][nwp_name].get("nwp_channels", [])
+                    if config_vars:
+                        for var in config_vars:
+                            if var not in ds.variables:
+                                raise RuntimeError(
+                                    f"Could not run the forecast for '{nwp_name}' because variable '{var}' "
+                                    "was not found in the NWP data. Please check your NWP input files."
+                                )
+
+                    # Check sufficient timestamps
+                    if "time_utc" in ds.variables:
+                        times = pd.to_datetime(ds["time_utc"].values)
+                        # Try to match forecast period
+                        forecast_start = self.t0 - pd.Timedelta("52h")
+                        forecast_end = self.t0 + pd.Timedelta(minutes=15 * 4 * 24 * 4.5)
+                        needed = (times >= forecast_start) & (times <= forecast_end)
+                        if not needed.any():
+                            raise RuntimeError(
+                                f"Could not run the forecast for '{nwp_name}' because there isn't "
+                                "sufficient NWP data covering the required time period. "
+                                "Please check your NWP input files and time range."
+                            )
+                    # --- End checks ---
+
+                    process_and_cache_nwp(nwp_config)
+
             if use_satellite and "satellite" in self.config["input_data"]:
                 download_satellite_data(
                     satellite_source_file_path,
@@ -292,6 +327,8 @@ class PVNetModel:
             # Save metadata as csv
             self.generation_data["metadata"].to_csv(site_metadata_path, index=False)
 
+        except RuntimeError:
+            raise  # re-raise
         except Exception as e:
             error_message = (
                 "Could not run the forecast because there wasn't enough NWP data. "
