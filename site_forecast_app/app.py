@@ -73,7 +73,7 @@ def get_model(
     Returns:
             A forecasting model
     """
-    # Only PVNet (and WindNet) based models are used currently 
+    # Only PVNet (and WindNet) based models are used currently
     model = PVNetModel(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
                       name=name, satellite_scaling_method=satellite_scaling_method)
     return model
