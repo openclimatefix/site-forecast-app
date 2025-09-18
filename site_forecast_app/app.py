@@ -63,7 +63,6 @@ def get_model(
     """Instantiates and returns the forecast model ready for running inference.
 
     Args:
-            asset_type: One or "pv" or "wind"
             timestamp: Datetime at which the forecast will be made
             generation_data: Latest historic generation data
             hf_repo: ID of the ML model used for the forecast
@@ -74,10 +73,8 @@ def get_model(
     Returns:
             A forecasting model
     """
-    # Only Windnet and PVnet is now used
-    model_cls = PVNetModel
-
-    model = model_cls(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
+    # Only PVNet (and WindNet) based models are used currently 
+    model = PVNetModel(timestamp, generation_data, hf_repo=hf_repo, hf_version=hf_version,
                       name=name, satellite_scaling_method=satellite_scaling_method)
     return model
 
@@ -267,7 +264,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
 
                 # 3. Run model for each site
                 site_uuid = ml_model.location_uuid
-                asset_type = ml_model.asset_type
+                asset_type = model_config.asset_type
                 log.info(f"Running {asset_type} model for site={site_uuid}...")
                 forecast_values = run_model(
                     model=ml_model,
