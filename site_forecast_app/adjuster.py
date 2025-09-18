@@ -200,6 +200,11 @@ def adjust_forecast_with_adjuster(
 ) -> pd.DataFrame:
     """Adjust forecast values with ME values.
 
+    It does:
+    1. For each forecast, it calculates the Mean Error (ME) from forecasts made
+       at the same hour & forecast horizon over the past 7 days.
+    2. It then adjusts the current forecast by subtracting these systematic errors.
+
     Args:
     db_session: sqlalchemy session
     forecast_meta: forecast metadata

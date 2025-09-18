@@ -10,12 +10,16 @@ Runs forecasts for renewable generation sites, currently just uses PVnet based m
 The ML models are from [PVnet](https://github.com/openclimatefix/PVNet) and uses [ocf_data_sampler](https://github.com/openclimatefix/ocf-data-sampler) for the data processing
 We use NWP data such as ECMWF's IFS forecast and live generation values as input, to predict up to 48 hours into the future.
 
-### PV
+## PV
 
 We are currently running a Netherlands solar model.
 The configuration is stored [here](https://huggingface.co/openclimatefix/pvnet_nl)
 
 We are also running an India sites solar model. 
+
+## Adjuster
+
+A post-processing adjustment method is used to correct systemic biases in the forecast see the [adjuster](site_forecast_app/adjuster.py) for more detail. 
 
 
 ## Environment variables
