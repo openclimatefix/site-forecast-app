@@ -3,46 +3,22 @@
 
 [![ease of contribution: hard](https://img.shields.io/badge/ease%20of%20contribution:%20hard-bb2629)](https://github.com/openclimatefix/ocf-meta-repo?tab=readme-ov-file#how-easy-is-it-to-get-involved)
 
-Runs the site forecast for PVnet, and saves to a database
+Runs forecasts for renewable generation sites, currently just uses PVnet based models but this may change in the future, saves results to a DB.
 
 ## The model
 
-The ML model is from [PVnet](https://github.com/openclimatefix/PVNet) and uses [ocf_data_sampler](https://github.com/openclimatefix/ocf-data-sampler) for the data processing
-We use ECMWF data and live generation values, to predict 48 hours into the future.
+The ML models are from [PVnet](https://github.com/openclimatefix/PVNet) and uses [ocf_data_sampler](https://github.com/openclimatefix/ocf-data-sampler) for the data processing
+We use NWP data such as ECMWF's IFS forecast and live generation values as input, to predict up to 48 hours into the future.
 
 ### PV
 
-We are currently running one PVnet model, a Netherlands Solar model.
+We are currently running a Netherlands solar model.
 The configuration is stored [here](https://huggingface.co/openclimatefix/pvnet_nl)
 
-Also we are running a India Site Solar model. 
-
-### Adjuster
-
-The Adjuster model improves forecast accuracy by learning from recent prediction errors. Here's how it works:
-
-1. For each forecast, it analyzes the Mean Error (ME) from forecasts made at the same hour over the past 7 days
-2. It calculates the average error for each forecast horizon (e.g., 1-hour ahead, 2-hours ahead, etc.)
-3. It then adjusts the current forecast by subtracting these systematic errors
-
-**Real-world example:**
-If our ML model consistently under-predicts solar generation by 50kW during sunny mornings (positive ME), the Adjuster will add 50kW to future morning forecasts. Conversely, if it over-predicts evening wind generation by 30kW (negative ME), the Adjuster will subtract 30kW from future evening forecasts.
-
-**Key features:**
-- Time-specific: Adjustments depend on the time of day and forecast horizon
-- Safety limits: Adjustments are capped at 10% of site capacity to prevent extreme corrections
-- Special handling for solar: Ensures zero generation during nighttime
-
-This approach significantly reduces systematic errors and improves overall forecast accuracy.
-
-| Without Adjuster | With Adjuster |
-|------------------|---------------|
-| Systematic errors persist | Learns from recent patterns |
-| Fixed model behavior | Adapts to changing conditions |
-| Higher overall error | Reduced forecast error |
+We are also running an India sites solar model. 
 
 
-## Enviornemtnal variables
+## Environment variables
 
 The following environment variables are required to run the app:
 - `DB_URL`: The database connection string to connect to the database
@@ -53,8 +29,8 @@ The following environment variables are required to run the app:
 - `HUGGINGFACE_TOKEN`: Token used for private models
 - `COUNTRY`: Can be `nl` for Netherlands, or `india` for India. 
 - `CLIENT_NAME`: The name of the client, this is used to the sites that should be run
-- `SATELLITE_SCALE_FACTOR`: The scale factor for the satellite data. Defaults to 1023. 
-- `SATELLITE_BACKUP_ZARR_PATH`: Back up satellite data source. Defaults to None. 
+- `SATELLITE_SCALE_FACTOR`: The scale factor for the satellite data. Defaults to 1023 
+- `SATELLITE_BACKUP_ZARR_PATH`: Back up satellite data source. Defaults to None 
 
 Here are some temporary ones
 - `MO_GLOBAL_SCALE_CLOUDS`: The scale factor for the Met Office global clouds, this is used to scale the clouds in the Met Office NWP data
