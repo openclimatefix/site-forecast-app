@@ -24,7 +24,6 @@ dependencies = [
     "pvsite-datamodel==1.2.0",
     "pandas==2.2.3",
     "pvnet==5.0.14",
-    "pytz==2024.1",
     "numpy==1.26.4",
     "huggingface-hub==0.20.3",
     "ocf-data-sampler==0.5.20",
