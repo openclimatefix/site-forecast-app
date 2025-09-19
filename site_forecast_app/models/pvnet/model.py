@@ -56,11 +56,9 @@ class PVNetModel:
         hf_repo: str,
         hf_version: str,
         name: str,
-        asset_type: str = "pv",
         satellite_scaling_method: str = "constant",
     ) -> None:
         """Initializer for the model."""
-        self.asset_type = asset_type
         self.id = hf_repo
         self.version = hf_version
         self.name = name
