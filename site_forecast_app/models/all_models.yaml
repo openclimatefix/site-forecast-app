@@ -30,17 +30,17 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
-  - name: pvnet_ad_sites_satellite_ecmwf
+  - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_short
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: b8a5193e622ca66065ad472f7a660084ebed8068
+    version: d41b8d8fed4ffdc13f1668fd708933f946cc84da
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
-  - name: pvnet_extra_ad_sites_ecmwf
+  - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_long
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: a6ad2d41ad88bb88d5633b8fd0dcba5c9be760b5
+    version: 6d3a55d61a2b008d93f2479401388ebf8228d94f
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
