@@ -205,7 +205,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
     """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
-    log.info(f"Running India forecast app:{version}")
+    log.info(f"Running site forecast app:{version}")
 
     if timestamp is None:
         # get the timestamp now rounded down the nearest 15 minutes
