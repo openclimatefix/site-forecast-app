@@ -19,14 +19,14 @@ models:
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: ea74f84b606154663772312784ad210d6f4be614
+    version: a540910c644dc22cec6707258e7e22c01bac2eb2
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
     type: pvnet
     id: openclimatefix/pvnet_ad_sites
-    version: bdc84c0712fd9cbbd8e049d6b35e11bfb37e2035
+    version: 2ce733855ee90866083796f5f62fb89a53cab6db
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
