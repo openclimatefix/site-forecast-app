@@ -79,10 +79,6 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
                 "satellite_image_size_pixels_width",
             )
 
-        # Remove any hard coding about satellite delay
-        if "live_delay_minutes" in satellite_config:
-            satellite_config.pop("live_delay_minutes")
-
         # remove any dropout timedeltas
         if "dropout_timedeltas_minutes" in satellite_config:
             satellite_config["dropout_timedeltas_minutes"] = []
