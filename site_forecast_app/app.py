@@ -19,6 +19,7 @@ from site_forecast_app import __version__
 from site_forecast_app.adjuster import adjust_forecast_with_adjuster
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
+from site_forecast_app.models.pydantic_models import Model
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
@@ -33,22 +34,36 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 
-def get_sites(db_session: Session, country: str = "nl") -> list[LocationSQL]:
+def get_sites(db_session: Session, model_config: Model | None = None, country: str = "nl") -> list[LocationSQL]:
     """Gets all available sites.
 
     Args:
             db_session: A SQLAlchemy session
+            model_config: The model configuration to use
             country: The country to get sites for
 
     Returns:
             A list of LocationSQL objects
     """
-    client = os.getenv("CLIENT_NAME", "nl")
-    log.info(f"Getting sites for client: {client}")
+    # if model.site_group_uuid is provided, filter sites by that too
+    if model_config is not None and model_config.site_group_uuid is not None:
+        log.info(f"Getting sites for site_group_uuid: {model_config.site_group_uuid}")
+        site_group = (
+            db_session.query(LocationGroupSQL)
+            .filter(
+                LocationGroupSQL.location_group_uuid == model_config.site_group_uuid,
+            )
+            .one()
+        )  # check it exists
+        sites = site_group.sites
+    else:
+        client = os.getenv("CLIENT_NAME", "nl")
+        log.info(f"Getting sites for client: {client}")
+        sites = get_sites_by_country(
+            db_session, country=country, client_name=client
+        )
 
-    sites = get_sites_by_country(db_session, country=country, client_name=client)
-
-    log.info(f"Found {len(sites)} sites for {client} in {country}")
+    log.info(f"Found {len(sites)} sites in {country}")
     return sites
 
 
@@ -223,24 +238,15 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
     log.info(f"write_to_db {write_to_db}...")
 
     with db_conn.get_session() as session:
-
-        # 1. Get sites
-        log.info("Getting sites...")
-        sites = get_sites(db_session=session, country=country)
-        log.info(f"Found {len(sites)} sites")
-
-        # 2. Load data/models
+        # 1. Load data/models
         all_model_configs = get_all_models(client_abbreviation=os.getenv("CLIENT_NAME", "nl"))
         successful_runs = 0
         runs = 0
         for model_config in all_model_configs.models:
-
-            # if model.site_group_uuid is provided, filter sites by that too
-            if model_config.site_group_uuid is not None:
-                site_group = session.query(LocationGroupSQL).filter(
-                    LocationGroupSQL.uuid == model_config.site_group_uuid,
-                ).one()  # check it exists
-                sites = site_group.sites
+            # 2. Get sites
+            log.info("Getting sites...")
+            sites = get_sites(db_session=session, country=country, model_config=model_config)
+            log.info(f"Found {len(sites)} sites")
 
             # reduce to only pv or wind, depending on the model
             sites_for_model = [

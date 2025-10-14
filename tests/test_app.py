@@ -9,7 +9,7 @@ import os
 import uuid
 
 import pytest
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL, LocationGroupSQL
 
 from site_forecast_app.app import (
     app,
@@ -34,6 +34,29 @@ def test_get_sites(db_session, sites):
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
     assert len(sites) == 1
+    for site in sites:
+        assert isinstance(site.location_uuid, uuid.UUID)
+        assert sites[0].asset_type.name == "pv"
+
+def test_get_sites_with_model_config(db_session, sites):
+    """Test for correct site ids"""
+
+    # make site_group
+    location_group = LocationGroupSQL(
+        location_group_name="Test Site Group",
+    )
+    db_session.add(location_group)
+    db_session.commit()
+    location_group.sites = sites
+
+    model_config = get_all_models().models[0]
+    model_config.client = None
+    model_config.site_group_uuid = location_group.location_group_uuid
+
+    sites = get_sites(db_session, model_config=model_config)
+    sites = sorted(sites, key=lambda s: s.client_location_id)
+
+    assert len(sites) == 2
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
