@@ -58,11 +58,10 @@ class Model(BaseModel):
     @model_validator(mode="after")
     def validate_client_or_site_group_uuid(self) -> "Model":
         """Make sure that either client or site_group_uuid is provided."""
-        if not self.client and not self.site_group_uuid:
-            raise ValueError("Either client or site_group_uuid must be provided.")
-        if self.client and self.site_group_uuid:
-            raise ValueError("Only one of client or site_group_uuid must be provided.")
+        if bool(self.client) == bool(self.site_group_uuid):
+            raise ValueError("Exactly one of 'client' or 'site_group_uuid' must be provided.")
         return self
+
 
 
 
