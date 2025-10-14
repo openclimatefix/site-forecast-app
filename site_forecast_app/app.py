@@ -57,7 +57,7 @@ def get_sites(
             )
             .one()
         )  # check it exists
-        # not if this uuid doesn't exist, an exception will be raised
+        # note if this uuid doesn't exist, an exception will be raised
         sites = site_group.sites
     else:
         # get sites and filter by client
