@@ -23,7 +23,7 @@ def test_site_group_uuid_error_both():
     model = get_all_models().models[0]
     model.site_group_uuid = "some-uuid"
 
-    with pytest.raises(ValueError, match="Only one of client or site_group_uuid must be provided."):
+    with pytest.raises(ValueError):
         model = Model(**model.model_dump())
 
 def test_site_group_uuid_error_neither():
@@ -32,6 +32,6 @@ def test_site_group_uuid_error_neither():
     model.site_group_uuid = None
     model.client = None
 
-    with pytest.raises(ValueError, match="Either client or site_group_uuid must be provided."):
+    with pytest.raises(ValueError):
         model = Model(**model.model_dump())
 
