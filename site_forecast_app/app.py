@@ -240,7 +240,7 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
                 site_group = session.query(LocationGroupSQL).filter(
                     LocationGroupSQL.uuid == model_config.site_group_uuid,
                 ).one()  # check it exists
-                sites_for_model = site_group.sites
+                sites = site_group.sites
 
             # reduce to only pv or wind, depending on the model
             sites_for_model = [
