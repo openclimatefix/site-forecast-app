@@ -5,7 +5,7 @@ from typing import Literal
 
 import fsspec
 from pyaml_env import parse_config
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class Model(BaseModel):
@@ -22,11 +22,7 @@ class Model(BaseModel):
         title="Model Version",
         description="The version of the model, this is what git version to load from in HF",
     )
-    client: str = Field(
-        "ruvnl",
-        title="Client Abbreviation",
-        description="The name of the client that the model is for",
-    )
+
     asset_type: str = Field(
         "pv", title="Asset Type", description="The type of asset the model is for (pv or wind)",
     )
@@ -43,6 +39,31 @@ class Model(BaseModel):
         title="Satellite Scaling Method",
         description="The scaling method to use for the satellite data. ",
     )
+
+    client: str | None = Field(
+        "ruvnl",
+        title="Client Abbreviation",
+        description="The name of the client that the model is for." \
+        "Note that either client or site_group_uuid must be provided.",
+    )
+
+    site_group_uuid: str | None = Field(
+        None,
+        title="Site Group UUID",
+        description="The UUID of the site group that the model is for." \
+        "Note that either client or site_group_uuid must be provided.",
+    )
+
+    # validate that either site_group_uuid or client is provided
+    @model_validator()
+    def validate_client_or_site_group_uuid(self) -> "Model":
+        """Make sure that either client or site_group_uuid is provided."""
+        if not self.client and not self.site_group_uuid:
+            raise ValueError("Either client or site_group_uuid must be provided.")
+        if self.client and self.site_group_uuid:
+            raise ValueError("Only one of client or site_group_uuid must be provided.")
+        return self
+
 
 
 class Models(BaseModel):
