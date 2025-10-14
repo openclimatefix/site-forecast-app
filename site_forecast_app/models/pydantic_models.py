@@ -55,7 +55,7 @@ class Model(BaseModel):
     )
 
     # validate that either site_group_uuid or client is provided
-    @model_validator()
+    @model_validator(mode="after")
     def validate_client_or_site_group_uuid(self) -> "Model":
         """Make sure that either client or site_group_uuid is provided."""
         if not self.client and not self.site_group_uuid:
