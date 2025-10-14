@@ -57,8 +57,10 @@ def get_sites(
             )
             .one()
         )  # check it exists
+        # not if this uuid doesn't exist, an exception will be raised
         sites = site_group.sites
     else:
+        # get sites and filter by client
         client = os.getenv("CLIENT_NAME", "nl")
         log.info(f"Getting sites for client: {client}")
         sites = get_sites_by_country(
@@ -185,9 +187,9 @@ def save_forecast(
                 ml_model_version=ml_model_version,
             )
 
-    output = f'Forecast for site_id={forecast_meta["location_uuid"]},\
-               timestamp={forecast_meta["timestamp_utc"]},\
-               version={forecast_meta["forecast_version"]}:'
+    output = f"Forecast for site_id={forecast_meta['location_uuid']},\
+               timestamp={forecast_meta['timestamp_utc']},\
+               version={forecast_meta['forecast_version']}:"
     log.info(output.replace("  ", ""))
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
