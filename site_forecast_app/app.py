@@ -34,7 +34,9 @@ sentry_sdk.set_tag("app_name", "site_forecast_app")
 sentry_sdk.set_tag("version", __version__)
 
 
-def get_sites(db_session: Session, model_config: Model | None = None, country: str = "nl") -> list[LocationSQL]:
+def get_sites(
+    db_session: Session, model_config: Model | None = None, country: str = "nl",
+) -> list[LocationSQL]:
     """Gets all available sites.
 
     Args:
@@ -60,7 +62,9 @@ def get_sites(db_session: Session, model_config: Model | None = None, country: s
         client = os.getenv("CLIENT_NAME", "nl")
         log.info(f"Getting sites for client: {client}")
         sites = get_sites_by_country(
-            db_session, country=country, client_name=client
+            db_session,
+            country=country,
+            client_name=client,
         )
 
     log.info(f"Found {len(sites)} sites in {country}")
@@ -215,8 +219,11 @@ def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> Non
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
-def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level: str = "info") \
-        -> None:
+def app_run(
+    timestamp: dt.datetime | None,
+    write_to_db: bool = False,
+    log_level: str = "info",
+) -> None:
     """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 

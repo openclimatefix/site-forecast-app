@@ -9,7 +9,7 @@ import os
 import uuid
 
 import pytest
-from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL, LocationGroupSQL
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGroupSQL, MLModelSQL
 
 from site_forecast_app.app import (
     app,
