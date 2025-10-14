@@ -10,7 +10,7 @@ import pandas as pd
 import sentry_sdk
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
-from pvsite_datamodel.sqlmodels import LocationSQL
+from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
 from pvsite_datamodel.write import insert_forecast_values
 from sqlalchemy.orm import Session
 
@@ -234,6 +234,13 @@ def app_run(timestamp: dt.datetime | None, write_to_db: bool = False, log_level:
         successful_runs = 0
         runs = 0
         for model_config in all_model_configs.models:
+
+            # if model.site_group_uuid is provided, filter sites by that too
+            if model_config.site_group_uuid is not None:
+                site_group = session.query(LocationGroupSQL).filter(
+                    LocationGroupSQL.uuid == model_config.site_group_uuid,
+                ).one()  # check it exists
+                sites_for_model = site_group.sites
 
             # reduce to only pv or wind, depending on the model
             sites_for_model = [
