@@ -23,7 +23,7 @@ dependencies = [
     "click==8.1.7",
     "pvsite-datamodel==1.2.0",
     "pandas==2.2.3",
-    "pvnet==5.0.14",
+    "pvnet==5.0.21",
     "numpy==1.26.4",
     "huggingface-hub==0.20.3",
     "ocf-data-sampler==0.5.36",
