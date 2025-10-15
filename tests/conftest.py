@@ -435,7 +435,7 @@ def small_satellite_data(tmp_path_factory, init_timestamp):
     del ds.attrs["_data_attrs"]
 
     # In production sat zarr is zipped
-    temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_sat.zarr.zip"
+    temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_small_sat.zarr.zip"
 
     # save out data and set paths as environmental variables
     os.environ["SATELLITE_ZARR_PATH"] = temp_sat_path
