@@ -84,7 +84,7 @@ def sites(db_session):
         latitude=51,
         longitude=5,
         capacity_kw=20000,
-        ml_id=1,
+        ml_id=0,
         asset_type="pv",
         country="nl",
     )
