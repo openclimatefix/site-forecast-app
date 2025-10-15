@@ -9,10 +9,17 @@ models:
     asset_type: pv
     satellite_scaling_method: constant
     # NL model that include site history in the fusion layer
-  - name: nl_36_simple_site
+  - name: nl_36_simple_site # migrated
     type: pvnet
-    id: openclimatefix/pvnet_nl
-    version: 0f70a77fde91429ebc4c1a990a35e73d8d7fdd04
+    id: openclimatefix-models/pvnet_nl
+    version: 5fd867272f1c3fdfff5b78de498f59d76fadf4de
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+  - name: nl_national_pv_ecmwf_sat_small
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 3145f24370501f16827631fbdf1b779d3ece6088
     client: nl
     asset_type: pv
     satellite_scaling_method: constant

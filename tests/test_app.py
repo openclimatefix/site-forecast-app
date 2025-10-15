@@ -163,11 +163,11 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 2  # 1 site, 2 model
+    n = 3  # 1 site, 3 model
     # 1 model does 48 hours
-    # 1 model does 36 hours
+    # 2 model do 36 hours
     # average number of forecast is 42
-    n_fv = 42*4
+    n_fv = ((48+36*2)/n)*4
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
