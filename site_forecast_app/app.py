@@ -319,7 +319,7 @@ def app_run(
 
         log.info(
             f"Completed forecasts for {successful_runs} runs for "
-            f"{runs} model runs. This was for {len(sites)} sites",
+            f"{runs} model runs.",
         )
         if successful_runs == runs:
             log.info("All forecasts completed successfully")

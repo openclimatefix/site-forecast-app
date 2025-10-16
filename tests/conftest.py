@@ -21,6 +21,7 @@ from pvsite_datamodel.sqlmodels import (
     ForecastValueSQL,
     GenerationSQL,
     LocationSQL,
+    LocationGroupSQL,
 )
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
@@ -105,6 +106,15 @@ def sites(db_session):
     )
     db_session.add(site)
     sites.append(site)
+
+    # create site group for nl
+    site_group = LocationGroupSQL(
+        location_group_name="Test Site Group NL",
+        # TODO this uuid is currerntly copied over from mo the model_config
+        location_group_uuid="4dce2381-9e8d-467e-bbdd-4e342c9e1d89", 
+    )
+    site_group.sites = [sites[0]]
+    db_session.add(site_group)
 
     db_session.commit()
 
