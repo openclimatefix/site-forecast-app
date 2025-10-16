@@ -58,7 +58,7 @@ def get_sites(
             .one()
         )  # check it exists
         # note if this uuid doesn't exist, an exception will be raised
-        sites = site_group.sites
+        sites = site_group.locations
     else:
         # get sites and filter by client
         client = os.getenv("CLIENT_NAME", "nl")

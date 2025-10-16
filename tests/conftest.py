@@ -114,7 +114,7 @@ def sites(db_session):
         # It could be worth in the future doing this dynamically
         location_group_uuid="4dce2381-9e8d-467e-bbdd-4e342c9e1d89",
     )
-    site_group.sites = [sites[0]]
+    site_group.locations = [sites[0]]
     db_session.add(site_group)
 
     db_session.commit()
