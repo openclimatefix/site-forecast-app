@@ -110,7 +110,8 @@ def sites(db_session):
     # create site group for nl
     site_group = LocationGroupSQL(
         location_group_name="Test Site Group NL",
-        # TODO this uuid is currerntly copied over from mo the model_config
+        # TODO this uuid is currently copied over from the model_config, 
+        # It could be worth in the future doing this dynamically
         location_group_uuid="4dce2381-9e8d-467e-bbdd-4e342c9e1d89",
     )
     site_group.sites = [sites[0]]
