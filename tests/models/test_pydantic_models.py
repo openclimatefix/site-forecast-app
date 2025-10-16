@@ -21,6 +21,7 @@ def test_site_group_uuid():
 def test_site_group_uuid_error_both():
     """Test for getting all models for a given client"""
     model = get_all_models().models[0]
+    model.client = "nl"
     model.site_group_uuid = "some-uuid"
 
     with pytest.raises(ValueError):
