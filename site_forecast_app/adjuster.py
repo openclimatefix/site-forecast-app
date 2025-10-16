@@ -186,7 +186,7 @@ def zero_out_night_time_for_pv(
         ] = 0
 
         # drop elevation column
-        forecast_values_df.drop(columns=["elevation"], inplace=True)
+        forecast_values_df = forecast_values_df.drop(columns=["elevation"])
 
     return forecast_values_df
 
@@ -232,7 +232,7 @@ def adjust_forecast_with_adjuster(
     me_kw_limit = 0.1 * capacity
     n_values_above_limit = (me_values["me_kw"] > me_kw_limit).sum()
     n_values_below_limit = (me_values["me_kw"] < me_kw_limit).sum()
-    me_values["me_kw"].clip(lower=-0.1 * capacity, upper=0.1 * capacity, inplace=True)
+    me_values["me_kw"] = me_values["me_kw"].clip(lower=-0.1 * capacity, upper=0.1 * capacity)
     log.debug(
         f"ME values clipped: There were {n_values_above_limit} values above the limit and "
         f"{n_values_below_limit} values below the limit.",
@@ -247,7 +247,7 @@ def adjust_forecast_with_adjuster(
     )
 
     # if me_kw is null, set to 0
-    forecast_values_df_adjust["me_kw"].fillna(0, inplace=True)
+    forecast_values_df_adjust["me_kw"] = forecast_values_df_adjust["me_kw"].fillna(0)
 
     # adjust forecast_power_kw by ME values
     log.info(forecast_values_df_adjust["me_kw"])
@@ -275,5 +275,7 @@ def adjust_forecast_with_adjuster(
     )
 
     # clip negative values to 0
-    forecast_values_df_adjust["forecast_power_kw"].clip(lower=0, inplace=True)
+    forecast_values_df_adjust["forecast_power_kw"] = forecast_values_df_adjust[
+        "forecast_power_kw"
+        ].clip(lower=0)
     return forecast_values_df_adjust

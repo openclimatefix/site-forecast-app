@@ -43,7 +43,7 @@ def test_satellite_download_backup(small_satellite_data, # noqa: ARG001
     # only select the first 2 timestamps
     ds = ds.isel(time=slice(0, 2))
 
-    ds_15 = ds.resample(time="15T").mean().copy()
+    ds_15 = ds.resample(time="15min").mean().copy()
 
     with tempfile.TemporaryDirectory() as tmpdir:
         local_satellite_path = f"{tmpdir}/satellite_data.zarr"

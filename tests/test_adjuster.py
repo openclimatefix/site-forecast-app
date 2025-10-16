@@ -135,7 +135,7 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(f"{i}H") for i in range(0, 5)
+                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(f"{i}h") for i in range(0, 5)
             ],
         },
     )
@@ -156,7 +156,7 @@ def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 05:00:00") + pd.Timedelta(f"{i}H") for i in range(0, 5)
+                pd.Timestamp("2024-11-01 05:00:00") + pd.Timedelta(f"{i}h") for i in range(0, 5)
             ],
         },
     )
