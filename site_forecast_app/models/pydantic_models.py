@@ -51,7 +51,6 @@ class Model(BaseModel):
         None,
         title="Site Group UUID",
         description="The UUID of the site group that the model is for." \
-        "Note that either client or site_group_uuid must be provided.",
     )
 
 
