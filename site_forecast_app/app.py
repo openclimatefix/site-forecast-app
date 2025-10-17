@@ -58,7 +58,7 @@ def get_sites(
             .one()
         )  # check it exists
         # note if this uuid doesn't exist, an exception will be raised
-        sites = site_group.sites
+        sites = site_group.locations
     else:
         # get sites and filter by client
         client = os.getenv("CLIENT_NAME", "nl")
@@ -319,7 +319,7 @@ def app_run(
 
         log.info(
             f"Completed forecasts for {successful_runs} runs for "
-            f"{runs} model runs. This was for {len(sites)} sites",
+            f"{runs} model runs.",
         )
         if successful_runs == runs:
             log.info("All forecasts completed successfully")

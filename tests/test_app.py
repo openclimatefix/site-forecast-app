@@ -47,7 +47,7 @@ def test_get_sites_with_model_config(db_session, sites):
     )
     db_session.add(location_group)
     db_session.commit()
-    location_group.sites = sites
+    location_group.locations = sites
 
     model_config = get_all_models().models[0]
     model_config.client = None
