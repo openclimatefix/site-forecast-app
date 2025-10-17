@@ -43,14 +43,13 @@ class Model(BaseModel):
     client: str = Field(
         "ruvnl",
         title="Client Abbreviation",
-        description="The name of the client that the model is for." \
-        "Note that either client or site_group_uuid must be provided.",
+        description="The name of the client that the model is for."
     )
 
     site_group_uuid: str | None = Field(
         None,
         title="Site Group UUID",
-        description="The UUID of the site group that the model is for." \
+        description="The UUID of the site group that the model is for."
     )
 
 
