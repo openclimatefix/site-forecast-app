@@ -10,7 +10,7 @@ def test_get_all_models():
 
 
 def test_site_group_uuid():
-    """Test for getting all models for a given client"""
+    """Test for setting site_group_uuid"""
     model = get_all_models().models[0]
     model.site_group_uuid = "some-uuid"
 
