@@ -3,8 +3,8 @@ models:
   # NL solar 48 hour model
   - name: nl
     type: pvnet
-    id: openclimatefix/pvnet_nl
-    version: 6e1a99404f6b51dd68227088ac08925f8a69ef7f
+    id: openclimatefix-models/pvnet_nl
+    version: 509094687e7fca3ef0cabbbefd26c277df95d28b
     site_group_uuid: 4dce2381-9e8d-467e-bbdd-4e342c9e1d89
     client: nl
     asset_type: pv
