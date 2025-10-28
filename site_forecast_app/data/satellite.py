@@ -104,7 +104,7 @@ def download_satellite_data(satellite_source_file_path: str,
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}")
 
-        elif timedelta(minutes=0) < satellite_delay <= timedelta(minutes=10):
+        elif timedelta(minutes=0) < satellite_delay <= timedelta(minutes=5):
             log.info("Satellite delay is 5 minuted or less. " \
                      f"Appending a NaN timestamp at {latest_satellite_time+pd.Timedelta('5min')}")
 
