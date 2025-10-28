@@ -111,7 +111,7 @@ def download_satellite_data(satellite_source_file_path: str,
             # Extend the data with NaNs
             ds = ds.reindex(time=np.concatenate([
                 ds.time,
-                [np.datetime64(latest_satellite_time + pd.Timedelta("5min"))]
+                [np.datetime64(latest_satellite_time + pd.Timedelta("5min"))],
                 ]), fill_value=np.nan)
 
         if scaling_method == "constant":
