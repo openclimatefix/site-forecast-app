@@ -104,6 +104,16 @@ def download_satellite_data(satellite_source_file_path: str,
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}")
 
+        elif timedelta(minutes=0) < satellite_delay <= timedelta(minutes=5):
+            log.info("Satellite delay is 5 minuted or less. " \
+                     f"Appending a NaN timestamp at {latest_satellite_time+pd.Timedelta('5min')}")
+
+            # Extend the data with NaNs
+            ds = ds.reindex(time=np.concatenate([
+                ds.time,
+                [np.datetime64(latest_satellite_time + pd.Timedelta("5min"))],
+                ]), fill_value=np.nan)
+
         if scaling_method == "constant":
             log.info("Scaling satellite data to [0,1] range via constant scaling")
             # scale the dataset to 0-1
