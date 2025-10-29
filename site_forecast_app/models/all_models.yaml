@@ -28,28 +28,28 @@ models:
     satellite_scaling_method: constant
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
-    id: openclimatefix/pvnet_ad_sites
+    id: openclimatefix-models/pvnet_ad_sites
     version: a540910c644dc22cec6707258e7e22c01bac2eb2
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
     type: pvnet
-    id: openclimatefix/pvnet_ad_sites
+    id: openclimatefix-models/pvnet_ad_sites
     version: 2ce733855ee90866083796f5f62fb89a53cab6db
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
   - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_short
     type: pvnet
-    id: openclimatefix/pvnet_ad_sites
+    id: openclimatefix-model/pvnet_ad_sites
     version: d41b8d8fed4ffdc13f1668fd708933f946cc84da
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
   - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_long
     type: pvnet
-    id: openclimatefix/pvnet_ad_sites
+    id: openclimatefix-models/pvnet_ad_sites
     version: 6d3a55d61a2b008d93f2479401388ebf8228d94f
     client: ad
     asset_type: pv
