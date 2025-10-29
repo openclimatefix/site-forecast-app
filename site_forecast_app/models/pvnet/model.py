@@ -186,7 +186,10 @@ class PVNetModel:
 
         values_df = self.add_probabilistic_values(capacity_kw, normed_preds, values_df)
 
-        return values_df.to_dict("records")
+        values_dict = values_df.to_dict("records")
+        values_dict["t0"] = sample_t0
+
+        return values_dict
 
     def add_probabilistic_values(
         self,

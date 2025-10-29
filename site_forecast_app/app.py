@@ -127,6 +127,7 @@ def save_forecast(
     db_session: Session,
     forecast: dict,
     write_to_db: bool,
+    t0: dt.datetime,
     ml_model_name: str | None = None,
     ml_model_version: str | None = None,
     use_adjuster: bool = True,
@@ -156,7 +157,7 @@ def save_forecast(
     }
     forecast_values_df = pd.DataFrame(forecast["values"])
     forecast_values_df["horizon_minutes"] = (
-        (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
+        (forecast_values_df["start_utc"] - pd.Timestamp(t0)) / pd.Timedelta("60s")
     ).astype("int")
 
     if write_to_db:
@@ -297,6 +298,9 @@ def app_run(
                 if forecast_values is None:
                     log.info(f"No forecast values for site_uuid={site_uuid}")
                 else:
+                    # Extract t0
+                    t0 = forecast_values["t0"]
+                    del forecast_values["t0"]
                     # 4. Write forecast to DB or stdout
                     log.info(f"Writing forecast for site_uuid={site_uuid}")
                     forecast = {
@@ -311,6 +315,7 @@ def app_run(
                         session,
                         forecast=forecast,
                         write_to_db=write_to_db,
+                        t0=t0,
                         ml_model_name=ml_model.name,
                         ml_model_version=version,
                         adjuster_average_minutes=model_config.adjuster_average_minutes,

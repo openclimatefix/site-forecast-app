@@ -112,6 +112,7 @@ def test_run_model(
         name="test",
     )
     forecast = run_model(model=model, site_uuid=str(uuid.uuid4()), timestamp=init_timestamp)
+    del forecast["t0"]
 
     assert isinstance(forecast, list)
     assert len(forecast) == 192  # value for every 15mins over 2 days
@@ -137,6 +138,7 @@ def test_save_forecast(db_session, sites, forecast_values):
     save_forecast(
         db_session,
         forecast,
+        t0=dt.datetime.now(tz=dt.UTC),
         write_to_db=True,
         ml_model_name="test",
         ml_model_version="0.0.0",
