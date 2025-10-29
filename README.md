@@ -13,7 +13,7 @@ We use NWP data such as ECMWF's IFS forecast and live generation values as input
 ## PV
 
 We are currently running a Netherlands solar model.
-The configuration is stored [here](https://huggingface.co/openclimatefix/pvnet_nl)
+The configuration is stored [here](https://huggingface.co/openclimatefix-models/pvnet_nl)
 
 We are also running an India sites solar model. 
 
