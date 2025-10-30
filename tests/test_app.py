@@ -144,9 +144,10 @@ def test_save_forecast(db_session, sites, forecast_values):
 
     assert db_session.query(ForecastSQL).count() == 2
 
-    forecast_step = int(
+    forecast_step = (
         (forecast_values["start_utc"][1]-forecast_values["start_utc"][0])/dt.timedelta(seconds=60)
-        )
+    )
+    forecast_step = int(forecast_step)
     forecast_query = db_session.query(ForecastValueSQL).all()
     assert forecast_query[0].horizon_minutes == forecast_step
     assert forecast_query[-1].horizon_minutes == (
