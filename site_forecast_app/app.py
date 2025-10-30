@@ -155,9 +155,15 @@ def save_forecast(
         "forecast_version": forecast["meta"]["version"],
     }
     forecast_values_df = pd.DataFrame(forecast["values"])
+    # To get accurate horizons we substract the first target time. This will make horizons 
+    # start from 0. We will then add first non-zero horizon to get the correct values, as
+    # horizons are equally spaced
     forecast_values_df["horizon_minutes"] = (
-        (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
+        (forecast_values_df["start_utc"]-forecast_values_df["start_utc"][0]) / pd.Timedelta("60s")
     ).astype("int")
+    forecast_values_df["horizon_minutes"] = (
+        forecast_values_df["horizon_minutes"] + forecast_values_df["horizon_minutes"][1]
+    )
 
     if write_to_db:
         insert_forecast_values(
