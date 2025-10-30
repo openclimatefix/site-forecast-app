@@ -139,6 +139,7 @@ def save_forecast(
             db_session: A SQLAlchemy session
             forecast: a forecast dict containing forecast meta and predicted values
             write_to_db: If true, forecast values are written to db, otherwise to stdout
+            t0: The t0 the forecast was created for
             ml_model_name: Name of the ML model used for the forecast
             ml_model_version: Version of the ML model used for the forecast
             use_adjuster: Make new model, adjusted by last 7 days of ME values
