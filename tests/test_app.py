@@ -81,6 +81,7 @@ def test_get_model(
         hf_version=ml_model.version,
         hf_repo=ml_model.id,
         name="test",
+        site_uuid = str(gen_sites[0].location_uuid),
     )
 
     assert hasattr(model, "version")
@@ -108,8 +109,9 @@ def test_run_model(
         hf_version=ml_model.version,
         hf_repo=ml_model.id,
         name="test",
+        site_uuid=str(uuid.uuid4()),
     )
-    forecast = run_model(model=model, site_uuid=str(uuid.uuid4()), timestamp=init_timestamp)
+    forecast = run_model(model=model, timestamp=init_timestamp)
 
     assert isinstance(forecast, list)
     assert len(forecast) == 192  # value for every 15mins over 2 days

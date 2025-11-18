@@ -56,13 +56,14 @@ class PVNetModel:
         hf_repo: str,
         hf_version: str,
         name: str,
+        site_uuid: str,
         satellite_scaling_method: str = "constant",
     ) -> None:
         """Initializer for the model."""
         self.id = hf_repo
         self.version = hf_version
         self.name = name
-        self.site_uuid = None
+        self.site_uuid=site_uuid
         self.t0 = timestamp
         self.satellite_scaling_method = satellite_scaling_method
 

@@ -78,17 +78,16 @@ def run_model(model: PVNetModel, timestamp: pd.Timestamp) -> dict | None:
 
     Args:
             model: A forecasting model
-            site_uuid: A specific site uuid
             timestamp: timestamp to run a forecast for
 
     Returns:
             A forecast or None if model inference fails
     """
     try:
-        forecast = model.predict(site_uuid=site_uuid, timestamp=timestamp)
+        forecast = model.predict(timestamp=timestamp)
     except Exception:
         log.error(
-            f"Error while running model.predict for site_uuid={site_uuid}. Skipping",
+            f"Error while running model.predict for site_uuid={model.site_uuid}. Skipping",
             exc_info=True,
         )
         return None
@@ -251,19 +250,19 @@ def app_run(
                     hf_repo=model_config.id,
                     hf_version=model_config.version,
                     name=model_config.name,
+                    site_uuid=str(model_config.site_group_uuid),
                     satellite_scaling_method=model_config.satellite_scaling_method,
                 )
-                ml_model.location_uuid = site.location_uuid
 
-                log.info(f"{site} model loaded")
+                log.info(f"{ml_model.site_uuid} model loaded")
 
                 # 3. Run model for each site
-                site_uuid = ml_model.location_uuid
                 asset_type = model_config.asset_type
-                log.info(f"Running {asset_type} model for site={site_uuid}...")
+                log.info(
+                    f"Running {asset_type} model for site group={model_config.site_group_uuid}...",
+                )
                 forecast_values = run_model(
                     model=ml_model,
-                    site_uuid=site_uuid,
                     timestamp=timestamp,
                 )
 
