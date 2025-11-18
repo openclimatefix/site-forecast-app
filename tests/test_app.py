@@ -13,7 +13,6 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGr
 
 from site_forecast_app.app import (
     app,
-    get_model,
     get_sites,
     run_model,
     save_forecast,
@@ -76,7 +75,7 @@ def test_get_model(
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
-    model = get_model(
+    model = PVNetModel(
         timestamp=init_timestamp,
         generation_data=gen_data,
         hf_version=ml_model.version,
@@ -103,8 +102,7 @@ def test_run_model(
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
-    model_cls = PVNetModel
-    model = model_cls(
+    model = PVNetModel(
         timestamp=init_timestamp,
         generation_data=gen_data,
         hf_version=ml_model.version,
