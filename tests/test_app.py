@@ -96,7 +96,7 @@ def test_run_model(
     init_timestamp,
     satellite_data,  # noqa: ARG001
 ):
-    """Test for running PV and wind models"""
+    """Test for running a PV model"""
 
     all_models = get_all_models()
     ml_model = all_models.models[0]

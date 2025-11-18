@@ -1,7 +1,6 @@
 """Useful functions for setting up PVNet model."""
 import logging
 import os
-from uuid import UUID
 
 import fsspec
 import numpy as np
@@ -162,10 +161,10 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
 
 def set_night_time_zeros(
     batch: dict,
-    preds: torch.Tensor,
+    preds: np.ndarray,
     t0_idx: int,
     sun_elevation_limit: float = 0.0,
-) -> torch.Tensor:
+) -> np.ndarray:
     """Set all predictions to zero for night time values."""
     log.debug("Setting night time values to zero")
     # get sun elevation values and if less 0, set to 0
@@ -191,7 +190,7 @@ def set_night_time_zeros(
 def save_batch(
     batch: dict,
     model_name: str,
-    site_uuid: UUID,
+    site_uuid: str,
     save_batches_dir: str | None = None,
 ) -> None:
     """Save batch to SAVE_BATCHES_DIR if set.

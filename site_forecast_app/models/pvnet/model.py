@@ -10,11 +10,11 @@ import shutil
 import numpy as np
 import pandas as pd
 import torch
-from ocf_data_sampler.numpy_sample.collate import stack_np_samples_into_batch
-from ocf_data_sampler.torch_datasets.datasets.site import (
-    SitesDataset,
-)
-from ocf_data_sampler.torch_datasets.sample.base import (
+import xarray as xr
+from ocf_data_sampler.numpy_sample.common_types import TensorBatch
+from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
+from ocf_data_sampler.torch_datasets.datasets.site import SitesDatasetConcurrent
+from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
     batch_to_tensor,
 )
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
@@ -51,7 +51,7 @@ class PVNetModel:
 
     def __init__(
         self,
-        timestamp: dt.datetime,
+        timestamp: pd.Timestamp,
         generation_data: dict[str, pd.DataFrame],
         hf_repo: str,
         hf_version: str,
@@ -88,7 +88,7 @@ class PVNetModel:
             log.exception("Failed to prepare data sources or load model.")
             log.exception(f"Error: {e}")
 
-    def predict(self, site_uuid: str, timestamp: dt.datetime) -> dict:
+    def predict(self, timestamp: pd.Timestamp) -> dict:
         """Make a prediction for the model."""
         capacity_kw = self.generation_data["metadata"].iloc[0]["capacity_kwp"]
 
@@ -191,7 +191,7 @@ class PVNetModel:
     def add_probabilistic_values(
         self,
         capacity_kw: int,
-        normed_preds: np.array,
+        normed_preds: np.ndarray,
         values_df: pd.DataFrame,
     ) -> pd.DataFrame:
         """Add probabilistic values to the dataframe."""
