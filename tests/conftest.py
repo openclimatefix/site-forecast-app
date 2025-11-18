@@ -92,6 +92,24 @@ def sites(db_session):
     db_session.add(site)
     sites.append(site)
 
+    # Create 12 dummy regional sites for Netherlands
+    capacity_step = 20000 / sum(list(range(1,13)))
+
+    for i in range(1,13):
+
+        site = LocationSQL(
+            client_location_id=1,
+            client_location_name="test_site_nl_regional",
+            latitude=51,
+            longitude=5.1,
+            capacity_kw=i*capacity_step,
+            ml_id=i,
+            asset_type="pv",
+            country="nl",
+        )
+        db_session.add(site)
+        sites.append(site)
+
     # Although this site is an india site,
     # we want it to be in the test data so we adjust the lat and lon
     site = LocationSQL(
@@ -114,8 +132,17 @@ def sites(db_session):
         # It could be worth in the future doing this dynamically
         location_group_uuid="4dce2381-9e8d-467e-bbdd-4e342c9e1d89",
     )
+    # create regional site group for NL
+    site_group_regional = LocationGroupSQL(
+        location_group_name="Test Site Group NL Regional",
+        # TODO this uuid is currently copied over from the model_config,
+        # It could be worth in the future doing this dynamically
+        location_group_uuid="418259c9-0a31-4df7-a657-e53df9623897",
+    )
     site_group.locations = [sites[0]]
+    site_group_regional.locations = sites[:13]
     db_session.add(site_group)
+    db_session.add(site_group_regional)
 
     db_session.commit()
 

@@ -33,7 +33,7 @@ def test_get_sites(db_session, sites):
     sites = get_sites(db_session)
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
-    assert len(sites) == 1
+    assert len(sites) == 13
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
@@ -56,7 +56,7 @@ def test_get_sites_with_model_config(db_session, sites):
     sites = get_sites(db_session, model_config=model_config)
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
-    assert len(sites) == 2
+    assert len(sites) == 14
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
@@ -163,17 +163,20 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 3  # 1 site, 3 model
-    # 1 model does 48 hours
-    # 2 model do 36 hours
-    # average number of forecast is 42
-    n_fv = ((48+36*2)/n)*4
+    n_forecasts = 4+12
+    n_models = 4
+    # 1 site, 4 models:
+    #   1 model does 48 hours
+    #   3 models do 36 hours
+    # 1 regional model also does 36 hours for 12 more sites
+    # average number of forecast is:
+    n_fv = ((48+36*15)/n_forecasts)*4
 
     if write_to_db:
-        assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
-        assert db_session.query(MLModelSQL).count() == n * 2
+        assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
+        assert db_session.query(MLModelSQL).count() == n_models*2
         forecast_values = db_session.query(ForecastValueSQL).all()
-        assert len(forecast_values) == init_n_forecast_values + (n * 2 * n_fv)
+        assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
         assert forecast_values[0].probabilistic_values is not None
         assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
