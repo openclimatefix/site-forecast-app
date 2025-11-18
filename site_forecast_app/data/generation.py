@@ -5,6 +5,7 @@ import logging
 import numpy as np
 import pandas as pd
 import pvlib
+import xarray as xr
 from pvsite_datamodel import LocationSQL
 from pvsite_datamodel.read import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import LocationAssetType
@@ -14,9 +15,12 @@ log = logging.getLogger(__name__)
 
 
 def get_generation_data(
-    db_session: Session, sites: list[LocationSQL], timestamp: dt.datetime,
+        db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
 ) -> dict[str, pd.DataFrame]:
-    """Gets generation data values for given sites.
+    """Load generation data from Database.
+
+    Loads the data one site at a time and return compiled data and metadata
+    for all sites.
 
     Args:
             db_session: A SQLAlchemy session
@@ -25,20 +29,48 @@ def get_generation_data(
 
     Returns:
             A Dict containing:
-            - "data": Dataframe containing 15-minutely generation data
+            - "data": xr.Dataset containing 15-minutely generation data
+            - "metadata": Dataframe containing information about the sites.
+    """
+    if len(sites) == 1:
+        return _get_site_generation_data(db_session, sites[0], timestamp)
+    else:
+        site_dict = _get_site_generation_data(db_session, sites[0], timestamp)
+        metadata = site_dict["metadata"]
+        data = site_dict["data"]
+        for site in sites[1:]:
+            site_dict = _get_site_generation_data(db_session, site, timestamp)
+            metadata = pd.concat([metadata, site_dict["metadata"]])
+            data = xr.concat([data, site_dict["data"]], dim="site_id")
+        return {"data": data, "metadata": metadata.set_index("system_id")}
+
+
+
+def _get_site_generation_data(
+    db_session: Session, site: LocationSQL, timestamp: pd.Timestamp,
+) -> dict[str, pd.DataFrame | xr.Dataset]:
+    """Gets generation data values for a single site.
+
+    Args:
+            db_session: A SQLAlchemy session
+            site: A LocationSQL object
+            timestamp: The end time from which to retrieve data
+
+    Returns:
+            A Dict containing:
+            - "data": xr.Dataset containing 15-minutely generation data
             - "metadata": Dataframe containing information about the site
     """
-    site_uuids = [s.location_uuid for s in sites]
     start = timestamp - dt.timedelta(hours=48)
     # pad by 1 second to ensure get_pv_generation_by_sites returns correct data
     end = timestamp + dt.timedelta(seconds=1)
 
-    log.info(f"Getting generation data for sites: {site_uuids}, from {start=} to {end=}")
+    log.info(f"Getting generation data for sites: {site.location_uuid}, from {start=} to {end=}")
     generation_data = get_pv_generation_by_sites(
-        session=db_session, site_uuids=site_uuids, start_utc=start, end_utc=end,
+        session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
     )
     # get the ml id, this only works for one site right now
-    system_id = sites[0].ml_id
+    system_id = site.ml_id
 
     if len(generation_data) == 0:
         log.warning("No generation found for the specified sites/period")
@@ -63,8 +95,8 @@ def get_generation_data(
         log.info(generation_df)
 
         # Filter out any 0 values when the sun is up
-        if sites[0].asset_type == LocationAssetType.pv:
-            generation_df = filter_on_sun_elevation(generation_df, sites[0])
+        if site.asset_type == LocationAssetType.pv:
+            generation_df = filter_on_sun_elevation(generation_df, site)
 
         # Ensure timestamps line up with 3min intervals
         generation_df.index = generation_df.index.round("3min")
@@ -109,12 +141,12 @@ def get_generation_data(
         log.info(generation_xr)
 
     # Site metadata dataframe
-    sites_df = pd.DataFrame(
-        [(system_id, s.latitude, s.longitude, s.capacity_kw, system_id) for s in sites],
+    site_df = pd.DataFrame(
+        [(system_id, site.latitude, site.longitude, site.capacity_kw, system_id)],
         columns=["system_id", "latitude", "longitude", "capacity_kwp", "site_id"],
     )
 
-    return {"data": generation_xr, "metadata": sites_df}
+    return {"data": generation_xr, "metadata": site_df}
 
 
 def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> pd.DataFrame:

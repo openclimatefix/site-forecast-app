@@ -237,8 +237,9 @@ def app_run(
             for site in sites_for_model:
                 runs += 1
 
-                log.info(f"Reading latest historic {site} generation data...")
-                generation_data = get_generation_data(session, [site], timestamp)
+                log.info("Running the model concurrently")
+                log.info("Reading latest historic generation data for all sites...")
+                generation_data = get_generation_data(session, sites_for_model, timestamp)
 
                 log.debug(f"{generation_data['data']=}")
                 log.debug(f"{generation_data['metadata']=}")

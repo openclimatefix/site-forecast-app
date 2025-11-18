@@ -78,7 +78,12 @@ class PVNetModel:
             log.warning("No Hugging Face token provided, using anonymous access.")
 
         # Setup the data, dataloader, and model
-        self.generation_data = generation_data
+        self.generation_metadata = generation_data["metadata"]
+        if len(generation_data["data"].site_id) == 1:
+            self.generation_data = generation_data["data"]
+        else:
+            self.generation_data = generation_data["data"].isel(site_id=slice(1, None))
+            self.national_generation_data = generation_data["data"].isel(site_id=0)
         self._get_config()
 
         try:
@@ -278,7 +283,7 @@ class PVNetModel:
         os.mkdir(site_path)
 
         # Save generation data as netcdf file
-        generation_xr = self.generation_data["data"]
+        generation_xr = self.generation_data
 
         forecast_timesteps = pd.date_range(
             start=self.t0 - pd.Timedelta("52h"),
@@ -292,7 +297,7 @@ class PVNetModel:
         generation_xr.to_netcdf(site_netcdf_path, engine="h5netcdf")
 
         # Save metadata as csv
-        self.generation_data["metadata"].to_csv(site_metadata_path, index=False)
+        self.generation_metadata.to_csv(site_metadata_path, index=False)
 
     def _get_config(self) -> None:
         """Setup dataloader with prepared data sources."""
