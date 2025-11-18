@@ -52,6 +52,18 @@ class Model(BaseModel):
         description="The UUID of the site group that the model is for.",
     )
 
+    summation_id: str | None = Field(
+        None,
+        title="HuggingFace repo for Summation Model",
+        description="HuggingFace repo for the summation model",
+    )
+
+    summation_version: str | None = Field(
+        None,
+        title="Model Version of Summation Model",
+        description="HuggingFace hash for the summation model",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""

@@ -234,7 +234,8 @@ def app_run(
                 site for site in sites if site.asset_type.name == model_config.asset_type
             ]
 
-            for site in sites_for_model:
+            if model_config.summation_version:
+                # Summation model provided, run the model concurrently on all sites
                 runs += 1
 
                 log.info("Running the model concurrently")
@@ -253,11 +254,13 @@ def app_run(
                     name=model_config.name,
                     site_uuid=str(model_config.site_group_uuid),
                     satellite_scaling_method=model_config.satellite_scaling_method,
+                    summation_version=model_config.summation_version,
+                    summation_repo = model_config.summation_id,
                 )
 
                 log.info(f"{ml_model.site_uuid} model loaded")
 
-                # 3. Run model for each site
+                # 3. Run model for all sites
                 asset_type = model_config.asset_type
                 log.info(
                     f"Running {asset_type} model for site group={model_config.site_group_uuid}...",
@@ -268,27 +271,90 @@ def app_run(
                 )
 
                 if forecast_values is None:
-                    log.info(f"No forecast values for site_uuid={site_uuid}")
+                    log.info(
+                        f"No forecast values for site_group_uuid={model_config.site_group_uuid}",
+                    )
                 else:
                     # 4. Write forecast to DB or stdout
-                    log.info(f"Writing forecast for site_uuid={site_uuid}")
-                    forecast = {
-                        "meta": {
-                            "location_uuid": site_uuid,
-                            "version": version,
-                            "timestamp": timestamp,
-                        },
-                        "values": forecast_values,
-                    }
-                    save_forecast(
-                        session,
-                        forecast=forecast,
-                        write_to_db=write_to_db,
-                        ml_model_name=ml_model.name,
-                        ml_model_version=version,
-                        adjuster_average_minutes=model_config.adjuster_average_minutes,
+                    log.info(
+                        f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
+
+                    for site in sites_for_model:
+                        # Write forecast for one site at a time
+                        forecast = {
+                            "meta": {
+                                "location_uuid": site.location_uuid,
+                                "version": version,
+                                "timestamp": timestamp,
+                            },
+                            "values": forecast_values[site.ml_id],
+                        }
+                        save_forecast(
+                            session,
+                            forecast=forecast,
+                            write_to_db=write_to_db,
+                            ml_model_name=ml_model.name,
+                            ml_model_version=version,
+                            adjuster_average_minutes=model_config.adjuster_average_minutes,
+                        )
                     successful_runs += 1
+
+            else:
+                # Summation model not provided, running model on one site at a time
+                for site in sites_for_model:
+                    runs += 1
+                    site_uuid = str(site.location_uuid)
+
+                    log.info(f"Reading latest historic {site} generation data...")
+                    generation_data = get_generation_data(session, [site], timestamp)
+
+                    log.debug(f"{generation_data['data']=}")
+                    log.debug(f"{generation_data['metadata']=}")
+
+                    log.info(f"Loading {site} model {model_config.name}...")
+                    ml_model = PVNetModel(
+                        timestamp,
+                        generation_data,
+                        hf_repo=model_config.id,
+                        hf_version=model_config.version,
+                        name=model_config.name,
+                        satellite_scaling_method=model_config.satellite_scaling_method,
+                        site_uuid=site_uuid,
+                    )
+
+                    log.info(f"{site} model loaded")
+
+                    # 3. Run model for one site
+                    asset_type = model_config.asset_type
+                    log.info(f"Running {asset_type} model for site={site_uuid}...")
+                    forecast_values = run_model(
+                        model=ml_model,
+                        timestamp=timestamp,
+                    )
+
+                    if forecast_values is None:
+                        log.info(f"No forecast values for site_uuid={site_uuid}")
+                    else:
+                        # 4. Write forecast to DB or stdout
+                        log.info(f"Writing forecast for site_uuid={site_uuid}")
+                        forecast = {
+                            "meta": {
+                                "location_uuid": site_uuid,
+                                "version": version,
+                                "timestamp": timestamp,
+                            },
+                            "values": forecast_values,
+                        }
+                        save_forecast(
+                            session,
+                            forecast=forecast,
+                            write_to_db=write_to_db,
+                            ml_model_name=ml_model.name,
+                            ml_model_version=version,
+                            adjuster_average_minutes=model_config.adjuster_average_minutes,
+                        )
+                        successful_runs += 1
 
         log.info(
             f"Completed forecasts for {successful_runs} runs for "
