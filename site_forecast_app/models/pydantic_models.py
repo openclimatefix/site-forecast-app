@@ -52,6 +52,8 @@ class Model(BaseModel):
         description="The UUID of the site group that the model is for.",
     )
 
+    # Summation model requires a National site, which by convention has ml_id=0 and should be
+    # added to the site_group alongside the regional sites for the model
     summation_id: str | None = Field(
         None,
         title="HuggingFace repo for Summation Model",

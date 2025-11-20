@@ -65,7 +65,7 @@ class PVNetModel:
         self.id = hf_repo
         self.version = hf_version
         self.name = name
-        self.site_uuid=site_uuid
+        self.site_uuid = site_uuid
         self.t0 = timestamp
         self.satellite_scaling_method = satellite_scaling_method
         self.summation_repo = summation_repo
@@ -86,8 +86,8 @@ class PVNetModel:
         if len(generation_data["data"].site_id) == 1:
             self.generation_data = generation_data["data"]
         else:
-            self.generation_data = generation_data["data"].isel(site_id=slice(1, None))
-            self.national_generation_data = generation_data["data"].isel(site_id=0)
+            # Cutting off National generation data (site_id=0) to avoid it being sampled
+            self.generation_data = generation_data["data"].sel(site_id=slice(1, None))
         self._get_config()
 
         try:
@@ -420,10 +420,13 @@ class PVNetModel:
         Returns:
                 batch for summation model as a dictionary.
         """
+        # National data has site_id=0, regional site_ids start from 1:
+        # relative_capacities = regional_capacities / national_capacity
         relative_capacities=(self.generation_metadata.loc[1:][
             "capacity_kwp"
         ].values / self.generation_metadata.loc[0]["capacity_kwp"])
 
+        # Getting sun position for National location (National index is always 0)
         azimuth, elevation = calculate_azimuth_and_elevation(
             datetimes=self.valid_times,
             lon=self.generation_metadata.loc[0]["longitude"],
