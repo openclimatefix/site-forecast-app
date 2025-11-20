@@ -46,6 +46,8 @@ def get_generation_data(
         metadata = pd.concat(metadata_list)
         data = xr.concat(data_list, dim="site_id")
         log.debug("Data for all sites retrieved successfully.")
+        metadata = metadata.sort_values(by="system_id")
+        data = data.sortby(data.site_id)
         return {"data": data, "metadata": metadata.set_index("system_id")}
 
 
