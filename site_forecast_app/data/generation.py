@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 
 def get_generation_data(
         db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
-) -> dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
 
     Loads the data one site at a time and return compiled data and metadata
@@ -35,15 +35,18 @@ def get_generation_data(
     if len(sites) == 1:
         return _get_site_generation_data(db_session, sites[0], timestamp)
     else:
-        site_dict = _get_site_generation_data(db_session, sites[0], timestamp)
-        metadata = site_dict["metadata"]
-        data = site_dict["data"]
-        for site in sites[1:]:
+        log.info("Multiple sites requested. Loading data for one site at a time...")
+        metadata_list: list[pd.DataFrame] = []
+        data_list: list[xr.Dataset] = []
+        for site in sites:
             site_dict = _get_site_generation_data(db_session, site, timestamp)
-            metadata = pd.concat([metadata, site_dict["metadata"]])
-            data = xr.concat([data, site_dict["data"]], dim="site_id")
+            metadata_list.append(site_dict["metadata"])
+            data_list.append(site_dict["data"])
+        log.debug("Generation data loaded for all sites. Compiling...")
+        metadata = pd.concat(metadata_list)
+        data = xr.concat(data_list, dim="site_id")
+        log.debug("Data for all sites retrieved successfully.")
         return {"data": data, "metadata": metadata.set_index("system_id")}
-
 
 
 def _get_site_generation_data(
@@ -65,15 +68,15 @@ def _get_site_generation_data(
     # pad by 1 second to ensure get_pv_generation_by_sites returns correct data
     end = timestamp + dt.timedelta(seconds=1)
 
-    log.info(f"Getting generation data for sites: {site.location_uuid}, from {start=} to {end=}")
+    log.info(f"Getting generation data for site {site.location_uuid}, from {start=} to {end=}")
     generation_data = get_pv_generation_by_sites(
         session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
     )
-    # get the ml id, this only works for one site right now
+    # get the ml id
     system_id = site.ml_id
 
     if len(generation_data) == 0:
-        log.warning("No generation found for the specified sites/period")
+        log.warning(f"No generation found for site {site.location_uuid}")
         # created empty data frame with dimesion of time_utc
         generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
         # add dimension of site_id
