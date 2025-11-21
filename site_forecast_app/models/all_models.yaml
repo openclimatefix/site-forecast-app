@@ -26,6 +26,16 @@ models:
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
+  - name: nl_regional_pv_ecmwf_sat
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: de5ad0748be8952a4c0600a1ae6455bf802f5896
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: 36df9cd69a6dfc42477e06e111ca5d5eabdcbbfd
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites

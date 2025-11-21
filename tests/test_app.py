@@ -13,7 +13,6 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGr
 
 from site_forecast_app.app import (
     app,
-    get_model,
     get_sites,
     run_model,
     save_forecast,
@@ -33,7 +32,7 @@ def test_get_sites(db_session, sites):
     sites = get_sites(db_session)
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
-    assert len(sites) == 1
+    assert len(sites) == 13
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
@@ -56,7 +55,7 @@ def test_get_sites_with_model_config(db_session, sites):
     sites = get_sites(db_session, model_config=model_config)
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
-    assert len(sites) == 2
+    assert len(sites) == 14
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
@@ -76,12 +75,13 @@ def test_get_model(
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
-    model = get_model(
+    model = PVNetModel(
         timestamp=init_timestamp,
         generation_data=gen_data,
         hf_version=ml_model.version,
         hf_repo=ml_model.id,
         name="test",
+        site_uuid = str(gen_sites[0].location_uuid),
     )
 
     assert hasattr(model, "version")
@@ -97,21 +97,21 @@ def test_run_model(
     init_timestamp,
     satellite_data,  # noqa: ARG001
 ):
-    """Test for running PV and wind models"""
+    """Test for running a PV model"""
 
     all_models = get_all_models()
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
-    model_cls = PVNetModel
-    model = model_cls(
+    model = PVNetModel(
         timestamp=init_timestamp,
         generation_data=gen_data,
         hf_version=ml_model.version,
         hf_repo=ml_model.id,
         name="test",
+        site_uuid=str(uuid.uuid4()),
     )
-    forecast = run_model(model=model, site_uuid=str(uuid.uuid4()), timestamp=init_timestamp)
+    forecast = run_model(model=model, timestamp=init_timestamp)
 
     assert isinstance(forecast, list)
     assert len(forecast) == 192  # value for every 15mins over 2 days
@@ -163,17 +163,20 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 3  # 1 site, 3 model
-    # 1 model does 48 hours
-    # 2 model do 36 hours
-    # average number of forecast is 42
-    n_fv = ((48+36*2)/n)*4
+    n_forecasts = 4+12
+    n_models = 4
+    # 1 site, 4 models:
+    #   1 model does 48 hours
+    #   3 models do 36 hours
+    # 1 regional model also does 36 hours for 12 more sites
+    # average number of forecast is:
+    n_fv = ((48+36*15)/n_forecasts)*4
 
     if write_to_db:
-        assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
-        assert db_session.query(MLModelSQL).count() == n * 2
+        assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
+        assert db_session.query(MLModelSQL).count() == n_models*2
         forecast_values = db_session.query(ForecastValueSQL).all()
-        assert len(forecast_values) == init_n_forecast_values + (n * 2 * n_fv)
+        assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
         assert forecast_values[0].probabilistic_values is not None
         assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
