@@ -144,6 +144,8 @@ class PVNetModel:
             with torch.no_grad():
                 normed_national = self.summation_model(inputs).detach().squeeze().cpu().numpy()
 
+            log.info(f"Max national prediction: {np.max(normed_national, axis=0)}")
+
             # Construct forecast for saving one site at a time and store
             # in a dictionary with ml_id (site_id) as keys
             all_values = {}
