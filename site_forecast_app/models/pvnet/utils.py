@@ -1,4 +1,5 @@
 """Useful functions for setting up PVNet model."""
+
 import logging
 import os
 
@@ -11,12 +12,7 @@ from ocf_data_sampler.config.model import NWP, Configuration
 from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
 
-from .consts import (
-    nwp_ecmwf_path,
-    nwp_mo_global_path,
-    satellite_path,
-    generation_path
-)
+from .consts import generation_path, nwp_ecmwf_path, nwp_mo_global_path, satellite_path
 
 log = logging.getLogger(__name__)
 

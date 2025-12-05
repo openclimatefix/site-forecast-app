@@ -157,9 +157,9 @@ def _get_site_generation_data(
 
     generation_xr = generation_xr.assign_coords(longitude=(["location_id"], [site.longitude]),
                                 latitude=(["location_id"], [site.latitude]))
-    
+
     generation_xr["capacity_mwp"] = capacity
-    
+
     return generation_xr
 
 
