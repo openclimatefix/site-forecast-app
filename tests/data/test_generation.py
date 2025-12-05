@@ -35,14 +35,15 @@ def test_get_generation_data_pv(db_session, sites, generation_db_values, init_ti
     # Test only checks for wind data as solar data not ready yet
     gen_sites = [s for s in sites if s.asset_type == LocationAssetType.pv][0:1]  # 1 site
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
-    gen_xr, gen_meta = gen_data["data"], gen_data["metadata"]
 
     # Check for 5 (non-null) generation values
-    assert gen_xr.generation_kw.shape == (1, 193)
+    assert gen_data.generation_mw.shape == (1, 193)
 
     # Check first and last timestamps are correct
-    assert gen_xr.time_utc[0] == init_timestamp - dt.timedelta(hours=48)
-    assert gen_xr.time_utc[-1] == init_timestamp
+    assert gen_data.time_utc[0] == init_timestamp - dt.timedelta(hours=48)
+    assert gen_data.time_utc[-1] == init_timestamp
 
     # Check for expected metadata
-    assert len(gen_meta) == 1
+    assert len(gen_data.location_id.values) == 1
+    assert len(gen_data.latitude.values) == 1
+    assert len(gen_data.longitude.values) == 1

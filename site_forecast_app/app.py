@@ -242,8 +242,7 @@ def app_run(
                 log.info("Reading latest historic generation data for all sites...")
                 generation_data = get_generation_data(session, sites_for_model, timestamp)
 
-                log.debug(f"{generation_data['data']=}")
-                log.debug(f"{generation_data['metadata']=}")
+                log.debug(f"{generation_data=}")
 
                 log.info(f"Loading concurrent model {model_config.name}...")
                 ml_model = PVNetModel(
@@ -309,8 +308,7 @@ def app_run(
                     log.info(f"Reading latest historic {site} generation data...")
                     generation_data = get_generation_data(session, [site], timestamp)
 
-                    log.debug(f"{generation_data['data']=}")
-                    log.debug(f"{generation_data['metadata']=}")
+                    log.debug(f"{generation_data=}")
 
                     log.info(f"Loading {site} model {model_config.name}...")
                     ml_model = PVNetModel(

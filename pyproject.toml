@@ -23,11 +23,11 @@ dependencies = [
     "click==8.1.7",
     "pvsite-datamodel==1.2.0",
     "pandas==2.2.3",
-    "pvnet==5.0.21",
-    "pvnet_summation==1.1.2",
+    "pvnet==5.3.0",
+    "pvnet_summation==1.2.0",
     "numpy==1.26.4",
     "huggingface-hub==0.20.3",
-    "ocf-data-sampler==0.6.0",
+    "ocf-data-sampler==1.0.1",
     "pyproj==3.6.0", # 3.7.1 seems to cause an error at the moment
     "pyogrio==0.8.0", # 0.9.0 seems to cause an error at the moment
     "torchvision==0.17.2",
