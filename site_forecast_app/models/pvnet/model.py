@@ -80,11 +80,11 @@ class PVNetModel:
             log.warning("No Hugging Face token provided, using anonymous access.")
 
         # Setup the data, dataloader, and model
-        if len(generation_data["generation_mw"].location_id) == 1:
-            self.generation_data = generation_data["generation_mw"]
+        if len(generation_data.location_id.values) == 1:
+            self.generation_data = generation_data
         else:
             # Cutting off National generation data (location_id=0) to avoid it being sampled
-            self.generation_data = generation_data["generation_mw"].sel(location_id=slice(1, None))
+            self.generation_data = generation_data.sel(location_id=slice(1, None))
         self._get_config()
 
         try:
@@ -149,10 +149,10 @@ class PVNetModel:
 
             for i, location_id in enumerate(batch["location_id"].numpy()):
                 all_values[location_id] = self._prepare_values_for_saving(
-                    capacity_kw=self.generation_data.sel(location_id=location_id)["capacity_mwp"][
-                        0
-                    ].item()
-                    * 1000,
+                    capacity_kw=(
+                        self.generation_data["capacity_mwp"].sel(location_id=location_id)[0].item()
+                        * 1000
+                    ),
                     normed_values=normed_preds[i],
                 )
 
@@ -214,15 +214,15 @@ class PVNetModel:
                 if not available.
         """
         try:
-            batch = self.dataset._get_batch(t0=timestamp)
+            batch = self.dataset._get_sample(t0=timestamp)
             sample_t0 = timestamp
         except Exception:
-            sample_t0 = self.dataset.valid_t0s[-1]
-            batch = self.dataset._get_batch(t0=sample_t0)
+            sample_t0 = self.dataset.valid_t0_times[-1]
+            batch = self.dataset._get_sample(t0=sample_t0)
             log.warning(
                 "Timestamp different from the one in the batch: "
                 f"{timestamp} != {sample_t0} (batch)"
-                f"The other timestamps are: {self.dataset.valid_t0s}",
+                f"The other timestamps are: {self.dataset.valid_t0_times}",
             )
 
         sample_location_id = batch["location_id"]
@@ -389,7 +389,6 @@ class PVNetModel:
             raise FileNotFoundError(
                 f"Data config file not found: {self.populated_data_config_filename}",
             )
-
         # Location and time datapipes
         self.dataset = PVNetConcurrentDataset(config_filename=self.populated_data_config_filename)
 
@@ -426,15 +425,15 @@ class PVNetModel:
         # National data has location_id=0, regional location_ids start from 1:
         # relative_capacities = regional_capacities / national_capacity
         relative_capacities = (
-            self.generation_data.loc[1:]["capacity_mwp"].values
-            / self.generation_data.loc[0]["capacity_mwp"]
+            self.generation_data["capacity_mwp"].sel(location_id=slice(1, None)).values[0]
+            / self.generation_data["capacity_mwp"][0][0].item()
         )
 
         # Getting sun position for National location (National index is always 0)
         azimuth, elevation = calculate_azimuth_and_elevation(
             datetimes=self.valid_times,
-            lon=self.generation_data.loc[0]["longitude"],
-            lat=self.generation_data.loc[0]["latitude"],
+            lon=self.generation_data["longitude"][0].item(),
+            lat=self.generation_data["latitude"][0].item(),
         )
 
         sample = {

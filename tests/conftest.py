@@ -93,16 +93,15 @@ def sites(db_session):
     sites.append(site)
 
     # Create 12 dummy regional sites for Netherlands
-    capacity_step = 20000 / sum(list(range(1,13)))
+    capacity_step = 20000 / sum(list(range(1, 13)))
 
-    for i in range(1,13):
-
+    for i in range(1, 13):
         site = LocationSQL(
             client_location_id=1,
             client_location_name="test_site_nl_regional",
             latitude=51,
             longitude=5.1,
-            capacity_kw=i*capacity_step,
+            capacity_kw=i * capacity_step,
             ml_id=i,
             asset_type="pv",
             country="nl",
@@ -397,7 +396,8 @@ def satellite_data(tmp_path_factory, init_timestamp):
     """Dummy Satellite data"""
     # Load dataset which only contains coordinates, but no data
     ds = xr.open_zarr(
-        f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell_3.zarr")
+        f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell_3.zarr"
+    )
     # remove time dim and geostationary dims and expand them
     ds = ds.drop_vars(["time", "x_geostationary", "y_geostationary"])
     n_hours = 3
@@ -436,12 +436,14 @@ def satellite_data(tmp_path_factory, init_timestamp):
     with zarr.storage.ZipStore(temp_sat_path, mode="x") as store:
         ds.to_zarr(store)
 
+
 @pytest.fixture(scope="function")
 def small_satellite_data(tmp_path_factory, init_timestamp):
     """Small amount of non-zero dummy satellite data"""
     # Load dataset which only contains coordinates, but no data
     ds = xr.open_zarr(
-        f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell_3.zarr")
+        f"{os.path.dirname(os.path.abspath(__file__))}/test_data/non_hrv_shell_3.zarr"
+    )
 
     # remove time dim and geostationary dims and expand them
     ds = ds.drop_vars(["time", "x_geostationary", "y_geostationary"])

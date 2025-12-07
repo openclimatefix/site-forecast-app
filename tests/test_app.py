@@ -37,6 +37,7 @@ def test_get_sites(db_session, sites):
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
 
+
 def test_get_sites_with_model_config(db_session, sites):
     """Test for correct site ids"""
 
@@ -64,7 +65,7 @@ def test_get_sites_with_model_config(db_session, sites):
 def test_get_model(
     db_session,
     sites,
-    nwp_data, # noqa: ARG001
+    nwp_data,  # noqa: ARG001
     generation_db_values,  # noqa: ARG001
     init_timestamp,
     satellite_data,  # noqa: ARG001
@@ -81,7 +82,7 @@ def test_get_model(
         hf_version=ml_model.version,
         hf_repo=ml_model.id,
         name="test",
-        site_uuid = str(gen_sites[0].location_uuid),
+        site_uuid=str(gen_sites[0].location_uuid),
     )
 
     assert hasattr(model, "version")
@@ -149,7 +150,12 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
-    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data,  # noqa: ARG001
+    write_to_db,
+    db_session,
+    sites,
+    nwp_data,
+    generation_db_values,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
@@ -163,18 +169,18 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n_forecasts = 4+12
+    n_forecasts = 4 + 12
     n_models = 4
     # 1 site, 4 models:
     #   1 model does 48 hours
     #   3 models do 36 hours
     # 1 regional model also does 36 hours for 12 more sites
     # average number of forecast is:
-    n_fv = ((48+36*15)/n_forecasts)*4
+    n_fv = ((48 + 36 * 15) / n_forecasts) * 4
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
-        assert db_session.query(MLModelSQL).count() == n_models*2
+        assert db_session.query(MLModelSQL).count() == n_models * 2
         forecast_values = db_session.query(ForecastValueSQL).all()
         assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
         assert forecast_values[0].probabilistic_values is not None
@@ -186,7 +192,12 @@ def test_app(
 
 
 def test_app_ad(
-    db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data,  # noqa: ARG001
+    db_session,
+    sites,
+    nwp_data,
+    nwp_mo_global_data,
+    generation_db_values,
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 

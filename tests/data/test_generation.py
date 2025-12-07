@@ -7,7 +7,6 @@ from site_forecast_app.data.generation import filter_on_sun_elevation, get_gener
 
 
 def test_filter_on_sun_elevation(sites):
-
     """Test for filtering generation data based on sun elevation"""
 
     site = sites[0]
@@ -38,6 +37,7 @@ def test_get_generation_data_pv(db_session, sites, generation_db_values, init_ti
 
     # Check for 5 (non-null) generation values
     assert gen_data.generation_mw.shape == (1, 193)
+    assert gen_data.capacity_mwp.shape == (1, 193)
 
     # Check first and last timestamps are correct
     assert gen_data.time_utc[0] == init_timestamp - dt.timedelta(hours=48)

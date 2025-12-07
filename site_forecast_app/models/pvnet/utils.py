@@ -37,6 +37,7 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
         config = yaml.load(infile, Loader=yaml.FullLoader)  # noqa S506
 
     production_paths = {
+        "pv": {"filename": generation_path},
         "nwp": {"ecmwf": nwp_ecmwf_path, "mo_global": nwp_mo_global_path},
         "satellite": {"filepath": satellite_path},
     }
