@@ -89,7 +89,6 @@ class PVNetModel:
             self.generation_data = generation_data["data"].sel(site_id=slice(1, None))
         self._get_config()
 
-
         try:
             self._prepare_data_sources()
             self._create_dataloader()
@@ -120,7 +119,7 @@ class PVNetModel:
         n_times = normed_preds.shape[1]
         sample_t0 = batch["t0"].numpy().astype("datetime64[s]")[0]
         valid_times = pd.to_datetime(
-            [sample_t0 + np.timedelta64(15 * (i + 1), "m") for i in range(n_times)],
+            [sample_t0 + np.timedelta64(15 * (i+1), "m") for i in range(n_times)],
         )
 
         self.valid_times = valid_times
@@ -338,7 +337,6 @@ class PVNetModel:
         shutil.rmtree(generation_path, ignore_errors=True)
         os.mkdir(generation_path)
 
-        # Save generation data & metadata as a single zarr file
         generation_xr = self.generation_data
         metadata_df = self.generation_metadata
 

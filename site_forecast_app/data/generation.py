@@ -1,5 +1,4 @@
 """Functions for getting site generation data."""
-
 import datetime as dt
 import logging
 
