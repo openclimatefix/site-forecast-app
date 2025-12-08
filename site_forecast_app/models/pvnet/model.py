@@ -10,6 +10,7 @@ import shutil
 import numpy as np
 import pandas as pd
 import torch
+import xarray as xr
 from ocf_data_sampler.numpy_sample.common_types import TensorBatch
 from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
 from ocf_data_sampler.torch_datasets.pvnet_dataset import PVNetConcurrentDataset
@@ -80,12 +81,14 @@ class PVNetModel:
             log.warning("No Hugging Face token provided, using anonymous access.")
 
         # Setup the data, dataloader, and model
-        if len(generation_data.location_id.values) == 1:
-            self.generation_data = generation_data
+        self.generation_metadata = generation_data["metadata"]
+        if len(generation_data["data"].site_id) == 1:
+            self.generation_data = generation_data["data"]
         else:
-            # Cutting off National generation data (location_id=0) to avoid it being sampled
-            self.generation_data = generation_data.sel(location_id=slice(1, None))
+            # Cutting off National generation data (site_id=0) to avoid it being sampled
+            self.generation_data = generation_data["data"].sel(site_id=slice(1, None))
         self._get_config()
+
 
         try:
             self._prepare_data_sources()
@@ -125,7 +128,7 @@ class PVNetModel:
         if not self.summation_model:
             # No summation model, saving forecast for single site
             site_values = self._prepare_values_for_saving(
-                capacity_kw=self.generation_data["capacity_mwp"][0][0].item() * 1000,
+                capacity_kw=self.generation_metadata.iloc[0]["capacity_kwp"],
                 normed_values=normed_preds[0],
             )
             return site_values
@@ -144,21 +147,18 @@ class PVNetModel:
             log.info(f"Max national prediction: {np.max(normed_national, axis=0)}")
 
             # Construct forecast for saving one site at a time and store
-            # in a dictionary with ml_id (location_id) as keys
+            # in a dictionary with ml_id (site_id) as keys
             all_values = {}
 
-            for i, location_id in enumerate(batch["location_id"].numpy()):
-                all_values[location_id] = self._prepare_values_for_saving(
-                    capacity_kw=(
-                        self.generation_data["capacity_mwp"].sel(location_id=location_id)[0].item()
-                        * 1000
-                    ),
+            for i, site_id in enumerate(batch["location_id"].numpy()):
+                all_values[site_id] = self._prepare_values_for_saving(
+                    capacity_kw=self.generation_metadata.loc[site_id]["capacity_kwp"],
                     normed_values=normed_preds[i],
                 )
 
-            # Construct and store forecast for National prediction (location_id=0)
+            # Construct and store forecast for National prediction (site_id=0)
             all_values[0] = self._prepare_values_for_saving(
-                capacity_kw=self.generation_data["capacity_mwp"][0][0].item() * 1000,
+                capacity_kw=self.generation_metadata.loc[0]["capacity_kwp"],
                 normed_values=normed_national,
             )
 
@@ -304,6 +304,7 @@ class PVNetModel:
         nwp_configs = []
         nwp_keys = self.config["input_data"]["nwp"].keys()
         if "ecmwf" in nwp_keys:
+
             nwp_configs.append(
                 NWPProcessAndCacheConfig(
                     source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
@@ -332,13 +333,16 @@ class PVNetModel:
                 satellite_backup_source_file_path,
             )
 
-        log.info("Preparing Site data sources")
+        log.info("Preparing generation data sources")
         # Clear local cached site data if already exists
         shutil.rmtree(generation_path, ignore_errors=True)
         os.mkdir(generation_path)
 
-        # Save generation data as netcdf file
+        # Save generation data & metadata as a single zarr file
         generation_xr = self.generation_data
+        metadata_df = self.generation_metadata
+
+        # Fill any missing data
 
         forecast_timesteps = pd.date_range(
             start=self.t0 - pd.Timedelta("52h"),
@@ -349,8 +353,52 @@ class PVNetModel:
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
         log.info(forecast_timesteps)
 
-        # Save to zarr
-        generation_xr.to_zarr(generation_path, mode="w")
+        # Save generation data & metadata as a single zarr file
+        # convert from kW to MW
+        generation_xr = generation_xr / 1000
+
+        generation_xr = generation_xr.rename(
+            {
+                "site_id": "location_id",
+                "generation_kw": "generation_mw",
+            },
+        )
+
+        metadata_df["capacity_mwp"] = metadata_df["capacity_kwp"] / 1000
+        metadata_df = metadata_df.reset_index(drop=True)
+        metadata_df = metadata_df.drop(columns=["capacity_kwp"])
+
+        metadata_df = metadata_df.rename(columns={"site_id": "location_id"})
+
+        capacity = xr.DataArray(
+            metadata_df.set_index("location_id")["capacity_mwp"],
+            dims=["location_id"],
+        )
+
+        capacity_broadcasted = capacity.broadcast_like(generation_xr)
+
+        generation_xr_with_meta = generation_xr.assign(capacity_mwp=capacity_broadcasted)
+
+        generation_xr_with_meta = generation_xr_with_meta.assign_coords(
+            latitude=(
+                "location_id",
+                metadata_df.set_index("location_id").loc[
+                    generation_xr_with_meta.location_id.values,
+                    "latitude",
+                ],
+            ),
+            longitude=(
+                "location_id",
+                metadata_df.set_index("location_id").loc[
+                    generation_xr_with_meta.location_id.values,
+                    "longitude",
+                ],
+            ),
+        )
+        print(generation_xr_with_meta, "Generation with metadata")
+
+        generation_xr_with_meta.to_zarr(generation_path, mode="w")
+
 
     def _get_config(self) -> None:
         """Setup dataloader with prepared data sources."""
@@ -422,31 +470,30 @@ class PVNetModel:
         Returns:
                 batch for summation model as a dictionary.
         """
-        # National data has location_id=0, regional location_ids start from 1:
+        # National data has site_id=0, regional site_ids start from 1:
         # relative_capacities = regional_capacities / national_capacity
-        relative_capacities = (
-            self.generation_data["capacity_mwp"].sel(location_id=slice(1, None)).values[0]
-            / self.generation_data["capacity_mwp"][0][0].item()
-        )
+        relative_capacities=(self.generation_metadata.loc[1:][
+            "capacity_kwp"
+        ].values / self.generation_metadata.loc[0]["capacity_kwp"])
 
         # Getting sun position for National location (National index is always 0)
         azimuth, elevation = calculate_azimuth_and_elevation(
             datetimes=self.valid_times,
-            lon=self.generation_data["longitude"][0].item(),
-            lat=self.generation_data["latitude"][0].item(),
+            lon=self.generation_metadata.loc[0]["longitude"],
+            lat=self.generation_metadata.loc[0]["latitude"],
         )
 
         sample = {
-            # Numpy array with batch size = num_locations
-            "pvnet_outputs": pvnet_outputs,
-            # Shape: [time]
-            "valid_times": self.valid_times.values.astype(int),
-            # Shape: [num_locations]
-            "relative_capacity": relative_capacities,
-            # Shape: [time]
-            "azimuth": azimuth.astype(np.float32) / 360,
-            # Shape: [time]
-            "elevation": elevation.astype(np.float32) / 180 + 0.5,
-        }
+                # Numpy array with batch size = num_locations
+                "pvnet_outputs": pvnet_outputs,
+                # Shape: [time]
+                "valid_times": self.valid_times.values.astype(int),
+                # Shape: [num_locations]
+                "relative_capacity": relative_capacities,
+                # Shape: [time]
+                "azimuth": azimuth.astype(np.float32) / 360,
+                # Shape: [time]
+                "elevation": elevation.astype(np.float32) / 180 + 0.5,
+            }
 
         return sample

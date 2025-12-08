@@ -16,9 +16,7 @@ log = logging.getLogger(__name__)
 
 
 def get_generation_data(
-    db_session: Session,
-    sites: list[LocationSQL],
-    timestamp: pd.Timestamp,
+        db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
 
@@ -39,21 +37,23 @@ def get_generation_data(
         return _get_site_generation_data(db_session, sites[0], timestamp)
     else:
         log.info("Multiple sites requested. Loading data for one site at a time...")
+        metadata_list: list[pd.DataFrame] = []
         data_list: list[xr.Dataset] = []
         for site in sites:
-            generation_ds = _get_site_generation_data(db_session, site, timestamp)
-            data_list.append(generation_ds)
+            site_dict = _get_site_generation_data(db_session, site, timestamp)
+            metadata_list.append(site_dict["metadata"])
+            data_list.append(site_dict["data"])
         log.debug("Generation data loaded for all sites. Compiling...")
-        data = xr.concat(data_list, dim="location_id")
+        metadata = pd.concat(metadata_list)
+        data = xr.concat(data_list, dim="site_id")
         log.debug("Data for all sites retrieved successfully.")
-        data = data.sortby(data.location_id)
-        return data
+        metadata = metadata.sort_values(by="system_id")
+        data = data.sortby(data.site_id)
+        return {"data": data, "metadata": metadata.set_index("system_id")}
 
 
 def _get_site_generation_data(
-    db_session: Session,
-    site: LocationSQL,
-    timestamp: pd.Timestamp,
+    db_session: Session, site: LocationSQL, timestamp: pd.Timestamp,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Gets generation data values for a single site.
 
@@ -73,10 +73,7 @@ def _get_site_generation_data(
 
     log.info(f"Getting generation data for site {site.location_uuid}, from {start=} to {end=}")
     generation_data = get_pv_generation_by_sites(
-        session=db_session,
-        site_uuids=[site.location_uuid],
-        start_utc=start,
-        end_utc=end,
+        session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
     )
     # get the ml id
     system_id = site.ml_id
@@ -84,11 +81,11 @@ def _get_site_generation_data(
     if len(generation_data) == 0:
         log.warning(f"No generation found for site {site.location_uuid}")
         # created empty data frame with dimesion of time_utc
-        generation_xr = pd.DataFrame(columns=["generation_mw"]).to_xarray()
-        # add dimension of location_id
-        generation_xr = generation_xr.expand_dims("location_id")
+        generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
+        # add dimension of site_id
+        generation_xr = generation_xr.expand_dims("site_id")
         generation_xr = generation_xr.assign_coords(
-            location_id=(["location_id"], [system_id]),
+            site_id=(["site_id"], [system_id]),
         )
 
         # rename index to time_utc
@@ -97,9 +94,9 @@ def _get_site_generation_data(
     else:
         # Convert to dataframe
         generation_df = pd.DataFrame(
-            [(g.start_utc, g.generation_power_kw / 1000, system_id) for g in generation_data],
-            columns=["time_utc", "generation_mw", "ml_id"],
-        ).pivot(index="time_utc", columns="ml_id", values="generation_mw")
+            [(g.start_utc, g.generation_power_kw, system_id) for g in generation_data],
+            columns=["time_utc", "power_kw", "ml_id"],
+        ).pivot(index="time_utc", columns="ml_id", values="power_kw")
 
         log.info(generation_df)
 
@@ -130,18 +127,18 @@ def _get_site_generation_data(
         generation_df.loc[timestamp] = np.nan
         generation_df = generation_df.interpolate(method="quadratic", fill_value="extrapolate")
 
-        # rename column to be generation_mw
-        generation_df.columns = ["generation_mw"]
+        # rename column to be generation_kw
+        generation_df.columns = ["generation_kw"]
 
         # change to xarray
         generation_xr = generation_df.to_xarray()
 
-        # add dimension of location_id
-        generation_xr = generation_xr.expand_dims("location_id")
+        # add dimension of site_id
+        generation_xr = generation_xr.expand_dims("site_id")
 
-        # add coordinates of location_id
+        # add coordinates of site_id
         generation_xr = generation_xr.assign_coords(
-            location=(["location_id"], [system_id]),
+            site_id=(["site_id"], [system_id]),
         )
 
         # rename index to time_utc
@@ -149,28 +146,13 @@ def _get_site_generation_data(
 
         log.info(generation_xr)
 
-    # Add location metadata to generation xr
-
-    capacity = xr.DataArray(
-        site.capacity_kw / 1000,
-        dims=["location_id", "time_utc"],
-        coords={
-            "location_id": [system_id],
-            "time_utc": generation_xr.time_utc,
-            "longitude": ("location_id", [site.longitude]),
-            "latitude": ("location_id", [site.latitude]),
-        },
-        name="capacity_mwp",
+    # Site metadata dataframe
+    site_df = pd.DataFrame(
+        [(system_id, site.latitude, site.longitude, site.capacity_kw, system_id)],
+        columns=["system_id", "latitude", "longitude", "capacity_kwp", "site_id"],
     )
 
-    generation_xr = generation_xr.assign_coords(
-        longitude=(["location_id"], [site.longitude]),
-        latitude=(["location_id"], [site.latitude]),
-    )
-
-    generation_xr["capacity_mwp"] = capacity
-
-    return generation_xr
+    return {"data": generation_xr, "metadata": site_df}
 
 
 def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> pd.DataFrame:
