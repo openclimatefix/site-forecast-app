@@ -12,7 +12,7 @@ import pytest
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGroupSQL, MLModelSQL
 
 from site_forecast_app.app import (
-    app,
+    typer_app,
     get_sites,
     run_model,
     save_forecast,
@@ -21,7 +21,7 @@ from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
 
-from ._utils import run_click_script
+from ._utils import run_typer_script
 
 mp.set_start_method("spawn", force=True)
 
@@ -160,7 +160,7 @@ def test_app(
     if write_to_db:
         args.append("--write-to-db")
 
-    result = run_click_script(app, args)
+    result = run_typer_script(typer_app, args)
     assert result.exit_code == 0
 
     n_forecasts = 4+12
@@ -199,7 +199,7 @@ def test_app_ad(
     os.environ["CLIENT_NAME"] = "ad"
     os.environ["COUNTRY"] = "india"
 
-    result = run_click_script(app, args)
+    result = run_typer_script(typer_app, args)
     assert result.exit_code == 0
 
     n = 4  # 1 site, 4 models
@@ -218,7 +218,7 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
 
-    result = run_click_script(app, args)
+    result = run_typer_script(typer_app, args)
     assert result.exit_code == 0
 
     n = 4  # 1 site, 4 models
