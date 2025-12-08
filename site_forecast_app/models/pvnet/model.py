@@ -395,7 +395,6 @@ class PVNetModel:
                 ],
             ),
         )
-        print(generation_xr_with_meta, "Generation with metadata")
 
         generation_xr_with_meta.to_zarr(generation_path, mode="w")
 
