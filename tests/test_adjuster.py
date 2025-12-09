@@ -105,16 +105,21 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
     )
 
     adjusted_forecast_df = adjust_forecast_with_adjuster(
-        db_session, forecast_meta, forecast_values_df, ml_model_name="test",
+        db_session,
+        forecast_meta,
+        forecast_values_df,
+        ml_model_name="test",
     )
 
     # check that the forecast_values_df has been adjusted for the horizon_minutes=90
     original_p50 = forecast_values_df.loc[
-        forecast_values_df["horizon_minutes"] == 1200, "probabilistic_values",
+        forecast_values_df["horizon_minutes"] == 1200,
+        "probabilistic_values",
     ].iloc[0]["p50"]
 
     adjusted_p50 = adjusted_forecast_df.loc[
-        adjusted_forecast_df["horizon_minutes"] == 1200, "probabilistic_values",
+        adjusted_forecast_df["horizon_minutes"] == 1200,
+        "probabilistic_values",
     ].iloc[0]["p50"]
 
     assert adjusted_p50 != original_p50
@@ -141,7 +146,10 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
     )
 
     forecast_values_df = adjust_forecast_with_adjuster(
-        db_session, forecast_meta, forecast_values_df, ml_model_name="test",
+        db_session,
+        forecast_meta,
+        forecast_values_df,
+        ml_model_name="test",
     )
 
     assert len(forecast_values_df) == 5
@@ -164,7 +172,9 @@ def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
     sites[0].asset_type = asset_type
 
     forecast_values_df = zero_out_night_time_for_pv(
-        db_session, forecast_values_df=forecast_values_df, site_uuid=sites[0].location_uuid,
+        db_session,
+        forecast_values_df=forecast_values_df,
+        site_uuid=sites[0].location_uuid,
     )
 
     assert len(forecast_values_df) == 5

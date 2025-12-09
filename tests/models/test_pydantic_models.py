@@ -1,4 +1,4 @@
-""" Test for getting all ml models"""
+"""Test for getting all ml models"""
 
 from site_forecast_app.models.pydantic_models import Model, get_all_models
 
@@ -15,5 +15,3 @@ def test_site_group_uuid():
     model.site_group_uuid = "some-uuid"
 
     model = Model(**model.model_dump())
-
-

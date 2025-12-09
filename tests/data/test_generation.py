@@ -7,7 +7,6 @@ from site_forecast_app.data.generation import filter_on_sun_elevation, get_gener
 
 
 def test_filter_on_sun_elevation(sites):
-
     """Test for filtering generation data based on sun elevation"""
 
     site = sites[0]
