@@ -4,10 +4,11 @@ import datetime as dt
 import logging
 import os
 import sys
+from typing import Annotated
 
-import click
 import pandas as pd
 import sentry_sdk
+import typer
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
 from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
@@ -35,7 +36,9 @@ sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(
-    db_session: Session, model_config: Model | None = None, country: str = "nl",
+    db_session: Session,
+    model_config: Model | None = None,
+    country: str = "nl",
 ) -> list[LocationSQL]:
     """Gets all available sites.
 
@@ -166,30 +169,40 @@ def save_forecast(
     log.info(f"\n{forecast_values_df.to_string()}\n")
 
 
-@click.command()
-@click.option(
-    "--date",
-    "-d",
-    "timestamp",
-    type=click.DateTime(formats=["%Y-%m-%d-%H-%M"]),
-    default=None,
-    help='Date-time (UTC) at which we make the prediction. \
-Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
-)
-@click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database.",
-)
-@click.option(
-    "--log-level",
-    default="info",
-    help="Set the python logging log level",
-    show_default=True,
-)
-def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> None:
-    """Main click function for running forecasts for sites."""
+typer_app = typer.Typer()
+
+
+@typer_app.command()
+def app(
+    timestamp: Annotated[
+        dt.datetime | None,
+        typer.Option(
+            "--date",
+            "-d",
+            formats=["%Y-%m-%d-%H-%M"],
+            help=(
+                "Date-time (UTC) at which we make the prediction. "
+                'Format should be YYYY-MM-DD-HH-mm. Defaults to "now".'
+            ),
+        ),
+    ] = None,
+    write_to_db: Annotated[
+        bool,
+        typer.Option(
+            "--write-to-db",
+            help="Set this flag to actually write the results to the database.",
+        ),
+    ] = False,
+    log_level: Annotated[
+        str,
+        typer.Option(
+            "--log-level",
+            help="Set the python logging log level",
+            show_default=True,
+        ),
+    ] = "info",
+) -> None:
+    """Main function for running forecasts for sites."""
     app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
 
 
@@ -255,7 +268,7 @@ def app_run(
                     site_uuid=str(model_config.site_group_uuid),
                     satellite_scaling_method=model_config.satellite_scaling_method,
                     summation_version=model_config.summation_version,
-                    summation_repo = model_config.summation_id,
+                    summation_repo=model_config.summation_id,
                 )
 
                 log.info(f"{ml_model.site_uuid} model loaded")
@@ -357,8 +370,7 @@ def app_run(
                         successful_runs += 1
 
         log.info(
-            f"Completed forecasts for {successful_runs} runs for "
-            f"{runs} model runs.",
+            f"Completed forecasts for {successful_runs} runs for {runs} model runs.",
         )
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
@@ -371,4 +383,4 @@ def app_run(
 
 
 if __name__ == "__main__":
-    app()
+    typer_app()
