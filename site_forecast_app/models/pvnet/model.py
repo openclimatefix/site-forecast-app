@@ -120,7 +120,7 @@ class PVNetModel:
         n_times = normed_preds.shape[1]
         sample_t0 = batch["t0"].numpy().astype("datetime64[s]")[0]
         valid_times = pd.to_datetime(
-            [sample_t0 + np.timedelta64(15 * (i+1), "m") for i in range(n_times)],
+            [sample_t0 + np.timedelta64(15 * (i + 1), "m") for i in range(n_times)],
         )
 
         self.valid_times = valid_times
@@ -236,9 +236,7 @@ class PVNetModel:
                 batch[f"site_{key}"] = batch[key]
 
         # set MO GLOBAL cloud_cover_total to 0
-        mo_global_nan_total_cloud_cover = (
-            os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
-        )
+        mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
         if "mo_global" in self.config["input_data"]["nwp"] and mo_global_nan_total_cloud_cover:
             log.warning("Setting MO Global total cloud cover variables to nans")
             # In training cloud_cover_total were 0, lets do the same here
@@ -283,7 +281,9 @@ class PVNetModel:
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
 
         values_df = self.add_probabilistic_values(
-            capacity_kw, normed_values, values_df,
+            capacity_kw,
+            normed_values,
+            values_df,
         )
 
         return values_df.to_dict("records")
@@ -304,7 +304,6 @@ class PVNetModel:
         nwp_configs = []
         nwp_keys = self.config["input_data"]["nwp"].keys()
         if "ecmwf" in nwp_keys:
-
             nwp_configs.append(
                 NWPProcessAndCacheConfig(
                     source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
@@ -326,10 +325,12 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"]:
-            download_satellite_data(satellite_source_file_path,
-                                    satellite_path,
-                                    self.satellite_scaling_method,
-                                    satellite_backup_source_file_path)
+            download_satellite_data(
+                satellite_source_file_path,
+                satellite_path,
+                self.satellite_scaling_method,
+                satellite_backup_source_file_path,
+            )
 
         log.info("Preparing Site data sources")
         # Clear local cached site data if already exists
@@ -385,7 +386,6 @@ class PVNetModel:
         )
 
     def _create_dataloader(self) -> None:
-
         if not os.path.exists(self.populated_data_config_filename):
             raise FileNotFoundError(
                 f"Data config file not found: {self.populated_data_config_filename}",
@@ -406,8 +406,10 @@ class PVNetModel:
 
     def _load_summation_model(self) -> SummationBaseModel:
         """Load summation model."""
-        log.info(f"Loading model: {self.summation_repo} - {self.summation_version} "
-                 f"({self.name+'_summation'})")
+        log.info(
+            f"Loading model: {self.summation_repo} - {self.summation_version} "
+            f"({self.name + '_summation'})",
+        )
 
         return SummationBaseModel.from_pretrained(
             model_id=self.summation_repo,
@@ -424,9 +426,10 @@ class PVNetModel:
         """
         # National data has site_id=0, regional site_ids start from 1:
         # relative_capacities = regional_capacities / national_capacity
-        relative_capacities=(self.generation_metadata.loc[1:][
-            "capacity_kwp"
-        ].values / self.generation_metadata.loc[0]["capacity_kwp"])
+        relative_capacities = (
+            self.generation_metadata.loc[1:]["capacity_kwp"].values
+            / self.generation_metadata.loc[0]["capacity_kwp"]
+        )
 
         # Getting sun position for National location (National index is always 0)
         azimuth, elevation = calculate_azimuth_and_elevation(
@@ -436,16 +439,16 @@ class PVNetModel:
         )
 
         sample = {
-                # Numpy array with batch size = num_locations
-                "pvnet_outputs": pvnet_outputs,
-                # Shape: [time]
-                "valid_times": self.valid_times.values.astype(int),
-                # Shape: [num_locations]
-                "relative_capacity": relative_capacities,
-                # Shape: [time]
-                "azimuth": azimuth.astype(np.float32) / 360,
-                # Shape: [time]
-                "elevation": elevation.astype(np.float32) / 180 + 0.5,
-            }
+            # Numpy array with batch size = num_locations
+            "pvnet_outputs": pvnet_outputs,
+            # Shape: [time]
+            "valid_times": self.valid_times.values.astype(int),
+            # Shape: [num_locations]
+            "relative_capacity": relative_capacities,
+            # Shape: [time]
+            "azimuth": azimuth.astype(np.float32) / 360,
+            # Shape: [time]
+            "elevation": elevation.astype(np.float32) / 180 + 0.5,
+        }
 
         return sample

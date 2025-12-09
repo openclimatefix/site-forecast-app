@@ -1,3 +1,8 @@
 /data/
 /site_forecast_app.egg-info/
 __pycache__/
+*.zarr.zip
+*.zarr/
+.pytest_cache/
+.ruff_cache/
+.venv/

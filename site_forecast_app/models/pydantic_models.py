@@ -1,6 +1,5 @@
 """A pydantic model for the ML models."""
 
-
 from typing import Literal
 
 import fsspec
@@ -14,8 +13,9 @@ class Model(BaseModel):
     name: str = Field(..., title="Model Name", description="The name of the model")
     type: str | None = Field("pvnet", title="Model Type", description="The type of model")
     id: str = Field(
-        ..., title="Model ID", description="The ID of the model, "
-                                           "this what repo to load from in HF ",
+        ...,
+        title="Model ID",
+        description="The ID of the model, this what repo to load from in HF ",
     )
     version: str = Field(
         ...,
@@ -24,7 +24,9 @@ class Model(BaseModel):
     )
 
     asset_type: str = Field(
-        "pv", title="Asset Type", description="The type of asset the model is for (pv or wind)",
+        "pv",
+        title="Asset Type",
+        description="The type of asset the model is for (pv or wind)",
     )
     adjuster_average_minutes: int = Field(
         60,
@@ -71,7 +73,9 @@ class Models(BaseModel):
     """A group of ml models."""
 
     models: list[Model] = Field(
-        ..., title="Models", description="A list of models to use for the forecast",
+        ...,
+        title="Models",
+        description="A list of models to use for the forecast",
     )
 
 
