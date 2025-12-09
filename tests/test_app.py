@@ -152,9 +152,9 @@ def test_save_forecast(db_session, sites, forecast_values):
 def test_app(
     write_to_db,
     db_session,
-    sites,
-    nwp_data,
-    generation_db_values,
+    sites,  # noqa: ARG001
+    nwp_data,  # noqa: ARG001
+    generation_db_values,  # noqa: ARG001
     satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
@@ -193,10 +193,10 @@ def test_app(
 
 def test_app_ad(
     db_session,
-    sites,
-    nwp_data,
-    nwp_mo_global_data,
-    generation_db_values,
+    sites,  # noqa: ARG001
+    nwp_data,  # noqa: ARG001
+    nwp_mo_global_data,  # noqa: ARG001
+    generation_db_values,  # noqa: ARG001
     satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
