@@ -1,4 +1,5 @@
 """Functions for getting site generation data."""
+
 import datetime as dt
 import logging
 
@@ -15,7 +16,9 @@ log = logging.getLogger(__name__)
 
 
 def get_generation_data(
-        db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
+    db_session: Session,
+    sites: list[LocationSQL],
+    timestamp: pd.Timestamp,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
 
@@ -52,7 +55,9 @@ def get_generation_data(
 
 
 def _get_site_generation_data(
-    db_session: Session, site: LocationSQL, timestamp: pd.Timestamp,
+    db_session: Session,
+    site: LocationSQL,
+    timestamp: pd.Timestamp,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Gets generation data values for a single site.
 
@@ -72,7 +77,10 @@ def _get_site_generation_data(
 
     log.info(f"Getting generation data for site {site.location_uuid}, from {start=} to {end=}")
     generation_data = get_pv_generation_by_sites(
-        session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
+        session=db_session,
+        site_uuids=[site.location_uuid],
+        start_utc=start,
+        end_utc=end,
     )
     # get the ml id
     system_id = site.ml_id

@@ -277,5 +277,5 @@ def adjust_forecast_with_adjuster(
     # clip negative values to 0
     forecast_values_df_adjust["forecast_power_kw"] = forecast_values_df_adjust[
         "forecast_power_kw"
-        ].clip(lower=0)
+    ].clip(lower=0)
     return forecast_values_df_adjust
