@@ -5,7 +5,11 @@ import pandas as pd
 import xarray as xr
 from pvsite_datamodel.sqlmodels import LocationAssetType
 
-from site_forecast_app.data.generation import filter_on_sun_elevation, get_generation_data, format_generation_data
+from site_forecast_app.data.generation import (
+    filter_on_sun_elevation,
+    format_generation_data,
+    get_generation_data,
+)
 
 
 def test_filter_on_sun_elevation(sites):
@@ -86,7 +90,7 @@ def test_format_generation_data():
 
     # 3. Capacity correctly computed and broadcast
     expected_capacity = (metadata_df["capacity_kwp"] / 1000).values
-    # broadcast expected (shape: location_id × time)
+    # broadcast expected (shape: location_id x time)
     expected_capacity_broadcast = np.vstack([expected_capacity]).T.repeat(3, axis=1)
     np.testing.assert_allclose(
         result["capacity_mwp"].values, expected_capacity_broadcast,
