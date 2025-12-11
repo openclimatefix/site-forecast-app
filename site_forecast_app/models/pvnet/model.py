@@ -11,12 +11,12 @@ import numpy as np
 import pandas as pd
 import torch
 from ocf_data_sampler.numpy_sample.common_types import TensorBatch
-from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
 from ocf_data_sampler.torch_datasets.pvnet_dataset import PVNetConcurrentDataset
 from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
     batch_to_tensor,
 )
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
+from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
 from site_forecast_app.data.generation import format_generation_data
@@ -135,7 +135,22 @@ class PVNetModel:
         else:
             # Run summation model
 
-            inputs = self._construct_sum_sample(pvnet_outputs=normed_preds)
+            # National data has site_id=0, regional site_ids start from 1:
+            # relative_capacities = regional_capacities / national_capacity
+            relative_capacities = (self.generation_metadata.loc[1:][
+                "capacity_kwp"
+            ].values / self.generation_metadata.loc[0]["capacity_kwp"])
+
+            # Construct sample for summation model
+            inputs = construct_sum_sample(pvnet_inputs=None,
+                                          relative_capacities=relative_capacities,
+                                          valid_times=self.valid_times,
+                                          target=None,
+                                          longitude=self.generation_metadata.loc[0]["longitude"],
+                                          latitude=self.generation_metadata.loc[0]["latitude"])
+
+            inputs["pvnet_outputs"] = normed_preds
+            del inputs["pvnet_inputs"]
 
             # Expand for batch dimension and convert to tensors
             inputs = {k: torch.from_numpy(v[None, ...]).to(DEVICE) for k, v in inputs.items()}
@@ -418,39 +433,3 @@ class PVNetModel:
             model_id=self.summation_repo,
             revision=self.summation_version,
         ).to(DEVICE)
-
-    def _construct_sum_sample(self, pvnet_outputs: np.ndarray) -> dict:
-        """Create a sample for the summation model.
-
-        Args:
-                pvnet_outputs: normalised outputs of the site model
-        Returns:
-                batch for summation model as a dictionary.
-        """
-        # National data has site_id=0, regional site_ids start from 1:
-        # relative_capacities = regional_capacities / national_capacity
-        relative_capacities=(self.generation_metadata.loc[1:][
-            "capacity_kwp"
-        ].values / self.generation_metadata.loc[0]["capacity_kwp"])
-
-        # Getting sun position for National location (National index is always 0)
-        azimuth, elevation = calculate_azimuth_and_elevation(
-            datetimes=self.valid_times,
-            lon=self.generation_metadata.loc[0]["longitude"],
-            lat=self.generation_metadata.loc[0]["latitude"],
-        )
-
-        sample = {
-                # Numpy array with batch size = num_locations
-                "pvnet_outputs": pvnet_outputs,
-                # Shape: [time]
-                "valid_times": self.valid_times.values.astype(int),
-                # Shape: [num_locations]
-                "relative_capacity": relative_capacities,
-                # Shape: [time]
-                "azimuth": azimuth.astype(np.float32) / 360,
-                # Shape: [time]
-                "elevation": elevation.astype(np.float32) / 180 + 0.5,
-            }
-
-        return sample

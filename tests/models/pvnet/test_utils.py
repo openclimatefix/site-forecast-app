@@ -47,4 +47,3 @@ def test_save_batch():
 
         # check that batch is saved
         assert os.path.exists(f"{temp_dir}/batch_{model_name}_fff-fff.pt")
-
