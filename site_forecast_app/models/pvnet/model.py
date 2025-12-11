@@ -10,7 +10,6 @@ import shutil
 import numpy as np
 import pandas as pd
 import torch
-import xarray as xr
 from ocf_data_sampler.numpy_sample.common_types import TensorBatch
 from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
 from ocf_data_sampler.torch_datasets.pvnet_dataset import PVNetConcurrentDataset
@@ -20,6 +19,7 @@ from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
+from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.satellite import download_satellite_data
 
 from .consts import (
@@ -341,7 +341,6 @@ class PVNetModel:
         metadata_df = self.generation_metadata
 
         # Fill any missing data
-
         forecast_timesteps = pd.date_range(
             start=self.t0 - pd.Timedelta("52h"),
             periods=int(4 * 24 * 4.5),
@@ -352,50 +351,11 @@ class PVNetModel:
         log.info(forecast_timesteps)
 
         # Save generation data & metadata as a single zarr file
-        # convert from kW to MW
-        generation_xr = generation_xr / 1000
-
-        generation_xr = generation_xr.rename(
-            {
-                "site_id": "location_id",
-                "generation_kw": "generation_mw",
-            },
+        generation_xr_with_meta = format_generation_data(
+            generation_xr,
+            metadata_df,
         )
-
-        metadata_df["capacity_mwp"] = metadata_df["capacity_kwp"] / 1000
-        metadata_df = metadata_df.reset_index(drop=True)
-        metadata_df = metadata_df.drop(columns=["capacity_kwp"])
-
-        metadata_df = metadata_df.rename(columns={"site_id": "location_id"})
-
-        capacity = xr.DataArray(
-            metadata_df.set_index("location_id")["capacity_mwp"],
-            dims=["location_id"],
-        )
-
-        capacity_broadcasted = capacity.broadcast_like(generation_xr)
-
-        generation_xr_with_meta = generation_xr.assign(capacity_mwp=capacity_broadcasted)
-
-        generation_xr_with_meta = generation_xr_with_meta.assign_coords(
-            latitude=(
-                "location_id",
-                metadata_df.set_index("location_id").loc[
-                    generation_xr_with_meta.location_id.values,
-                    "latitude",
-                ],
-            ),
-            longitude=(
-                "location_id",
-                metadata_df.set_index("location_id").loc[
-                    generation_xr_with_meta.location_id.values,
-                    "longitude",
-                ],
-            ),
-        )
-
         generation_xr_with_meta.to_zarr(generation_path, mode="w")
-
 
     def _get_config(self) -> None:
         """Setup dataloader with prepared data sources."""

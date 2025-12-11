@@ -1,4 +1,4 @@
-"""Functions for getting site generation data."""
+"""Functions for working with site generation data."""
 import datetime as dt
 import logging
 
@@ -188,3 +188,35 @@ def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> p
 
     generation_df = generation_df[~mask]
     return generation_df
+
+def format_generation_data(generation_xr: xr.Dataset,
+                            metadata_df: pd.DataFrame) -> xr.Dataset:
+    """Format generation data with metadata."""
+    # Clean and prepare metadata
+    metadata = (
+        metadata_df
+        .assign(
+            capacity_mwp=lambda df: df["capacity_kwp"] / 1000,
+        )
+        .drop(columns=["capacity_kwp"])
+        .rename(columns={"site_id": "location_id"})
+        .set_index("location_id")
+    )
+
+    # Prepare generation data, convert to MW
+    generation = (
+        generation_xr
+        .rename({"site_id": "location_id", "generation_kw": "generation_mw"})
+        / 1000
+    )
+
+    # Capacity: align to generation_xr
+    capacity = metadata["capacity_mwp"].to_xarray().broadcast_like(generation)
+
+    # Attach capacity & coordinates
+    generation = generation.assign(capacity_mwp=capacity).assign_coords(
+        latitude=("location_id", metadata.loc[generation.location_id.values, "latitude"]),
+        longitude=("location_id", metadata.loc[generation.location_id.values, "longitude"]),
+    )
+
+    return generation
