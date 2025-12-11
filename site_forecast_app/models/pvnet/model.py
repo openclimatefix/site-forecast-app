@@ -82,11 +82,11 @@ class PVNetModel:
 
         # Setup the data, dataloader, and model
         self.generation_metadata = generation_data["metadata"]
-        if len(generation_data["data"].site_id) == 1:
+        if len(generation_data["data"].location_id) == 1:
             self.generation_data = generation_data["data"]
         else:
-            # Cutting off National generation data (site_id=0) to avoid it being sampled
-            self.generation_data = generation_data["data"].sel(site_id=slice(1, None))
+            # Cutting off National generation data (location_id=0) to avoid it being sampled
+            self.generation_data = generation_data["data"].sel(location_id=slice(1, None))
         self._get_config()
 
         try:
@@ -135,7 +135,7 @@ class PVNetModel:
         else:
             # Run summation model
 
-            # National data has site_id=0, regional site_ids start from 1:
+            # National data has location_id=0, regional location_ids start from 1:
             # relative_capacities = regional_capacities / national_capacity
             relative_capacities = (self.generation_metadata.loc[1:][
                 "capacity_kwp"
@@ -161,16 +161,16 @@ class PVNetModel:
             log.info(f"Max national prediction: {np.max(normed_national, axis=0)}")
 
             # Construct forecast for saving one site at a time and store
-            # in a dictionary with ml_id (site_id) as keys
+            # in a dictionary with ml_id (location_id) as keys
             all_values = {}
 
-            for i, site_id in enumerate(batch["location_id"].numpy()):
-                all_values[site_id] = self._prepare_values_for_saving(
-                    capacity_kw=self.generation_metadata.loc[site_id]["capacity_kwp"],
+            for i, location_id in enumerate(batch["location_id"].numpy()):
+                all_values[location_id] = self._prepare_values_for_saving(
+                    capacity_kw=self.generation_metadata.loc[location_id]["capacity_kwp"],
                     normed_values=normed_preds[i],
                 )
 
-            # Construct and store forecast for National prediction (site_id=0)
+            # Construct and store forecast for National prediction (location_id=0)
             all_values[0] = self._prepare_values_for_saving(
                 capacity_kw=self.generation_metadata.loc[0]["capacity_kwp"],
                 normed_values=normed_national,

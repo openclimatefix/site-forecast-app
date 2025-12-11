@@ -44,10 +44,10 @@ def get_generation_data(
             data_list.append(site_dict["data"])
         log.debug("Generation data loaded for all sites. Compiling...")
         metadata = pd.concat(metadata_list)
-        data = xr.concat(data_list, dim="site_id")
+        data = xr.concat(data_list, dim="location_id")
         log.debug("Data for all sites retrieved successfully.")
         metadata = metadata.sort_values(by="system_id")
-        data = data.sortby(data.site_id)
+        data = data.sortby(data.location_id)
         return {"data": data, "metadata": metadata.set_index("system_id")}
 
 
@@ -81,10 +81,10 @@ def _get_site_generation_data(
         log.warning(f"No generation found for site {site.location_uuid}")
         # created empty data frame with dimesion of time_utc
         generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
-        # add dimension of site_id
-        generation_xr = generation_xr.expand_dims("site_id")
+        # add dimension of location_id
+        generation_xr = generation_xr.expand_dims("location_id")
         generation_xr = generation_xr.assign_coords(
-            site_id=(["site_id"], [system_id]),
+            location_id=(["location_id"], [system_id]),
         )
 
         # rename index to time_utc
@@ -132,12 +132,12 @@ def _get_site_generation_data(
         # change to xarray
         generation_xr = generation_df.to_xarray()
 
-        # add dimension of site_id
-        generation_xr = generation_xr.expand_dims("site_id")
+        # add dimension of location_id
+        generation_xr = generation_xr.expand_dims("location_id")
 
-        # add coordinates of site_id
+        # add coordinates of location_id
         generation_xr = generation_xr.assign_coords(
-            site_id=(["site_id"], [system_id]),
+            location_id=(["location_id"], [system_id]),
         )
 
         # rename index to time_utc
@@ -148,7 +148,7 @@ def _get_site_generation_data(
     # Site metadata dataframe
     site_df = pd.DataFrame(
         [(system_id, site.latitude, site.longitude, site.capacity_kw, system_id)],
-        columns=["system_id", "latitude", "longitude", "capacity_kwp", "site_id"],
+        columns=["system_id", "latitude", "longitude", "capacity_kwp", "location_id"],
     )
 
     return {"data": generation_xr, "metadata": site_df}
@@ -195,7 +195,7 @@ def format_generation_data(generation_xr: xr.Dataset,
 
     Args:
         generation_xr: xr.Dataset containing generation data
-        metadata_df: pd.DataFrame containing site_id, capacity_kwp, latitude, longitude
+        metadata_df: pd.DataFrame containing location_id, capacity_kwp, latitude, longitude
 
     Returns:
         Generation data schema formatted to is:
@@ -216,14 +216,13 @@ def format_generation_data(generation_xr: xr.Dataset,
             capacity_mwp=lambda df: df["capacity_kwp"] / 1000,
         )
         .drop(columns=["capacity_kwp"])
-        .rename(columns={"site_id": "location_id"})
         .set_index("location_id")
     )
 
     # Prepare generation data, convert to MW
     generation = (
         generation_xr
-        .rename({"site_id": "location_id", "generation_kw": "generation_mw"})
+        .rename({"generation_kw": "generation_mw"})
         / 1000
     )
 

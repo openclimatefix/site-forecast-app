@@ -60,8 +60,8 @@ def test_format_generation_data():
 
     generation_values_kw = xr.DataArray(
         np.array([[1000, 2000, 3000], [4000, 5000, 6000]]),
-        coords={"site_id": location_ids, "time_utc": times},
-        dims=["site_id", "time_utc"],
+        coords={"location_id": location_ids, "time_utc": times},
+        dims=["location_id", "time_utc"],
     )
 
     generation_xr = xr.Dataset({"generation_kw": generation_values_kw})
@@ -69,7 +69,7 @@ def test_format_generation_data():
     # --- Input metadata ---
     metadata_df = pd.DataFrame(
         {
-            "site_id": [101, 102],
+            "location_id": [101, 102],
             "capacity_kwp": [5000, 10000],
             "latitude": [51.5, 52.0],
             "longitude": [-1.2, -1.5],
