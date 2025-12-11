@@ -1,4 +1,5 @@
 """Useful functions for setting up PVNet model."""
+
 import logging
 import os
 
@@ -11,13 +12,7 @@ from ocf_data_sampler.config.model import NWP, Configuration
 from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
 
-from .consts import (
-    nwp_ecmwf_path,
-    nwp_mo_global_path,
-    satellite_path,
-    site_metadata_path,
-    site_netcdf_path,
-)
+from .consts import generation_path, nwp_ecmwf_path, nwp_mo_global_path, satellite_path
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +37,7 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
         config = yaml.load(infile, Loader=yaml.FullLoader)  # noqa S506
 
     production_paths = {
-        "pv": {"filename": site_netcdf_path, "metadata_filename": site_metadata_path},
+        "pv": {"filename": generation_path},
         "nwp": {"ecmwf": nwp_ecmwf_path, "mo_global": nwp_mo_global_path},
         "satellite": {"filepath": satellite_path},
     }
@@ -87,25 +82,25 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
             satellite_config["dropout_timedeltas_minutes"] = []
             satellite_config["dropout_fraction"] = 0
 
-    if "site" in config["input_data"]:
-        site_config = config["input_data"]["site"]
-        site_config["file_path"] = site_netcdf_path
-        site_config["metadata_file_path"] = site_metadata_path
+    if "generation" in config["input_data"]:
+        generation_config = config["input_data"]["generation"]
+        generation_config["zarr_path"] = generation_path
+        # generation_config["metadata_file_path"] = site_metadata_path
 
         # drop site capacity mode for the moment,
         # this will come in a later release of ocf-data-sampler
-        if "capacity_mode" in site_config:
-            site_config.pop("capacity_mode")
+        if "capacity_mode" in generation_config:
+            generation_config.pop("capacity_mode")
 
         # remove any dropout timedeltas
-        if "dropout_timedeltas_minutes" in site_config:
-            site_config["dropout_timedeltas_minutes"] = []
-            site_config["dropout_fraction"] = 0
+        if "dropout_timedeltas_minutes" in generation_config:
+            generation_config["dropout_timedeltas_minutes"] = []
+            generation_config["dropout_fraction"] = 0
 
     # add solar position
     config["input_data"]["solar_position"] = {}
     for k in ["time_resolution_minutes", "interval_end_minutes", "interval_start_minutes"]:
-        config["input_data"]["solar_position"][k] = config["input_data"]["site"][k]
+        config["input_data"]["solar_position"][k] = config["input_data"]["generation"][k]
 
     configuration = Configuration(**config)
     save_yaml_configuration(configuration, output_path)

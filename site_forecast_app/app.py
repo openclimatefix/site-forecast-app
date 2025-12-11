@@ -119,7 +119,7 @@ def save_forecast(
     Raises:
             IOError: An error if database save fails
     """
-    log.info(f"Saving forecast for site_id={forecast['meta']['location_uuid']}...")
+    log.info(f"Saving forecast for location_id={forecast['meta']['location_uuid']}...")
 
     forecast_meta = {
         "location_uuid": forecast["meta"]["location_uuid"],
@@ -141,7 +141,7 @@ def save_forecast(
         )
 
     if use_adjuster:
-        log.info(f"Adjusting forecast for site_id={forecast_meta['location_uuid']}...")
+        log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
         forecast_values_df_adjust = adjust_forecast_with_adjuster(
             db_session,
             forecast_meta,
@@ -159,7 +159,7 @@ def save_forecast(
                 ml_model_version=ml_model_version,
             )
 
-    output = f"Forecast for site_id={forecast_meta['location_uuid']},\
+    output = f"Forecast for location_id={forecast_meta['location_uuid']},\
                timestamp={forecast_meta['timestamp_utc']},\
                version={forecast_meta['forecast_version']}:"
     log.info(output.replace("  ", ""))

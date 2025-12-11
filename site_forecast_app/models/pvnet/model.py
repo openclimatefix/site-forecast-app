@@ -11,23 +11,22 @@ import numpy as np
 import pandas as pd
 import torch
 from ocf_data_sampler.numpy_sample.common_types import TensorBatch
-from ocf_data_sampler.numpy_sample.sun_position import calculate_azimuth_and_elevation
-from ocf_data_sampler.torch_datasets.datasets.site import SitesDatasetConcurrent
+from ocf_data_sampler.torch_datasets.pvnet_dataset import PVNetConcurrentDataset
 from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
     batch_to_tensor,
 )
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
+from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
+from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.satellite import download_satellite_data
 
 from .consts import (
+    generation_path,
     nwp_ecmwf_path,
     nwp_mo_global_path,
     root_data_path,
-    site_metadata_path,
-    site_netcdf_path,
-    site_path,
 )
 from .utils import (
     NWPProcessAndCacheConfig,
@@ -83,11 +82,11 @@ class PVNetModel:
 
         # Setup the data, dataloader, and model
         self.generation_metadata = generation_data["metadata"]
-        if len(generation_data["data"].site_id) == 1:
+        if len(generation_data["data"].location_id) == 1:
             self.generation_data = generation_data["data"]
         else:
-            # Cutting off National generation data (site_id=0) to avoid it being sampled
-            self.generation_data = generation_data["data"].sel(site_id=slice(1, None))
+            # Cutting off National generation data (location_id=0) to avoid it being sampled
+            self.generation_data = generation_data["data"].sel(location_id=slice(1, None))
         self._get_config()
 
         try:
@@ -136,7 +135,22 @@ class PVNetModel:
         else:
             # Run summation model
 
-            inputs = self._construct_sum_sample(pvnet_outputs=normed_preds)
+            # National data has location_id=0, regional location_ids start from 1:
+            # relative_capacities = regional_capacities / national_capacity
+            relative_capacities = (self.generation_metadata.loc[1:][
+                "capacity_kwp"
+            ].values / self.generation_metadata.loc[0]["capacity_kwp"])
+
+            # Construct sample for summation model
+            inputs = construct_sum_sample(pvnet_inputs=None,
+                                          relative_capacities=relative_capacities,
+                                          valid_times=self.valid_times,
+                                          target=None,
+                                          longitude=self.generation_metadata.loc[0]["longitude"],
+                                          latitude=self.generation_metadata.loc[0]["latitude"])
+
+            inputs["pvnet_outputs"] = normed_preds
+            del inputs["pvnet_inputs"]
 
             # Expand for batch dimension and convert to tensors
             inputs = {k: torch.from_numpy(v[None, ...]).to(DEVICE) for k, v in inputs.items()}
@@ -147,16 +161,16 @@ class PVNetModel:
             log.info(f"Max national prediction: {np.max(normed_national, axis=0)}")
 
             # Construct forecast for saving one site at a time and store
-            # in a dictionary with ml_id (site_id) as keys
+            # in a dictionary with ml_id (location_id) as keys
             all_values = {}
 
-            for i, site_id in enumerate(batch["site_id"].numpy()):
-                all_values[site_id] = self._prepare_values_for_saving(
-                    capacity_kw=self.generation_metadata.loc[site_id]["capacity_kwp"],
+            for i, location_id in enumerate(batch["location_id"].numpy()):
+                all_values[location_id] = self._prepare_values_for_saving(
+                    capacity_kw=self.generation_metadata.loc[location_id]["capacity_kwp"],
                     normed_values=normed_preds[i],
                 )
 
-            # Construct and store forecast for National prediction (site_id=0)
+            # Construct and store forecast for National prediction (location_id=0)
             all_values[0] = self._prepare_values_for_saving(
                 capacity_kw=self.generation_metadata.loc[0]["capacity_kwp"],
                 normed_values=normed_national,
@@ -214,18 +228,18 @@ class PVNetModel:
                 if not available.
         """
         try:
-            batch = self.dataset._get_batch(t0=timestamp)
+            batch = self.dataset._get_sample(t0=timestamp)
             sample_t0 = timestamp
         except Exception:
-            sample_t0 = self.dataset.valid_t0s[-1]
-            batch = self.dataset._get_batch(t0=sample_t0)
+            sample_t0 = self.dataset.valid_t0_times[-1]
+            batch = self.dataset._get_sample(t0=sample_t0)
             log.warning(
                 "Timestamp different from the one in the batch: "
                 f"{timestamp} != {sample_t0} (batch)"
-                f"The other timestamps are: {self.dataset.valid_t0s}",
+                f"The other timestamps are: {self.dataset.valid_t0_times}",
             )
 
-        sample_site_id = batch["site_id"]
+        sample_location_id = batch["location_id"]
 
         batch = batch_to_tensor(batch)
 
@@ -236,9 +250,7 @@ class PVNetModel:
                 batch[f"site_{key}"] = batch[key]
 
         # set MO GLOBAL cloud_cover_total to 0
-        mo_global_nan_total_cloud_cover = (
-            os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
-        )
+        mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
         if "mo_global" in self.config["input_data"]["nwp"] and mo_global_nan_total_cloud_cover:
             log.warning("Setting MO Global total cloud cover variables to nans")
             # In training cloud_cover_total were 0, lets do the same here
@@ -250,7 +262,7 @@ class PVNetModel:
         # save batch
         save_batch(batch=batch, model_name=self.name, site_uuid=self.site_uuid)
 
-        log.info(f"Predicting for {sample_t0=}, {(sample_site_id)=}")
+        log.info(f"Predicting for {sample_t0=}, {(sample_location_id)=}")
 
         return batch
 
@@ -283,7 +295,9 @@ class PVNetModel:
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
 
         values_df = self.add_probabilistic_values(
-            capacity_kw, normed_values, values_df,
+            capacity_kw,
+            normed_values,
+            values_df,
         )
 
         return values_df.to_dict("records")
@@ -326,19 +340,22 @@ class PVNetModel:
             # Process/cache remote zarr locally
             process_and_cache_nwp(nwp_config)
         if use_satellite and "satellite" in self.config["input_data"]:
-            download_satellite_data(satellite_source_file_path,
-                                    satellite_path,
-                                    self.satellite_scaling_method,
-                                    satellite_backup_source_file_path)
+            download_satellite_data(
+                satellite_source_file_path,
+                satellite_path,
+                self.satellite_scaling_method,
+                satellite_backup_source_file_path,
+            )
 
-        log.info("Preparing Site data sources")
+        log.info("Preparing generation data sources")
         # Clear local cached site data if already exists
-        shutil.rmtree(site_path, ignore_errors=True)
-        os.mkdir(site_path)
+        shutil.rmtree(generation_path, ignore_errors=True)
+        os.mkdir(generation_path)
 
-        # Save generation data as netcdf file
         generation_xr = self.generation_data
+        metadata_df = self.generation_metadata
 
+        # Fill any missing data
         forecast_timesteps = pd.date_range(
             start=self.t0 - pd.Timedelta("52h"),
             periods=int(4 * 24 * 4.5),
@@ -348,10 +365,12 @@ class PVNetModel:
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
         log.info(forecast_timesteps)
 
-        generation_xr.to_netcdf(site_netcdf_path, engine="h5netcdf")
-
-        # Save metadata as csv
-        self.generation_metadata.to_csv(site_metadata_path, index=False)
+        # Save generation data & metadata as a single zarr file
+        generation_xr_with_meta = format_generation_data(
+            generation_xr,
+            metadata_df,
+        )
+        generation_xr_with_meta.to_zarr(generation_path, mode="w")
 
     def _get_config(self) -> None:
         """Setup dataloader with prepared data sources."""
@@ -379,20 +398,19 @@ class PVNetModel:
         self.populated_data_config_filename = populated_data_config_filename
 
         # set t0_idx
-        site_config = self.config["input_data"]["site"]
+        generation_config = self.config["input_data"]["generation"]
         self.t0_idx = int(
-            -site_config["interval_start_minutes"] / site_config["time_resolution_minutes"],
+            -generation_config["interval_start_minutes"]
+            / generation_config["time_resolution_minutes"],
         )
 
     def _create_dataloader(self) -> None:
-
         if not os.path.exists(self.populated_data_config_filename):
             raise FileNotFoundError(
                 f"Data config file not found: {self.populated_data_config_filename}",
             )
-
         # Location and time datapipes
-        self.dataset = SitesDatasetConcurrent(config_filename=self.populated_data_config_filename)
+        self.dataset = PVNetConcurrentDataset(config_filename=self.populated_data_config_filename)
 
     def _load_model(self) -> PVNetBaseModel:
         """Load model."""
@@ -406,46 +424,12 @@ class PVNetModel:
 
     def _load_summation_model(self) -> SummationBaseModel:
         """Load summation model."""
-        log.info(f"Loading model: {self.summation_repo} - {self.summation_version} "
-                 f"({self.name+'_summation'})")
+        log.info(
+            f"Loading model: {self.summation_repo} - {self.summation_version} "
+            f"({self.name + '_summation'})",
+        )
 
         return SummationBaseModel.from_pretrained(
             model_id=self.summation_repo,
             revision=self.summation_version,
         ).to(DEVICE)
-
-    def _construct_sum_sample(self, pvnet_outputs: np.ndarray) -> dict:
-        """Create a sample for the summation model.
-
-        Args:
-                pvnet_outputs: normalised outputs of the site model
-        Returns:
-                batch for summation model as a dictionary.
-        """
-        # National data has site_id=0, regional site_ids start from 1:
-        # relative_capacities = regional_capacities / national_capacity
-        relative_capacities=(self.generation_metadata.loc[1:][
-            "capacity_kwp"
-        ].values / self.generation_metadata.loc[0]["capacity_kwp"])
-
-        # Getting sun position for National location (National index is always 0)
-        azimuth, elevation = calculate_azimuth_and_elevation(
-            datetimes=self.valid_times,
-            lon=self.generation_metadata.loc[0]["longitude"],
-            lat=self.generation_metadata.loc[0]["latitude"],
-        )
-
-        sample = {
-                # Numpy array with batch size = num_locations
-                "pvnet_outputs": pvnet_outputs,
-                # Shape: [time]
-                "valid_times": self.valid_times.values.astype(int),
-                # Shape: [num_locations]
-                "relative_capacity": relative_capacities,
-                # Shape: [time]
-                "azimuth": azimuth.astype(np.float32) / 360,
-                # Shape: [time]
-                "elevation": elevation.astype(np.float32) / 180 + 0.5,
-            }
-
-        return sample

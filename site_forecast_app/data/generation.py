@@ -1,4 +1,4 @@
-"""Functions for getting site generation data."""
+"""Functions for working with site generation data."""
 import datetime as dt
 import logging
 
@@ -44,10 +44,10 @@ def get_generation_data(
             data_list.append(site_dict["data"])
         log.debug("Generation data loaded for all sites. Compiling...")
         metadata = pd.concat(metadata_list)
-        data = xr.concat(data_list, dim="site_id")
+        data = xr.concat(data_list, dim="location_id")
         log.debug("Data for all sites retrieved successfully.")
         metadata = metadata.sort_values(by="system_id")
-        data = data.sortby(data.site_id)
+        data = data.sortby(data.location_id)
         return {"data": data, "metadata": metadata.set_index("system_id")}
 
 
@@ -81,10 +81,10 @@ def _get_site_generation_data(
         log.warning(f"No generation found for site {site.location_uuid}")
         # created empty data frame with dimesion of time_utc
         generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
-        # add dimension of site_id
-        generation_xr = generation_xr.expand_dims("site_id")
+        # add dimension of location_id
+        generation_xr = generation_xr.expand_dims("location_id")
         generation_xr = generation_xr.assign_coords(
-            site_id=(["site_id"], [system_id]),
+            location_id=(["location_id"], [system_id]),
         )
 
         # rename index to time_utc
@@ -132,12 +132,12 @@ def _get_site_generation_data(
         # change to xarray
         generation_xr = generation_df.to_xarray()
 
-        # add dimension of site_id
-        generation_xr = generation_xr.expand_dims("site_id")
+        # add dimension of location_id
+        generation_xr = generation_xr.expand_dims("location_id")
 
-        # add coordinates of site_id
+        # add coordinates of location_id
         generation_xr = generation_xr.assign_coords(
-            site_id=(["site_id"], [system_id]),
+            location_id=(["location_id"], [system_id]),
         )
 
         # rename index to time_utc
@@ -148,7 +148,7 @@ def _get_site_generation_data(
     # Site metadata dataframe
     site_df = pd.DataFrame(
         [(system_id, site.latitude, site.longitude, site.capacity_kw, system_id)],
-        columns=["system_id", "latitude", "longitude", "capacity_kwp", "site_id"],
+        columns=["system_id", "latitude", "longitude", "capacity_kwp", "location_id"],
     )
 
     return {"data": generation_xr, "metadata": site_df}
@@ -188,3 +188,51 @@ def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> p
 
     generation_df = generation_df[~mask]
     return generation_df
+
+def format_generation_data(generation_xr: xr.Dataset,
+                            metadata_df: pd.DataFrame) -> xr.Dataset:
+    """Format generation data to schema pvnet expects.
+
+    Args:
+        generation_xr: xr.Dataset containing generation data
+        metadata_df: pd.DataFrame containing location_id, capacity_kwp, latitude, longitude
+
+    Returns:
+        Generation data schema formatted to is:
+        Dimensions: (time_utc, location_id)
+        Data Variables:
+            generation_mw (time_utc, location_id): float32 representing the generation in MW
+            capacity_mwp (time_utc, location_id): float32 representing the capacity in MW peak
+        Coordinates:
+            time_utc (time_utc): datetime64[ns] representing the time in utc
+            location_id (location_id): int representing the location IDs
+            longitute (location_id): float representing the longitudes of the locations
+            latitude (location_id): float representing the latitudes of the locations
+    """
+    # Clean and prepare metadata
+    metadata = (
+        metadata_df
+        .assign(
+            capacity_mwp=lambda df: df["capacity_kwp"] / 1000,
+        )
+        .drop(columns=["capacity_kwp"])
+        .set_index("location_id")
+    )
+
+    # Prepare generation data, convert to MW
+    generation = (
+        generation_xr
+        .rename({"generation_kw": "generation_mw"})
+        / 1000
+    )
+
+    # Capacity: align to generation_xr
+    capacity = metadata["capacity_mwp"].to_xarray().broadcast_like(generation)
+
+    # Attach capacity & coordinates
+    generation = generation.assign(capacity_mwp=capacity).assign_coords(
+        latitude=("location_id", metadata.loc[generation.location_id.values, "latitude"]),
+        longitude=("location_id", metadata.loc[generation.location_id.values, "longitude"]),
+    )
+
+    return generation
