@@ -191,7 +191,24 @@ def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> p
 
 def format_generation_data(generation_xr: xr.Dataset,
                             metadata_df: pd.DataFrame) -> xr.Dataset:
-    """Format generation data with metadata."""
+    """Format generation data to schema pvnet expects.
+
+    Args:
+        generation_xr: xr.Dataset containing generation data
+        metadata_df: pd.DataFrame containing site_id, capacity_kwp, latitude, longitude
+
+    Returns:
+        Generation data schema formatted to is:
+        Dimensions: (time_utc, location_id)
+        Data Variables:
+            generation_mw (time_utc, location_id): float32 representing the generation in MW
+            capacity_mwp (time_utc, location_id): float32 representing the capacity in MW peak
+        Coordinates:
+            time_utc (time_utc): datetime64[ns] representing the time in utc
+            location_id (location_id): int representing the location IDs
+            longitute (location_id): float representing the longitudes of the locations
+            latitude (location_id): float representing the latitudes of the locations
+    """
     # Clean and prepare metadata
     metadata = (
         metadata_df
