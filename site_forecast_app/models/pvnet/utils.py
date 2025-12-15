@@ -12,7 +12,13 @@ from ocf_data_sampler.config.model import NWP, Configuration
 from ocf_data_sampler.config.save import save_yaml_configuration
 from pydantic import BaseModel
 
-from .consts import generation_path, nwp_ecmwf_path, nwp_mo_global_path, satellite_path
+from .consts import (
+    generation_path,
+    nwp_ecmwf_path,
+    nwp_gencast_path,
+    nwp_mo_global_path,
+    satellite_path,
+)
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +44,11 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
 
     production_paths = {
         "pv": {"filename": generation_path},
-        "nwp": {"ecmwf": nwp_ecmwf_path, "mo_global": nwp_mo_global_path},
+        "nwp": {
+            "ecmwf": nwp_ecmwf_path,
+            "mo_global": nwp_mo_global_path,
+            "gencast": nwp_gencast_path,
+        },
         "satellite": {"filepath": satellite_path},
     }
 
@@ -132,8 +142,13 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     for v in list(ds.variables.keys()):
         ds[v].encoding.clear()
 
-    # make the dtype of variables is strings
-    ds["variable"] = ds.variable.astype(str)
+    if "variable" in ds.data_vars:
+        # make the dtype of variables is strings
+        ds["variable"] = ds.variable.astype(str)
+
+    if "channel" in ds.data_vars:
+        # make the dtype of variables is strings
+        ds["channel"] = ds.variable.astype(str)
 
     name = next(iter(ds.data_vars))
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"

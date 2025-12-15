@@ -64,3 +64,9 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+  - name: windnet_gencast_ecmwf_v0
+    type: pvnet
+    id: openclimatefix-models/windnet_india
+    version: 779a56b17f7e13c064edc9db54e5e46de060e89d
+    client: ruvnl
+    asset_type: wind

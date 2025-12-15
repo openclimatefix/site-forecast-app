@@ -19,12 +19,14 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
+from site_forecast_app.data.gencast import get_latest_gencast_data
 from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.satellite import download_satellite_data
 
 from .consts import (
     generation_path,
     nwp_ecmwf_path,
+    nwp_gencast_path,
     nwp_mo_global_path,
     root_data_path,
 )
@@ -318,7 +320,6 @@ class PVNetModel:
         nwp_configs = []
         nwp_keys = self.config["input_data"]["nwp"].keys()
         if "ecmwf" in nwp_keys:
-
             nwp_configs.append(
                 NWPProcessAndCacheConfig(
                     source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
@@ -334,7 +335,19 @@ class PVNetModel:
                     source="mo_global",
                 ),
             )
+        if "gencast" in nwp_keys:
+            get_latest_gencast_data(
+                gcs_bucket_path=os.environ["NWP_GENCAST_GCS_BUCKET_PATH"],
+                output_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+            )
 
+            nwp_configs.append(
+                NWPProcessAndCacheConfig(
+                    source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+                    dest_nwp_path=nwp_gencast_path,
+                    source="gencast",
+                ),
+            )
         # Remove local cached zarr if already exists
         for nwp_config in nwp_configs:
             # Process/cache remote zarr locally
