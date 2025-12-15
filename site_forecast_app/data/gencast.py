@@ -101,10 +101,10 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 
     try:
         zarr_path = f"{gcs_bucket_path}/{last_expected_init_time}_01_preds/predictions.zarr"
-        latest_init_time_nwp_ds = xr.open_zarr(zarr_path, decode_timedelta=True)
+        latest_init_time_nwp_ds = xr.open_zarr(zarr_path, decode_timedelta=True, chunks=None)
 
         zarr_path = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
-        previous_init_time_nwp_ds = xr.open_zarr(zarr_path, decode_timedelta=True)
+        previous_init_time_nwp_ds = xr.open_zarr(zarr_path, decode_timedelta=True, chunks=None)
 
         log.info("Successfully loaded GenCast data from GCS.")
 
@@ -162,5 +162,5 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         },
     )
 
-    data_combined.to_zarr(output_path, mode="w")
+    data_combined.drop_encoding().to_zarr(output_path, mode="w")
     log.info("Successfully saved processed GenCast data to zarr path.")
