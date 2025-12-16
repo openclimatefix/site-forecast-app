@@ -61,6 +61,7 @@ class PVNetModel:
         satellite_scaling_method: str = "constant",
         summation_repo: str | None = None,
         summation_version: str | None = None,
+        asset_type: str = "pv",
     ) -> None:
         """Initializer for the model."""
         self.id = hf_repo
@@ -71,6 +72,7 @@ class PVNetModel:
         self.satellite_scaling_method = satellite_scaling_method
         self.summation_repo = summation_repo
         self.summation_version = summation_version
+        self.asset_type = asset_type
 
         log.info(f"Model initialised at t0={self.t0}")
 
@@ -110,8 +112,9 @@ class PVNetModel:
         # Run batch through model
         with torch.no_grad():
             normed_preds = self.model(batch).detach().cpu().numpy()
-
-        normed_preds = set_night_time_zeros(batch, normed_preds, t0_idx=self.t0_idx)
+        
+        if self.asset_type == "pv":
+            normed_preds = set_night_time_zeros(batch, normed_preds, t0_idx=self.t0_idx)
 
         # log max prediction
         log.info(f"Max prediction: {np.max(normed_preds, axis=1)}")

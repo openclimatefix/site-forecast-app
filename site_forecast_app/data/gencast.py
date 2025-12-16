@@ -139,7 +139,7 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 
     # Drop the first init_time (no previous init time)
     ds_merged = ds_merged.isel(init_time=slice(1, None))
-    final_da = ds_merged.to_array()
+    final_da = ds_merged.to_array(name="gencast_data")
 
     data_combined = final_da.stack(channel_combined=("ens_stat", "variable"))
     data_combined = data_combined.rename({"channel_combined": "channel"})
@@ -162,5 +162,9 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         },
     )
 
-    data_combined.drop_encoding().to_zarr(output_path, mode="w")
+    data_combined = data_combined.drop_encoding()
+    data_combined = data_combined.astype("float32")
+    data_combined = data_combined.chunk(data_combined.shape)
+
+    data_combined.to_zarr(output_path, mode="w")
     log.info("Successfully saved processed GenCast data to zarr path.")

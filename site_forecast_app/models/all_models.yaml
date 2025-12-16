@@ -67,6 +67,6 @@ models:
   - name: windnet_gencast_ecmwf_v0
     type: pvnet
     id: openclimatefix-models/windnet_india
-    version: b9338c2c1ab941bc194432773ed245101da026d2
+    version: ff50642bc8032c11f762d619dad0bb3f66b8a70b
     client: ruvnl
     asset_type: wind

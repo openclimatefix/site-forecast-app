@@ -142,13 +142,13 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     for v in list(ds.variables.keys()):
         ds[v].encoding.clear()
 
-    if "variable" in ds.data_vars:
+    if "variable" in ds.coords:
         # make the dtype of variables is strings
         ds["variable"] = ds.variable.astype(str)
 
-    if "channel" in ds.data_vars:
+    if "channel" in ds.coords:
         # make the dtype of variables is strings
-        ds["channel"] = ds.variable.astype(str)
+        ds["channel"] = ds.channel.astype(str)
 
     name = next(iter(ds.data_vars))
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
