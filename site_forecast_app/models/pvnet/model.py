@@ -112,7 +112,7 @@ class PVNetModel:
         # Run batch through model
         with torch.no_grad():
             normed_preds = self.model(batch).detach().cpu().numpy()
-        
+
         if self.asset_type == "pv":
             normed_preds = set_night_time_zeros(batch, normed_preds, t0_idx=self.t0_idx)
 
