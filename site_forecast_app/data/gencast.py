@@ -154,10 +154,10 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 
     # Combine both datasets along init_time
     ds_all = xr.concat([ds_ens_stats_1, ds_ens_stats_2], dim="init_time").sortby("init_time")
-    
+
     # Transform to single init_time with 6-hourly steps
     ds_merged = combine_to_single_init_time(ds_all)
-    
+
     final_da = ds_merged.to_array(name="gencast_data")
 
     # Stack ensemble statistics and variables into single channel dimension
