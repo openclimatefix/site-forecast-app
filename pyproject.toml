@@ -49,6 +49,7 @@ dev = [
     "python-lsp-server",
     "python-lsp-ruff",
     "testcontainers",
+    "freezegun",
 ]
 
 [project.urls]

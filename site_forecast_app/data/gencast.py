@@ -1,4 +1,4 @@
-"""Functions to get GenCast data."""
+"""Functions to get/transform GenCast data."""
 
 import datetime as dt
 import logging
@@ -8,8 +8,26 @@ import xarray as xr
 
 log = logging.getLogger(__name__)
 
+# Shared variable list and spatial/time selection
+WEATHER_VARS = [
+    "100m_u_component_of_wind",
+    "100m_v_component_of_wind",
+    "10m_u_component_of_wind",
+    "10m_v_component_of_wind",
+    "2m_temperature",
+]
 
-def latest_6hr_init_time(now: dt.datetime | None = None) -> str:
+SEL_KWARGS = {
+    "lat": slice(6, 35),
+    "lon": slice(67, 97),
+    "time": slice(None, np.timedelta64(96, "h")),
+}
+
+def select_relevant_data(ds: xr.Dataset) -> xr.Dataset:
+    """Select required variables and spatial/time domain."""
+    return ds[WEATHER_VARS].sel(**SEL_KWARGS)
+
+def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     """Returns the latest 6-hourly init time string in a specified format.
 
     string format: YYYYMMDD_XXhr
@@ -59,25 +77,38 @@ def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
 
     return combined
 
+def combine_to_single_init_time(ds: xr.Dataset) -> xr.Dataset:
+    """Combine two 12-hourly forecasts into one 6-hourly forecast."""
+    # Shift dataset so each init_time aligns with previous one
+    ds_prev = ds.shift(init_time=1, fill_value=np.nan)
 
-# Shared variable list and spatial/time selection
-WEATHER_VARS = [
-    "100m_u_component_of_wind",
-    "100m_v_component_of_wind",
-    "10m_u_component_of_wind",
-    "10m_v_component_of_wind",
-    "2m_temperature",
-]
+    # Adjust the previous step values:
+    # original steps: 12h, 24h, 36h, ...
+    # want:           6h,  18h, 30h, ...
+    ds_prev = ds_prev.assign_coords(time=ds_prev.time -  np.timedelta64(6, "h"))
 
-SEL_KWARGS = {
-    "lat": slice(6, 35),
-    "lon": slice(67, 97),
-    "time": slice(None, np.timedelta64(96, "h")),
-}
+    # Merge previous+current forecasts to get all 6-hourly steps
+    ds_merged = xr.concat([ds_prev, ds], dim="time").sortby("time")
+    del ds, ds_prev
 
-def preprocess(ds: xr.Dataset) -> xr.Dataset:
-    """Select required variables and spatial/time domain."""
-    return ds[WEATHER_VARS].sel(**SEL_KWARGS)
+    # Drop the first init_time (no previous init time)
+    ds_merged = ds_merged.isel(init_time=slice(1, None))
+    return ds_merged
+
+def stack_ensemble_stats_into_channels(da: xr.DataArray) -> xr.DataArray:
+    """Stack ensemble statistics and variables into single channel dimension."""
+    data_combined = da.stack(channel_combined=("ens_stat", "variable"))
+    data_combined = data_combined.rename({"channel_combined": "channel"})
+
+    # Create new coordinate names in the correct order
+    new_channel_coords = [
+        f"{stat}_{chan}"
+        for stat in da.coords["ens_stat"].to_index()
+        for chan in da.coords["variable"].to_index()
+    ]
+    data_combined = data_combined.assign_coords(channel=new_channel_coords)
+
+    return data_combined
 
 
 def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
@@ -94,8 +125,8 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         An xarray Dataset containing the GenCast data in the format required for ocf-data-sampler.
     """
     # Get latest initialised forecasts
-    last_expected_init_time = latest_6hr_init_time()
-    previous_expected_init_time = latest_6hr_init_time(
+    last_expected_init_time = get_latest_6hr_init_time()
+    previous_expected_init_time = get_latest_6hr_init_time(
         now=dt.datetime.now(tz=dt.UTC) - dt.timedelta(hours=6),
     )
 
@@ -113,9 +144,9 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             f"Error loading GenCast data from {gcs_bucket_path}",
         ) from e
 
-    # Apply preprocessing
-    ds1 = preprocess(latest_init_time_nwp_ds)
-    ds2 = preprocess(previous_init_time_nwp_ds)
+    # Apply relevant slicing
+    ds1 = select_relevant_data(latest_init_time_nwp_ds)
+    ds2 = select_relevant_data(previous_init_time_nwp_ds)
 
     # Compute ensemble statistics
     ds_ens_stats_1 = compute_ensemble_statistics(ds1)
@@ -123,36 +154,16 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 
     # Combine both datasets along init_time
     ds_all = xr.concat([ds_ens_stats_1, ds_ens_stats_2], dim="init_time").sortby("init_time")
-
-    # Shift dataset so each init_time aligns with previous one
-    ds_prev = ds_all.shift(init_time=1, fill_value=np.nan)
-
-    # Adjust the previous step values:
-    # original steps: 12h, 24h, 36h, ...
-    # want:           6h,  18h, 30h, ...
-    six_hours = np.timedelta64(6, "h")
-    ds_prev = ds_prev.assign_coords(time=ds_prev.time - six_hours)
-
-    # Merge previous+current forecasts to get all 6-hourly steps
-    ds_merged = xr.concat([ds_prev, ds_all], dim="time").sortby("time")
-    del ds_all, ds_prev
-
-    # Drop the first init_time (no previous init time)
-    ds_merged = ds_merged.isel(init_time=slice(1, None))
+    
+    # Transform to single init_time with 6-hourly steps
+    ds_merged = combine_to_single_init_time(ds_all)
+    
     final_da = ds_merged.to_array(name="gencast_data")
 
-    data_combined = final_da.stack(channel_combined=("ens_stat", "variable"))
-    data_combined = data_combined.rename({"channel_combined": "channel"})
+    # Stack ensemble statistics and variables into single channel dimension
+    data_combined = stack_ensemble_stats_into_channels(final_da)
 
-    # Create new coordinate names in the correct order
-    new_channel_coords = [
-        f"{stat}_{chan}"
-        for stat in final_da.coords["ens_stat"].to_index()
-        for chan in final_da.coords["variable"].to_index()
-    ]
-    data_combined = data_combined.assign_coords(channel=new_channel_coords)
-
-    # Rename dimensions for clarity
+    # Rename dimensions
     data_combined = data_combined.rename(
         {
             "lat": "latitude",
@@ -161,7 +172,7 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             "init_time": "init_time_utc",
         },
     )
-
+    # Save to zarr path
     data_combined = data_combined.drop_encoding()
     data_combined = data_combined.astype("float32")
     data_combined = data_combined.chunk(data_combined.shape)
