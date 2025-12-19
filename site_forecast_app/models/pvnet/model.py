@@ -19,12 +19,14 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
+from site_forecast_app.data.gencast import pull_gencast_data
 from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.satellite import download_satellite_data
 
 from .consts import (
     generation_path,
     nwp_ecmwf_path,
+    nwp_gencast_path,
     nwp_mo_global_path,
     root_data_path,
 )
@@ -59,6 +61,7 @@ class PVNetModel:
         satellite_scaling_method: str = "constant",
         summation_repo: str | None = None,
         summation_version: str | None = None,
+        asset_type: str = "pv",
     ) -> None:
         """Initializer for the model."""
         self.id = hf_repo
@@ -69,6 +72,7 @@ class PVNetModel:
         self.satellite_scaling_method = satellite_scaling_method
         self.summation_repo = summation_repo
         self.summation_version = summation_version
+        self.asset_type = asset_type
 
         log.info(f"Model initialised at t0={self.t0}")
 
@@ -109,7 +113,8 @@ class PVNetModel:
         with torch.no_grad():
             normed_preds = self.model(batch).detach().cpu().numpy()
 
-        normed_preds = set_night_time_zeros(batch, normed_preds, t0_idx=self.t0_idx)
+        if self.asset_type == "pv":
+            normed_preds = set_night_time_zeros(batch, normed_preds, t0_idx=self.t0_idx)
 
         # log max prediction
         log.info(f"Max prediction: {np.max(normed_preds, axis=1)}")
@@ -318,7 +323,6 @@ class PVNetModel:
         nwp_configs = []
         nwp_keys = self.config["input_data"]["nwp"].keys()
         if "ecmwf" in nwp_keys:
-
             nwp_configs.append(
                 NWPProcessAndCacheConfig(
                     source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
@@ -334,7 +338,19 @@ class PVNetModel:
                     source="mo_global",
                 ),
             )
+        if "gencast" in nwp_keys:
+            pull_gencast_data(
+                gcs_bucket_path=os.environ["NWP_GENCAST_GCS_BUCKET_PATH"],
+                output_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+            )
 
+            nwp_configs.append(
+                NWPProcessAndCacheConfig(
+                    source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+                    dest_nwp_path=nwp_gencast_path,
+                    source="gencast",
+                ),
+            )
         # Remove local cached zarr if already exists
         for nwp_config in nwp_configs:
             # Process/cache remote zarr locally

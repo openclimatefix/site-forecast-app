@@ -321,6 +321,7 @@ def app_run(
                         name=model_config.name,
                         satellite_scaling_method=model_config.satellite_scaling_method,
                         site_uuid=site_uuid,
+                        asset_type=model_config.asset_type,
                     )
 
                     log.info(f"{site} model loaded")
