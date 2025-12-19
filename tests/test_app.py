@@ -56,7 +56,7 @@ def test_get_sites_with_model_config(db_session, sites):
     sites = get_sites(db_session, model_config=model_config)
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
-    assert len(sites) == 14
+    assert len(sites) == 15
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"
@@ -226,3 +226,27 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
     assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 16)
+
+
+def test_app_ruvnl_gencast(
+    db_session, sites, nwp_data, nwp_data_gencast, generation_db_values,  # noqa: ARG001
+):
+    """Test for running app from command line"""
+
+    init_n_forecasts = db_session.query(ForecastSQL).count()
+    init_n_forecast_values = db_session.query(ForecastValueSQL).count()
+
+    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
+    args.append("--write-to-db")
+
+    os.environ["CLIENT_NAME"] = "ruvnl"
+    os.environ["COUNTRY"] = "india"
+
+    result = run_click_script(app, args)
+    assert result.exit_code == 0
+
+    n = 1  # 1 site, 1 model
+    assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
+    assert db_session.query(MLModelSQL).count() == n * 2
+    forecast_values = db_session.query(ForecastValueSQL).all()
+    assert len(forecast_values) == init_n_forecast_values + (n * 2 * 192)

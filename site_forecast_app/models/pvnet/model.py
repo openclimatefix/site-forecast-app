@@ -19,7 +19,7 @@ from pvnet.models.base_model import BaseModel as PVNetBaseModel
 from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
-from site_forecast_app.data.gencast import get_latest_gencast_data
+from site_forecast_app.data.gencast import pull_gencast_data
 from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.satellite import download_satellite_data
 
@@ -339,7 +339,7 @@ class PVNetModel:
                 ),
             )
         if "gencast" in nwp_keys:
-            get_latest_gencast_data(
+            pull_gencast_data(
                 gcs_bucket_path=os.environ["NWP_GENCAST_GCS_BUCKET_PATH"],
                 output_path=os.environ["NWP_GENCAST_ZARR_PATH"],
             )

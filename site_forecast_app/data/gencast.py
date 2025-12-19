@@ -8,7 +8,7 @@ import xarray as xr
 
 log = logging.getLogger(__name__)
 
-# Shared variable list and spatial/time selection
+# Variable list and spatial/time selection
 WEATHER_VARS = [
     "100m_u_component_of_wind",
     "100m_v_component_of_wind",
@@ -23,9 +23,11 @@ SEL_KWARGS = {
     "time": slice(None, np.timedelta64(96, "h")),
 }
 
+
 def select_relevant_data(ds: xr.Dataset) -> xr.Dataset:
     """Select required variables and spatial/time domain."""
     return ds[WEATHER_VARS].sel(**SEL_KWARGS)
+
 
 def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     """Returns the latest 6-hourly init time string in a specified format.
@@ -54,21 +56,19 @@ def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
     """Compute statistics e.g. mean, std etc over 'sample' (ensemble member) for all variables."""
     mean_ds = ds.mean("sample")
     std_ds = ds.std("sample")
-    median_ds = ds.median("sample")
 
     # Compute all percentiles at once
-    quantiles_ds = ds.quantile([0.10, 0.25, 0.75, 0.90], dim="sample")
+    quantiles_ds = ds.quantile([0.5, 0.10, 0.25, 0.75, 0.90], dim="sample")
 
     # Rename percentile dimension to match ens_stat labels
     quantiles_ds = quantiles_ds.rename({"quantile": "ens_stat"})
-    quantiles_ds = quantiles_ds.assign_coords(ens_stat=["P10", "P25", "P75", "P90"])
+    quantiles_ds = quantiles_ds.assign_coords(ens_stat=["median", "P10", "P25", "P75", "P90"])
 
     # Stack all stats into a single Dataset along new 'ens_stat' dimension
     combined = xr.concat(
         [
             mean_ds.assign_coords(ens_stat="mean"),
             std_ds.assign_coords(ens_stat="std"),
-            median_ds.assign_coords(ens_stat="median"),
             quantiles_ds,
         ],
         dim="ens_stat",
@@ -76,6 +76,7 @@ def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
     )
 
     return combined
+
 
 def combine_to_single_init_time(ds: xr.Dataset) -> xr.Dataset:
     """Combine two 12-hourly forecasts into one 6-hourly forecast."""
@@ -85,7 +86,7 @@ def combine_to_single_init_time(ds: xr.Dataset) -> xr.Dataset:
     # Adjust the previous step values:
     # original steps: 12h, 24h, 36h, ...
     # want:           6h,  18h, 30h, ...
-    ds_prev = ds_prev.assign_coords(time=ds_prev.time -  np.timedelta64(6, "h"))
+    ds_prev = ds_prev.assign_coords(time=ds_prev.time - np.timedelta64(6, "h"))
 
     # Merge previous+current forecasts to get all 6-hourly steps
     ds_merged = xr.concat([ds_prev, ds], dim="time").sortby("time")
@@ -94,6 +95,7 @@ def combine_to_single_init_time(ds: xr.Dataset) -> xr.Dataset:
     # Drop the first init_time (no previous init time)
     ds_merged = ds_merged.isel(init_time=slice(1, None))
     return ds_merged
+
 
 def stack_ensemble_stats_into_channels(da: xr.DataArray) -> xr.DataArray:
     """Stack ensemble statistics and variables into single channel dimension."""
@@ -111,7 +113,7 @@ def stack_ensemble_stats_into_channels(da: xr.DataArray) -> xr.DataArray:
     return data_combined
 
 
-def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
+def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
     """Get GenCast data sliced to region of interest for two most recent init times.
 
     Combines the last two init times to get 6 hourly forecast target times and reshapes
@@ -131,37 +133,46 @@ def get_latest_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
     )
 
     try:
-        zarr_path = f"{gcs_bucket_path}/{last_expected_init_time}_01_preds/predictions.zarr"
-        latest_init_time_nwp_ds = xr.open_zarr(zarr_path, decode_timedelta=True, chunks=None)
+        chunk_plan = {"time": 1, "sample": -1, "lat": -1, "lon": -1}
+        zarr_path1 = f"{gcs_bucket_path}/{last_expected_init_time}_01_preds/predictions.zarr"
+        zarr_path2 = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
 
-        zarr_path = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
-        previous_init_time_nwp_ds = xr.open_zarr(zarr_path, decode_timedelta=True, chunks=None)
+        latest_init_time_nwp_ds = xr.open_zarr(zarr_path1, decode_timedelta=True, chunks=chunk_plan)
+        previous_init_time_nwp_ds = xr.open_zarr(
+            zarr_path2,
+            decode_timedelta=True,
+            chunks=chunk_plan,
+        )
 
-        log.info("Successfully loaded GenCast data from GCS.")
+        log.info("Successfully opened GenCast data from GCS (lazy).")
 
     except Exception as e:
         raise RuntimeError(
             f"Error loading GenCast data from {gcs_bucket_path}",
         ) from e
 
+    # Combine both datasets along init_time
+    ds_raw = xr.concat(
+        [latest_init_time_nwp_ds, previous_init_time_nwp_ds],
+        dim="init_time",
+    ).sortby("init_time")
     # Apply relevant slicing
-    ds1 = select_relevant_data(latest_init_time_nwp_ds)
-    ds2 = select_relevant_data(previous_init_time_nwp_ds)
+    ds_sliced = select_relevant_data(ds_raw)
 
     # Compute ensemble statistics
-    ds_ens_stats_1 = compute_ensemble_statistics(ds1)
-    ds_ens_stats_2 = compute_ensemble_statistics(ds2)
+    ds_ens_stats = compute_ensemble_statistics(ds_sliced)
 
-    # Combine both datasets along init_time
-    ds_all = xr.concat([ds_ens_stats_1, ds_ens_stats_2], dim="init_time").sortby("init_time")
+    # Compute ensemble statistics
+    ds_ens_stats = ds_ens_stats.load()
+    log.info("Loaded GenCast data into memory.")
 
     # Transform to single init_time with 6-hourly steps
-    ds_merged = combine_to_single_init_time(ds_all)
+    ds_merged = combine_to_single_init_time(ds_ens_stats)
 
-    final_da = ds_merged.to_array(name="gencast_data")
+    da_merged = ds_merged.to_array(name="gencast_data")
 
     # Stack ensemble statistics and variables into single channel dimension
-    data_combined = stack_ensemble_stats_into_channels(final_da)
+    data_combined = stack_ensemble_stats_into_channels(da_merged)
 
     # Rename dimensions
     data_combined = data_combined.rename(
