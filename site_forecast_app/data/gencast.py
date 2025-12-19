@@ -133,15 +133,13 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
     )
 
     try:
-        chunk_plan = {"time": 1, "sample": -1, "lat": -1, "lon": -1}
         zarr_path1 = f"{gcs_bucket_path}/{last_expected_init_time}_01_preds/predictions.zarr"
         zarr_path2 = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
 
-        latest_init_time_nwp_ds = xr.open_zarr(zarr_path1, decode_timedelta=True, chunks=chunk_plan)
+        latest_init_time_nwp_ds = xr.open_zarr(zarr_path1, decode_timedelta=True)
         previous_init_time_nwp_ds = xr.open_zarr(
             zarr_path2,
             decode_timedelta=True,
-            chunks=chunk_plan,
         )
 
         log.info("Successfully opened GenCast data from GCS (lazy).")
