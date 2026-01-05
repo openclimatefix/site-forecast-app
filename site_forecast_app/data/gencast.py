@@ -1,7 +1,9 @@
 """Functions to get/transform GenCast data."""
 
 import datetime as dt
+import json
 import logging
+import os
 
 import numpy as np
 import xarray as xr
@@ -136,13 +138,32 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         zarr_path1 = f"{gcs_bucket_path}/{last_expected_init_time}_01_preds/predictions.zarr"
         zarr_path2 = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
 
-        latest_init_time_nwp_ds = xr.open_zarr(zarr_path1, decode_timedelta=True)
+        # Grab GCS token path and only use it if it exists
+        token_path = os.getenv("GCS_TOKEN_PATH", None)
+
+        if token_path is None:
+            storage_option = {}
+        else:
+            with open(token_path) as f:
+                token_dict = json.load(f)
+            storage_option = (
+                {
+                    "token": token_dict,
+                },
+            )
+
+        latest_init_time_nwp_ds = xr.open_zarr(
+            zarr_path1,
+            decode_timedelta=True,
+            storage_options=storage_option,
+        )
         previous_init_time_nwp_ds = xr.open_zarr(
             zarr_path2,
             decode_timedelta=True,
+            storage_options=storage_option,
         )
 
-        log.info("Successfully opened GenCast data from GCS (lazy).")
+        log.info("Successfully opened GenCast data from GCS (lazy) with token.")
 
     except Exception as e:
         raise RuntimeError(
