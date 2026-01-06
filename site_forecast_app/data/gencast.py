@@ -139,7 +139,7 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         zarr_path2 = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
 
         # Grab GCS token path and only use it if it exists
-        token_path = os.getenv("GCS_TOKEN_PATH", None)
+        token_path = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
 
         if token_path is None:
             storage_option = None
@@ -163,7 +163,7 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             storage_options=storage_option,
         )
 
-        log.info("Successfully opened GenCast data from GCS (lazy) with token.")
+        log.info("Successfully opened GenCast data from GCS (lazy).")
 
     except Exception as e:
         raise RuntimeError(
