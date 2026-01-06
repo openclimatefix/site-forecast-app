@@ -142,7 +142,7 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         token_path = os.getenv("GCS_TOKEN_PATH", None)
 
         if token_path is None:
-            storage_option = {}
+            storage_option = None
         else:
             with open(token_path) as f:
                 token_dict = json.load(f)
