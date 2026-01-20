@@ -10,7 +10,9 @@ import xarray as xr
 
 log = logging.getLogger(__name__)
 
-# Variable list and spatial/time selection
+# Variable list and spatial/ens member/time selection
+
+# Variable list
 WEATHER_VARS = [
     "100m_u_component_of_wind",
     "100m_v_component_of_wind",
@@ -19,17 +21,24 @@ WEATHER_VARS = [
     "2m_temperature",
 ]
 
-SEL_KWARGS = {
+# Spatial/Time selection
+RELEVANT_SLICE = {
     "lat": slice(6, 35),
     "lon": slice(67, 97),
-    "time": slice(None, np.timedelta64(96, "h")),
+    "sample": slice(None, 55),
+    "time": slice(None, np.timedelta64(84, "h")),
 }
 
 
-def select_relevant_data(ds: xr.Dataset) -> xr.Dataset:
-    """Select required variables and spatial/time domain."""
-    return ds[WEATHER_VARS].sel(**SEL_KWARGS)
+def preprocess_slice(ds: xr.Dataset) -> xr.Dataset:
+    """Pre-selection hook to drop variables and slice space *before* concatenation."""
+    # 1. Select only needed variables
+    ds = ds[WEATHER_VARS]
 
+    # 2. Slice to relevant data immediately
+    ds = ds.sel(**RELEVANT_SLICE)
+
+    return ds
 
 def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     """Returns the latest 6-hourly init time string in a specified format.
@@ -139,29 +148,24 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         zarr_path2 = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
 
         # Grab GCS token path and only use it if it exists
-        token_path = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
+        gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
 
-        if token_path is None:
+        if gcs_token_string is None:
             storage_option = None
         else:
-            with open(token_path) as f:
-                token_dict = json.load(f)
-            storage_option = (
-                {
-                    "token": token_dict,
-                },
-            )
+            token_dict = json.loads(gcs_token_string)
+            storage_option = {"token": token_dict}
 
-        latest_init_time_nwp_ds = xr.open_zarr(
-            zarr_path1,
+        ds_sliced = xr.open_mfdataset(
+            [zarr_path1, zarr_path2],
+            engine="zarr",
             decode_timedelta=True,
+            concat_dim="init_time",
+            combine="nested",
+            chunks="auto",
+            preprocess=preprocess_slice,
             storage_options=storage_option,
-        )
-        previous_init_time_nwp_ds = xr.open_zarr(
-            zarr_path2,
-            decode_timedelta=True,
-            storage_options=storage_option,
-        )
+        ).sortby("init_time")
 
         log.info("Successfully opened GenCast data from GCS (lazy).")
 
@@ -170,20 +174,12 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             f"Error loading GenCast data from {gcs_bucket_path}",
         ) from e
 
-    # Combine both datasets along init_time
-    ds_raw = xr.concat(
-        [latest_init_time_nwp_ds, previous_init_time_nwp_ds],
-        dim="init_time",
-    ).sortby("init_time")
-    # Apply relevant slicing
-    ds_sliced = select_relevant_data(ds_raw)
+    # Load into memory for quicker processing
+    ds_sliced.load()
+    log.info("Loaded GenCast data into memory.")
 
     # Compute ensemble statistics
     ds_ens_stats = compute_ensemble_statistics(ds_sliced)
-
-    # Compute ensemble statistics
-    ds_ens_stats = ds_ens_stats.load()
-    log.info("Loaded GenCast data into memory.")
 
     # Transform to single init_time with 6-hourly steps
     ds_merged = combine_to_single_init_time(ds_ens_stats)
