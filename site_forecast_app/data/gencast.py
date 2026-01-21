@@ -145,8 +145,8 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
     )
 
     try:
-        zarr_path1 = f"{gcs_bucket_path}/{last_expected_init_time}_01_preds/predictions.zarr"
-        zarr_path2 = f"{gcs_bucket_path}/{previous_expected_init_time}_01_preds/predictions.zarr"
+        zarr_path1 = f"{gcs_bucket_path}{last_expected_init_time}_01_preds/predictions.zarr"
+        zarr_path2 = f"{gcs_bucket_path}{previous_expected_init_time}_01_preds/predictions.zarr"
 
         # Grab GCS token path and only use it if it exists
         gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
