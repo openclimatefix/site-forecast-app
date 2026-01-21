@@ -472,13 +472,13 @@ def nwp_data_gencast(tmp_path_factory):
     ds2 = ds2.assign_coords(init_time=init_time2)
 
     # Set path to raw data and path where processed data will be saved/loaded to/from
-    temp_nwp_path_gencast_raw = f"{tmp_path_factory.mktemp('data_raw')}/gencast.zarr"
+    temp_nwp_path_gencast_raw = f"{tmp_path_factory.mktemp('data_raw')}/gencast/"
     temp_nwp_path_gencast = f"{tmp_path_factory.mktemp('data')}/nwp_gencast.zarr"
 
     os.environ["NWP_GENCAST_GCS_BUCKET_PATH"] = temp_nwp_path_gencast_raw
     os.environ["NWP_GENCAST_ZARR_PATH"] = temp_nwp_path_gencast
-    ds1.to_zarr(f"{temp_nwp_path_gencast_raw}/{string_path1}_01_preds/predictions.zarr")
-    ds2.to_zarr(f"{temp_nwp_path_gencast_raw}/{string_path2}_01_preds/predictions.zarr")
+    ds1.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path1}_01_preds/predictions.zarr")
+    ds2.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path2}_01_preds/predictions.zarr")
 
 
 @pytest.fixture(scope="session")
