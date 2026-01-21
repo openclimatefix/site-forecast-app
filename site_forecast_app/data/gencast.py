@@ -21,24 +21,25 @@ WEATHER_VARS = [
     "2m_temperature",
 ]
 
-# Spatial/Time selection
+# The full range of ensemble samples is 0-63
+# But we want to exclude some specific samples to keep consistency with training data.
+all_samples = np.arange(64)
+excluded_samples = [14, 15, 30, 31, 46, 47, 62, 63]
+keep_samples = np.setdiff1d(all_samples, excluded_samples)
+
+# Spatial/time selection
 RELEVANT_SLICE = {
     "lat": slice(6, 35),
     "lon": slice(67, 97),
-    "sample": slice(None, 55),
+    "sample": keep_samples,
     "time": slice(None, np.timedelta64(84, "h")),
 }
 
 
 def preprocess_slice(ds: xr.Dataset) -> xr.Dataset:
-    """Pre-selection hook to drop variables and slice space *before* concatenation."""
-    # 1. Select only needed variables
-    ds = ds[WEATHER_VARS]
+    """Pre-selection hook to drop variables and slice to relevant data *before* concatenation."""
+    return ds[WEATHER_VARS].sel(**RELEVANT_SLICE)
 
-    # 2. Slice to relevant data immediately
-    ds = ds.sel(**RELEVANT_SLICE)
-
-    return ds
 
 def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     """Returns the latest 6-hourly init time string in a specified format.
