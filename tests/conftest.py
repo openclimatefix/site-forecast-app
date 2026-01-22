@@ -391,7 +391,7 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
     ds.to_zarr(temp_nwp_path_gfs)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def satellite_data(tmp_path_factory, init_timestamp):
     """Dummy Satellite data"""
     # Load dataset which only contains coordinates, but no data
