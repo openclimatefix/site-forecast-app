@@ -191,6 +191,9 @@ def test_app_ad(
 ):
     """Test for running app from command line"""
 
+    if os.path.exists("data/data_config.yaml"):
+        os.remove("data/data_config.yaml")
+
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
