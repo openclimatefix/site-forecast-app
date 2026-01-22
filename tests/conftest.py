@@ -400,7 +400,7 @@ def satellite_data(tmp_path_factory, init_timestamp):
     )
     # remove time dim and geostationary dims and expand them
     ds = ds.drop_vars(["time", "x_geostationary", "y_geostationary"])
-    n_hours = 3
+    n_hours = 1
 
     # Add times so they lead up to present
     t0_datetime_utc = init_timestamp - dt.timedelta(minutes=0)
@@ -447,7 +447,7 @@ def small_satellite_data(tmp_path_factory, init_timestamp):
 
     # remove time dim and geostationary dims and expand them
     ds = ds.drop_vars(["time", "x_geostationary", "y_geostationary"])
-    n_hours = 3
+    n_hours = 1
 
     # Add times so they lead up to present
     t0_datetime_utc = init_timestamp - dt.timedelta(minutes=0)
