@@ -245,7 +245,7 @@ def test_app_ruvnl(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 2  # 1 site, 1 model
+    n = 3  # 1 site, 3 model
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
