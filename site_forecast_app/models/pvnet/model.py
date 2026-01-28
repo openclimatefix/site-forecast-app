@@ -16,6 +16,7 @@ from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
     batch_to_tensor,
 )
 from pvnet.models.base_model import BaseModel as PVNetBaseModel
+from pvnet.utils import validate_batch_against_config
 from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
@@ -259,9 +260,9 @@ class PVNetModel:
 
             batch["nwp"]["mo_global"]["nwp"][:, :, idx] = 0
 
-        # save batch
+        # batch validation then save
+        validate_batch_against_config(batch=batch, model=self.model)
         save_batch(batch=batch, model_name=self.name, site_uuid=self.site_uuid)
-
         log.info(f"Predicting for {sample_t0=}, {(sample_location_id)=}")
 
         return batch
