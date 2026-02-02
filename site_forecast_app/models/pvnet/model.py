@@ -433,4 +433,5 @@ class PVNetModel:
         return SummationBaseModel.from_pretrained(
             model_id=self.summation_repo,
             revision=self.summation_version,
+            token=self.hf_token,
         ).to(DEVICE)
