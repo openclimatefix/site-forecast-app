@@ -90,9 +90,14 @@ def download_satellite_data(satellite_source_file_path: str,
             satellite_delay = now - latest_satellite_time
 
             log.info(f"Latest satellite time: {latest_satellite_time}")
+            if satellite_delay > timedelta(minutes=30):
+                use_backup = True
 
-        if use_backup \
-            or (satellite_backup_source_file_path and satellite_delay > timedelta(minutes=30)):
+        if use_backup and satellite_backup_source_file_path is None:
+            log.warning("No backup satellite source file path provided.")
+            use_backup = False
+
+        if use_backup:
             log.info("Not enough satellite data available" \
                 f"downloading backup from {satellite_backup_source_file_path}")
 
