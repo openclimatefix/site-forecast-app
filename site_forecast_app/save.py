@@ -42,33 +42,33 @@ def save_forecast(
         (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
     ).astype("int")
 
-    # if write_to_db:
-    #     insert_forecast_values(
-    #         db_session,
-    #         forecast_meta,
-    #         forecast_values_df,
-    #         ml_model_name=ml_model_name,
-    #         ml_model_version=ml_model_version,
-    #     )
+    if write_to_db:
+        insert_forecast_values(
+            db_session,
+            forecast_meta,
+            forecast_values_df,
+            ml_model_name=ml_model_name,
+            ml_model_version=ml_model_version,
+        )
 
-    # if use_adjuster:
-    #     log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
-    #     forecast_values_df_adjust = adjust_forecast_with_adjuster(
-    #         db_session,
-    #         forecast_meta,
-    #         forecast_values_df,
-    #         ml_model_name=ml_model_name,
-    #         average_minutes=adjuster_average_minutes,
-    #     )
+    if use_adjuster:
+        log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
+        forecast_values_df_adjust = adjust_forecast_with_adjuster(
+            db_session,
+            forecast_meta,
+            forecast_values_df,
+            ml_model_name=ml_model_name,
+            average_minutes=adjuster_average_minutes,
+        )
 
-        # if write_to_db:
-        #     insert_forecast_values(
-        #         db_session,
-        #         forecast_meta,
-        #         forecast_values_df_adjust,
-        #         ml_model_name=f"{ml_model_name}_adjust",
-        #         ml_model_version=ml_model_version,
-            # )
+        if write_to_db:
+            insert_forecast_values(
+                db_session,
+                forecast_meta,
+                forecast_values_df_adjust,
+                ml_model_name=f"{ml_model_name}_adjust",
+                ml_model_version=ml_model_version,
+            )
 
     output = f"Forecast for location_id={forecast_meta['location_uuid']},\
                timestamp={forecast_meta['timestamp_utc']},\
