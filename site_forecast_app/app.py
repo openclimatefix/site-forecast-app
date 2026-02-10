@@ -16,9 +16,9 @@ from sqlalchemy.orm import Session
 import site_forecast_app
 from site_forecast_app import __version__
 from site_forecast_app.data.generation import get_generation_data
-from site_forecast_app.save import save_forecast
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pydantic_models import Model
+from site_forecast_app.save import save_forecast
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
