@@ -98,13 +98,13 @@ def _write_forecast_to_db(
     if not write_to_db:
         return
 
-    # _insert_forecast_values(
-    #     db_session,
-    #     forecast_meta,
-    #     forecast_values_df,
-    #     ml_model_name=ml_model_name,
-    #     ml_model_version=ml_model_version,
-    # )
+    _insert_forecast_values(
+        db_session,
+        forecast_meta,
+        forecast_values_df,
+        ml_model_name=ml_model_name,
+        ml_model_version=ml_model_version,
+    )
 
 def save_forecast(
     db_session: Session,
