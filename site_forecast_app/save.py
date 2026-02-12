@@ -374,6 +374,17 @@ async def save_forecast_to_dataplatform(
             )
             await client.create_forecast(forecast_request)
 
+            # Save adjusted forecast
+            adjusted_forecast_request = await _make_forecaster_adjuster(
+                client=client,
+                location_uuid=target_uuid_str,
+                init_time_utc=init_time_utc,
+                forecast_values=forecast_values,
+                model_tag=model_tag,
+                forecaster=forecaster,
+            )
+            await client.create_forecast(adjusted_forecast_request)
+
     except Exception as e:
         import traceback
         log.error(f"Failed to save forecast to data platform with error {e}")
