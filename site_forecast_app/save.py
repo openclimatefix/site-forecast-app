@@ -3,22 +3,17 @@
 from __future__ import annotations
 
 import asyncio
-import builtins as _builtins
 import json
 import logging
 import os
-import types
 from datetime import UTC, datetime
 from importlib.metadata import version
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
-import dp_sdk.ocf.dp as _dp_module
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
-from dp_sdk.ocf.dp import EnergySource, LocationType
 from grpclib.client import Channel
 from pvsite_datamodel.read.model import get_or_create_model
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
@@ -30,30 +25,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-if isinstance(_dp_module, types.ModuleType):
-    _dp_module.EnergySource = EnergySource
-    _dp_module.LocationType = LocationType
-
-    # Some generated annotations reference these names directly.
-    _dp_module.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
-    _dp_module.datetime = datetime
-
-    # Extra safety: in some environments `get_type_hints()` ends up evaluating
-    # forward refs with a globals dict that doesn't include the expected names.
-    # Putting them in builtins makes the eval succeed regardless.
-    _builtins.EnergySource = EnergySource
-    _builtins.LocationType = LocationType
-    _builtins.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
-    _builtins.datetime = datetime
-
-    # Robust fallback: generated dp_sdk message annotations include many forward refs
-    # (e.g. "Forecaster", "Permission"). In some environments betterproto ends up
-    # evaluating those with a globals dict that doesn't include the expected names.
-    # Copy all PascalCase exports from `dp_sdk.ocf.dp` into builtins so eval() can
-    # always resolve them.
-    for _name, _obj in _dp_module.__dict__.items():
-        if _name and _name[0].isupper():
-            setattr(_builtins, _name, _obj)
 
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
@@ -113,6 +84,28 @@ def _insert_forecast_values(
     # Ensure queries in the same session can see newly added rows.
     db_session.flush()
 
+
+def _write_forecast_to_db(
+    db_session: Session,
+    forecast_meta: dict,
+    forecast_values_df: pd.DataFrame,
+    *,
+    write_to_db: bool,
+    ml_model_name: str | None,
+    ml_model_version: str | None,
+) -> None:
+    """Write a forecast dataframe to DB when enabled."""
+    if not write_to_db:
+        return
+
+    # _insert_forecast_values(
+    #     db_session,
+    #     forecast_meta,
+    #     forecast_values_df,
+    #     ml_model_name=ml_model_name,
+    #     ml_model_version=ml_model_version,
+    # )
+
 def save_forecast(
     db_session: Session,
     forecast: dict,
@@ -161,14 +154,14 @@ def save_forecast(
         adjuster_average_minutes,
     )
 
-    if write_to_db:
-        _insert_forecast_values(
-            db_session,
-            forecast_meta,
-            forecast_values_df,
-            ml_model_name=ml_model_name,
-            ml_model_version=ml_model_version,
-        )
+    _write_forecast_to_db(
+        db_session,
+        forecast_meta,
+        forecast_values_df,
+        write_to_db=bool(write_to_db),
+        ml_model_name=ml_model_name,
+        ml_model_version=ml_model_version,
+    )
 
     if use_adjuster and ml_model_name is not None:
         log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
@@ -180,14 +173,14 @@ def save_forecast(
             average_minutes=adjuster_average_minutes,
         )
 
-        if write_to_db:
-            _insert_forecast_values(
-                db_session,
-                forecast_meta,
-                forecast_values_df_adjust,
-                ml_model_name=f"{ml_model_name}_adjust",
-                ml_model_version=ml_model_version,
-            )
+        _write_forecast_to_db(
+            db_session,
+            forecast_meta,
+            forecast_values_df_adjust,
+            write_to_db=bool(write_to_db),
+            ml_model_name=f"{ml_model_name}_adjust",
+            ml_model_version=ml_model_version,
+        )
 
     output = f"Forecast for location_id={forecast_meta['location_uuid']},\
                timestamp={forecast_meta['timestamp_utc']},\
@@ -266,105 +259,6 @@ async def _create_forecaster_if_not_exists(
         )
         create_forecaster_response = await client.create_forecaster(create_forecaster_request)
         return create_forecaster_response.forecaster
-
-
-def _limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: float) -> float:
-    """Limit the adjuster to 10% of forecast and max 1000 MW."""
-    # limit adjusted fractions to 10% of fv.p50_fraction
-    max_delta = 0.1 * value_fraction
-    if delta_fraction > max_delta:
-        delta_fraction = max_delta
-    elif delta_fraction < -max_delta:
-        delta_fraction = -max_delta
-
-    # limit adjust to 1000 MW
-    max_delta_absolute = 1000.0 / capacity_mw if capacity_mw > 0 else 0
-    if delta_fraction > max_delta_absolute:
-        delta_fraction = max_delta_absolute
-    elif delta_fraction < -max_delta_absolute:
-        delta_fraction = -max_delta_absolute
-
-    return delta_fraction
-
-
-async def _make_forecaster_adjuster(
-    client: DataPlatformClient,
-    location_uuid: str,
-    init_time_utc: datetime,
-    forecast_values: list[dp.CreateForecastRequestForecastValue],
-    model_tag: str,
-    forecaster: dp.Forecaster,
-) -> dp.CreateForecastRequest:
-    """Make a forecaster adjuster based on week average deltas."""
-    # get delta values
-    deltas_request = dp.GetWeekAverageDeltasRequest(
-        location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
-        pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
-        forecaster=forecaster,
-        observer_name="pvlive_day_after",
-    )
-    deltas_response = await client.get_week_average_deltas(deltas_request)
-    deltas = deltas_response.deltas
-
-    # adjust the current forecast values
-    new_forecast_values = []
-    for fv in forecast_values:
-        horizon_mins = fv.horizon_mins
-        delta_fractions = [d.delta_fraction for d in deltas if d.horizon_mins == horizon_mins]
-        delta_fraction = delta_fractions[0] if len(delta_fractions) > 0 else 0
-
-        # get location
-        location = await client.get_location(
-            dp.GetLocationRequest(
-                location_uuid=location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                include_geometry=False,
-            ),
-        )
-        capacity_mw = location.effective_capacity_watts / 1_000_000.0
-
-        # limit adjuster
-        delta_fraction = _limit_adjuster(
-            delta_fraction=delta_fraction,
-            value_fraction=fv.p50_fraction,
-            capacity_mw=capacity_mw,
-        )
-
-        # delta values are forecast - observed, so we need to subtract
-        new_p50 = max(0.0, min(1.0, fv.p50_fraction - delta_fraction))
-
-        # adjust p10 and p90s
-        new_other_statistics = {}
-        for key, val in fv.other_statistics_fractions.items():
-            new_val = max(0.0, min(1.0, val - delta_fraction))
-            new_other_statistics[key] = new_val
-
-        new_forecast_values.append(
-            dp.CreateForecastRequestForecastValue(
-                horizon_mins=fv.horizon_mins,
-                p50_fraction=new_p50,
-                metadata=fv.metadata,
-                other_statistics_fractions=new_other_statistics,
-            ),
-        )
-
-    # make new forecast
-    forecaster = await _create_forecaster_if_not_exists(
-        client=client,
-        model_tag=model_tag + "_adjust",
-    )
-
-    # make forecast
-    adjusted_forecast_request = dp.CreateForecastRequest(
-        forecaster=forecaster,
-        location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
-        init_time_utc=init_time_utc.replace(tzinfo=UTC),
-        values=new_forecast_values,
-    )
-
-    return adjusted_forecast_request
 
 
 async def save_forecast_to_dataplatform(
