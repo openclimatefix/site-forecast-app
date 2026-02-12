@@ -105,12 +105,15 @@ async def test_save_forecast_to_dataplatform_integration(client):
     log.info("Verified forecast values match input")
 
     # 6. Verify: Adjusted Forecaster checks
-    # Since we didn't setup pvlive observer and deltas, the adjustment likely failed gracefully or didn't run fully.
-    # We can check if the adjusted forecaster exists (it is created before deltas are checked).
+    # Since we didn't setup pvlive observer and deltas, the adjustment
+    # likely failed gracefully or didn't run fully. We can check if the
+    # adjusted forecaster exists (it is created before deltas are checked).
 
     adj_forecaster_name = f"{forecaster_name}_adjust"
     list_adj_forecasters = await client.list_forecasters(
-        dp.ListForecastersRequest(forecaster_names_filter=[adj_forecaster_name]),
+        dp.ListForecastersRequest(
+            forecaster_names_filter=[adj_forecaster_name],
+        ),
     )
 
     if len(list_adj_forecasters.forecasters) > 0:

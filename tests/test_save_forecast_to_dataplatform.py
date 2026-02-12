@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from importlib.metadata import version
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -18,7 +18,7 @@ def test_save_forecast_to_dataplatform(caplog):
     forecast_df = pd.DataFrame({"test": [1, 2, 3]})
     location_uuid = uuid4()
     model_tag = "test_model"
-    init_time_utc = datetime.utcnow()
+    init_time_utc = datetime.now(UTC)
     client = MagicMock()
 
     # Mock Async methods on client
@@ -51,9 +51,10 @@ def test_save_forecast_to_dataplatform(caplog):
     client.list_forecasters.assert_called_once()
 
     # Check that GetLocationRequest was constructed correctly
-    # Note: mocking libraries handles class construction tracking differently depending on setup.
-    # But since dp is imported from the module, and we mock the CLIENT methods which receive the request object...
-    # We can inspect the arguments passed to client.get_location
+    # Note: mocking libraries handles class construction tracking differently
+    # depending on setup. But since dp is imported from the module, and we
+    # mock the CLIENT methods which receive the request object... We can
+    # inspect the arguments passed to client.get_location
 
     client.get_location.assert_called_once()
     call_args = client.get_location.call_args
@@ -71,7 +72,7 @@ def test_save_forecast_to_dataplatform_create_new(caplog):
     forecast_df = pd.DataFrame({"test": [1, 2, 3]})
     location_uuid = uuid4()
     model_tag = "test_model"
-    init_time_utc = datetime.utcnow()
+    init_time_utc = datetime.now(UTC)
     client = MagicMock()
 
     # Mock Async methods
@@ -111,7 +112,7 @@ def test_save_forecast_to_dataplatform_exception(caplog):
         forecast_df=pd.DataFrame(),
         location_uuid=uuid4(),
         model_tag="model",
-        init_time_utc=datetime.utcnow(),
+        init_time_utc=datetime.now(UTC),
         client=client,
     ))
 

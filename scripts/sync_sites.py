@@ -1,13 +1,13 @@
 """Script to synchronize Legacy Site Locations with the Data Platform.
 
 WHY THIS SCRIPT IS CRITICAL:
-This script creates "bridge" location entities in the Data Platform for every site 
-in the legacy Postgres database. It attaches a critical metadata field `legacy_uuid` 
+This script creates "bridge" location entities in the Data Platform for every site
+in the legacy Postgres database. It attaches a critical metadata field `legacy_uuid`
 to each location.
 
-The application (`site_forecast_app`) relies on this `legacy_uuid` metadata to map 
-the internal site IDs it processes to the correct Data Platform Location UUIDs. 
-Without this script running, the app will fail to find matching locations in the 
+The application (`site_forecast_app`) relies on this `legacy_uuid` metadata to map
+the internal site IDs it processes to the correct Data Platform Location UUIDs.
+Without this script running, the app will fail to find matching locations in the
 Data Platform and will not be able to save forecasts.
 
 Run this script:
@@ -30,7 +30,8 @@ from pvsite_datamodel.read import get_sites_by_country
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def main():
+async def main() -> None:
+    """Synchronize legacy sites from Postgres to Data Platform."""
     # Load environment variables
     load_dotenv(".env.local")
 
@@ -42,8 +43,12 @@ async def main():
     with db.get_session() as session:
         country = os.getenv("COUNTRY", "nl")
         client_name = os.getenv("CLIENT_NAME", "nl")
-        logger.info(f"Getting sites for client={client_name}, country={country}")
-        legacy_sites = get_sites_by_country(session, country=country, client_name=client_name)
+        logger.info(
+            f"Getting sites for client={client_name}, country={country}",
+        )
+        legacy_sites = get_sites_by_country(
+            session, country=country, client_name=client_name,
+        )
 
     if not legacy_sites:
         logger.warning("No legacy sites found.")
@@ -76,7 +81,10 @@ async def main():
             legacy_uuid = str(site.location_uuid)
 
             if legacy_uuid in legacy_uuid_map:
-                logger.info(f"Site {legacy_uuid} already exists as {legacy_uuid_map[legacy_uuid]}. Skipping.")
+                logger.info(
+                    f"Site {legacy_uuid} already exists as "
+                    f"{legacy_uuid_map[legacy_uuid]}. Skipping.",
+                )
                 continue
 
             logger.info(f"Creating site {legacy_uuid} in DP...")
@@ -98,7 +106,10 @@ async def main():
 
             try:
                 resp = await client.create_location(req)
-                logger.info(f"Successfully created location {resp.location_uuid} for legacy {legacy_uuid}")
+                logger.info(
+                    f"Successfully created location {resp.location_uuid} "
+                    f"for legacy {legacy_uuid}",
+                )
             except Exception as e:
                 import traceback
                 traceback.print_exc()

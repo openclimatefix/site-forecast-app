@@ -1,6 +1,12 @@
+import asyncio
 import json
 import sys
+from datetime import UTC, datetime, timedelta
+from importlib.metadata import version
 from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
+
+import pandas as pd
 
 # --- MOCKING MODULES BEFORE IMPORT ---
 # Mock betterproto
@@ -22,24 +28,17 @@ sys.modules["dp_sdk"] = mock_sdk
 sys.modules["dp_sdk.ocf"] = mock_ocs
 sys.modules["dp_sdk.ocf.dp"] = mock_dp
 
-import asyncio
-from datetime import datetime, timedelta
-from importlib.metadata import version
-from uuid import uuid4
-
-import pandas as pd
-
 # Import after mocking
-from site_forecast_app.save import save_forecast_to_dataplatform
+from site_forecast_app.save import save_forecast_to_dataplatform  # noqa: E402
 
 
 # Helper to run async tests
 def async_run(coro):
     return asyncio.run(coro)
 
-def test_save_forecast_to_dataplatform_values(caplog):
+def test_save_forecast_to_dataplatform_values():
     # Setup Inputs
-    init_time = datetime.utcnow()
+    init_time = datetime.now(UTC)
     forecast_df = pd.DataFrame([
         {
             "start_utc": init_time + timedelta(minutes=15),
@@ -122,7 +121,9 @@ def test_save_forecast_to_dataplatform_values(caplog):
 
 def test_zero_capacity_handling(caplog):
     mock_dp.reset_mock()
-    forecast_df = pd.DataFrame([{"start_utc": datetime.utcnow(), "forecast_power_kw": 1}])
+    forecast_df = pd.DataFrame(
+        [{"start_utc": datetime.now(UTC), "forecast_power_kw": 1}],
+    )
     client = MagicMock()
     client.list_forecasters = AsyncMock()
     client.list_forecasters.return_value.forecasters = []
@@ -136,7 +137,7 @@ def test_zero_capacity_handling(caplog):
         forecast_df=forecast_df,
         location_uuid=uuid4(),
         model_tag="tag",
-        init_time_utc=datetime.utcnow(),
+        init_time_utc=datetime.now(UTC),
         client=client,
     ))
 

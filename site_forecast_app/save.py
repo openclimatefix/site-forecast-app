@@ -16,25 +16,28 @@ from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
+# Type alias for the Data Platform client stub
+DataPlatformClient = dp.DataPlatformDataServiceStub
+
 def save_forecast(
-    db_session: Session,
+    _db_session: Session,
     forecast: dict,
-    write_to_db: bool,
+    _write_to_db: bool,
     ml_model_name: str | None = None,
-    ml_model_version: str | None = None,
-    use_adjuster: bool = True,
-    adjuster_average_minutes: int | None = 60,
+    _ml_model_version: str | None = None,
+    _use_adjuster: bool = True,
+    _adjuster_average_minutes: int | None = 60,
 ) -> None:
     """Saves a forecast for a given site & timestamp.
 
     Args:
-            db_session: A SQLAlchemy session
+            _db_session: A SQLAlchemy session (unused, for backward compatibility)
             forecast: a forecast dict containing forecast meta and predicted values
-            write_to_db: If true, forecast values are written to db, otherwise to stdout
+            _write_to_db: If true, forecast values are written to db, otherwise to stdout
             ml_model_name: Name of the ML model used for the forecast
-            ml_model_version: Version of the ML model used for the forecast
-            use_adjuster: Make new model, adjusted by last 7 days of ME values
-            adjuster_average_minutes: The number of minutes that results are average over
+            _ml_model_version: Version of the ML model used for the forecast
+            _use_adjuster: Make new model, adjusted by last 7 days of ME values
+            _adjuster_average_minutes: The number of minutes that results are average over
                 when calculating adjuster values
 
     Raises:
@@ -89,8 +92,11 @@ def save_forecast(
     if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
         log.info("Saving to Data Platform...")
 
-        async def run_async_save():
-            channel = Channel(host=os.getenv("DP_HOST", "localhost"), port=int(os.getenv("DP_PORT", "50051")))
+        async def run_async_save() -> None:
+            channel = Channel(
+                host=os.getenv("DP_HOST", "localhost"),
+                port=int(os.getenv("DP_PORT", "50051")),
+            )
             client = dp.DataPlatformDataServiceStub(channel)
             try:
                 await save_forecast_to_dataplatform(
@@ -109,7 +115,7 @@ def save_forecast(
             log.error(f"Failed to save to Data Platform: {e}")
 
 async def _create_forecaster_if_not_exists(
-    client: "DataPlatformClient",
+    client: DataPlatformClient,
     model_tag: str,
 ) -> dp.Forecaster:
     """Create the current forecaster if it does not exist."""
@@ -165,7 +171,7 @@ def _limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: f
 
 
 async def _make_forecaster_adjuster(
-    client: "DataPlatformClient",
+    client: DataPlatformClient,
     location_uuid: str,
     init_time_utc: datetime,
     forecast_values: list[dp.CreateForecastRequestForecastValue],
@@ -249,7 +255,7 @@ async def save_forecast_to_dataplatform(
     location_uuid: UUID,
     model_tag: str,
     init_time_utc: datetime,
-    client: "DataPlatformClient",
+    client: DataPlatformClient,
 ) -> None:
     """Save forecast to data platform."""
     # Ensure init_time_utc is timezone aware
@@ -267,7 +273,8 @@ async def save_forecast_to_dataplatform(
 
     try:
         # Fetch locations to find mapping
-        # Note: This is inefficient for many sites/calls, but acceptable for current scale/CLI usage.
+        # Note: This is inefficient for many sites/calls, but acceptable for
+        # current scale/CLI usage.
         resp = await client.list_locations(dp.ListLocationsRequest())
 
         found = False
@@ -280,9 +287,14 @@ async def save_forecast_to_dataplatform(
                     break
 
         if found:
-            log.info(f"Mapped legacy UUID {legacy_uuid_str} to DP UUID {target_uuid_str}")
+            log.info(
+                f"Mapped legacy UUID {legacy_uuid_str} to DP UUID {target_uuid_str}",
+            )
         else:
-            log.debug(f"Could not find DP location mapping for UUID {legacy_uuid_str}. Using original.")
+            log.debug(
+                f"Could not find DP location mapping for UUID {legacy_uuid_str}. "
+                "Using original.",
+            )
 
     except Exception as e:
         log.warning(f"Failed to lookup UUID mapping: {e}. Proceeding with original UUID.")
