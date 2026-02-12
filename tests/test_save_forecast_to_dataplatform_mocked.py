@@ -1,6 +1,6 @@
-import sys
-from unittest.mock import MagicMock, AsyncMock
 import json
+import sys
+from unittest.mock import AsyncMock, MagicMock
 
 # --- MOCKING MODULES BEFORE IMPORT ---
 # Mock betterproto
@@ -22,15 +22,16 @@ sys.modules["dp_sdk"] = mock_sdk
 sys.modules["dp_sdk.ocf"] = mock_ocs
 sys.modules["dp_sdk.ocf.dp"] = mock_dp
 
-import pytest
 import asyncio
 from datetime import datetime, timedelta
-from uuid import uuid4
-import pandas as pd
 from importlib.metadata import version
+from uuid import uuid4
+
+import pandas as pd
 
 # Import after mocking
 from site_forecast_app.save import save_forecast_to_dataplatform
+
 
 # Helper to run async tests
 def async_run(coro):
@@ -43,78 +44,78 @@ def test_save_forecast_to_dataplatform_values(caplog):
         {
             "start_utc": init_time + timedelta(minutes=15),
             "forecast_power_kw": 5.0, # 5 kW
-            "probabilistic_values": json.dumps({"p10": 4.0, "p90": 6.0})
+            "probabilistic_values": json.dumps({"p10": 4.0, "p90": 6.0}),
         },
         {
             "start_utc": init_time + timedelta(minutes=30),
             "forecast_power_kw": 10.0, # 10 kW
-            "horizon_minutes": 30
-        }
+            "horizon_minutes": 30,
+        },
     ])
     location_uuid = uuid4()
     model_tag = "test_tag"
     client = MagicMock()
-    
+
     # Mock Async Methods
     client.list_forecasters = AsyncMock()
     client.update_forecaster = AsyncMock()
     client.create_forecaster = AsyncMock()
     client.get_location = AsyncMock()
-    
+
     # Setup Forecaster response (Existing)
     mock_forecaster = MagicMock()
     mock_forecaster.forecaster_version = version("site-forecast-app")
     client.list_forecasters.return_value = MagicMock(forecasters=[mock_forecaster])
-    
+
     # Setup Location response
     mock_location = MagicMock()
     mock_location.effective_capacity_watts = 10000.0 # 10 kW capacity
     client.get_location.return_value = mock_location
-    
+
     # Execution
     async_run(save_forecast_to_dataplatform(
         forecast_df=forecast_df,
         location_uuid=location_uuid,
         model_tag=model_tag,
         init_time_utc=init_time,
-        client=client
+        client=client,
     ))
-    
+
     # Verifications
-    
+
     # 1. Location Loaded
     client.get_location.assert_called_once()
-    
+
     # 2. Forecaster Checked
     client.list_forecasters.assert_called_once()
-    
+
     # 3. Validation of Forecast Values Construction
-    # We can't easily inspect the 'forecast_values' variable inside the function unless we return it 
+    # We can't easily inspect the 'forecast_values' variable inside the function unless we return it
     # or if we mock CreateForecastRequestForecastValue to capture calls.
     # Since we mocked dp.CreateForecastRequestForecastValue, we can check calls to it.
-    
+
     assert mock_dp.CreateForecastRequestForecastValue.call_count == 2
-    
+
     calls = mock_dp.CreateForecastRequestForecastValue.call_args_list
-    
+
     # First row check
     # 5 kW / 10 kW capacity = 0.5 fraction
     call1_kwargs = calls[0].kwargs
-    assert call1_kwargs['horizon_mins'] == 15
-    assert call1_kwargs['p50_fraction'] == 0.5
-    assert call1_kwargs['other_statistics_fractions'] == {'p10': 0.4, 'p90': 0.6}
-    
+    assert call1_kwargs["horizon_mins"] == 15
+    assert call1_kwargs["p50_fraction"] == 0.5
+    assert call1_kwargs["other_statistics_fractions"] == {"p10": 0.4, "p90": 0.6}
+
     # 4. Check that CreateForecastRequest was called properly
     assert mock_dp.CreateForecastRequest.called
     create_request_kwargs = mock_dp.CreateForecastRequest.call_args.kwargs
-    
-    assert create_request_kwargs['forecaster'] == mock_forecaster
-    assert create_request_kwargs['location_uuid'] == str(location_uuid)
-    assert create_request_kwargs['energy_source'] == mock_dp.EnergySource.SOLAR
-    assert create_request_kwargs['init_time_utc'] == init_time
+
+    assert create_request_kwargs["forecaster"] == mock_forecaster
+    assert create_request_kwargs["location_uuid"] == str(location_uuid)
+    assert create_request_kwargs["energy_source"] == mock_dp.EnergySource.SOLAR
+    assert create_request_kwargs["init_time_utc"] == init_time
     # Should have 2 values
-    assert len(create_request_kwargs['values']) == 2
-    
+    assert len(create_request_kwargs["values"]) == 2
+
     # 5. Check Client Submission
     client.create_forecast.assert_called_once()
     assert client.create_forecast.call_args[0][0] == mock_dp.CreateForecastRequest.return_value
@@ -126,19 +127,19 @@ def test_zero_capacity_handling(caplog):
     client.list_forecasters = AsyncMock()
     client.list_forecasters.return_value.forecasters = []
     client.create_forecaster = AsyncMock()
-    
+
     # Zero Capacity
     client.get_location = AsyncMock()
     client.get_location.return_value.effective_capacity_watts = 0.0
-    
+
     async_run(save_forecast_to_dataplatform(
         forecast_df=forecast_df,
         location_uuid=uuid4(),
         model_tag="tag",
         init_time_utc=datetime.utcnow(),
-        client=client
+        client=client,
     ))
-    
+
     assert "has 0 capacity, skipping" in caplog.text
     # Should not attempt to create values
     assert mock_dp.CreateForecastRequestForecastValue.call_count == 0

@@ -1,9 +1,9 @@
 """Functions for saving forecasts."""
 
+import asyncio
 import json
 import logging
 import os
-import asyncio
 from datetime import UTC, datetime
 from importlib.metadata import version
 from uuid import UUID
@@ -12,10 +12,7 @@ import pandas as pd
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
-from pvsite_datamodel.write import insert_forecast_values
 from sqlalchemy.orm import Session
-
-from site_forecast_app.adjuster import adjust_forecast_with_adjuster
 
 log = logging.getLogger(__name__)
 
@@ -91,7 +88,7 @@ def save_forecast(
 
     if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
         log.info("Saving to Data Platform...")
-        
+
         async def run_async_save():
             channel = Channel(host=os.getenv("DP_HOST", "localhost"), port=int(os.getenv("DP_PORT", "50051")))
             client = dp.DataPlatformDataServiceStub(channel)
@@ -105,7 +102,7 @@ def save_forecast(
                 )
             finally:
                 channel.close()
-        
+
         try:
             asyncio.run(run_async_save())
         except Exception as e:
@@ -263,16 +260,16 @@ async def save_forecast_to_dataplatform(
         init_time_utc = init_time_utc.replace(tzinfo=UTC)
 
     log.info("Writing to data platform")
-    
+
     # Resolve UUID - check if there's a mapping from legacy to DP UUID
     legacy_uuid_str = str(location_uuid)
     target_uuid_str = legacy_uuid_str
-    
+
     try:
         # Fetch locations to find mapping
         # Note: This is inefficient for many sites/calls, but acceptable for current scale/CLI usage.
         resp = await client.list_locations(dp.ListLocationsRequest())
-        
+
         found = False
         for loc in resp.locations:
             if loc.metadata and loc.metadata.fields:
@@ -281,12 +278,12 @@ async def save_forecast_to_dataplatform(
                     target_uuid_str = loc.location_uuid
                     found = True
                     break
-        
+
         if found:
             log.info(f"Mapped legacy UUID {legacy_uuid_str} to DP UUID {target_uuid_str}")
         else:
             log.debug(f"Could not find DP location mapping for UUID {legacy_uuid_str}. Using original.")
-            
+
     except Exception as e:
         log.warning(f"Failed to lookup UUID mapping: {e}. Proceeding with original UUID.")
 
@@ -335,7 +332,7 @@ async def save_forecast_to_dataplatform(
                     init_ts = init_ts.tz_convert("UTC")
 
                 horizon_mins = int(
-                    (start_ts - init_ts).total_seconds() / 60
+                    (start_ts - init_ts).total_seconds() / 60,
                 )
 
             # Convert Power kW to Fraction
@@ -345,7 +342,7 @@ async def save_forecast_to_dataplatform(
             p50_fraction = max(0.0, min(p50_fraction, 1.0))
 
             other_stats = {}
-            if "probabilistic_values" in row and row["probabilistic_values"]:
+            if row.get("probabilistic_values"):
                 try:
                     probs = json.loads(row["probabilistic_values"])
                     for key, val_kw in probs.items():
@@ -361,7 +358,7 @@ async def save_forecast_to_dataplatform(
                     p50_fraction=p50_fraction,
                     metadata=Struct().from_pydict({}),
                     other_statistics_fractions=other_stats,
-                )
+                ),
             )
 
         if len(forecast_values) > 0:
