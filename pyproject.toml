@@ -150,7 +150,7 @@ torch = [
 torchvision = [
     { index = "pytorch-cpu" },
 ]
-dp-sdk = { path = "../data-platform/gen/python", editable = true }
+dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/download/v0.16.0/dp_sdk-0.16.0-py3-none-any.whl" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
