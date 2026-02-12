@@ -226,7 +226,18 @@ async def _create_forecaster_if_not_exists(
 ) -> dp.Forecaster:
     """Create the current forecaster if it does not exist."""
     forecaster_name = model_tag.replace("-", "_")
-    app_version = version("site-forecast-app")
+    raw_version = version("site-forecast-app")
+    # DP validates version with a restricted charset; normalize local package versions
+    # (which may contain e.g. '+' build metadata) to a compatible value.
+    app_version = "".join(
+        ch if (ch.isalnum() or ch in "._-") else "."
+        for ch in raw_version.lower()
+    )
+    while ".." in app_version:
+        app_version = app_version.replace("..", ".")
+    app_version = app_version.strip("._-")
+    if len(app_version) < 2:
+        app_version = "0.0"
 
     list_forecasters_request = dp.ListForecastersRequest(
         forecaster_names_filter=[forecaster_name],
