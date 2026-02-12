@@ -3,27 +3,136 @@
 from __future__ import annotations
 
 import asyncio
+import builtins as _builtins
 import json
 import logging
 import os
+import types
 from datetime import UTC, datetime
 from importlib.metadata import version
 from typing import TYPE_CHECKING
-from uuid import UUID
+from uuid import UUID, uuid4
 
+import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
+import dp_sdk.ocf.dp as _dp_module
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
-from dp_sdk.ocf.dp import EnergySource, LocationType  # noqa: F401
+from dp_sdk.ocf.dp import EnergySource, LocationType
 from grpclib.client import Channel
+from pvsite_datamodel.read.model import get_or_create_model
+from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
+
+from site_forecast_app.adjuster import adjust_forecast_with_adjuster
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
+if isinstance(_dp_module, types.ModuleType):
+    _dp_module.EnergySource = EnergySource
+    _dp_module.LocationType = LocationType
+
+    # Some generated annotations reference these names directly.
+    _dp_module.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
+    _dp_module.datetime = datetime
+
+    # Extra safety: in some environments `get_type_hints()` ends up evaluating
+    # forward refs with a globals dict that doesn't include the expected names.
+    # Putting them in builtins makes the eval succeed regardless.
+    _builtins.EnergySource = EnergySource
+    _builtins.LocationType = LocationType
+    _builtins.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
+    _builtins.datetime = datetime
+
+    # Robust fallback: generated dp_sdk message annotations include many forward refs
+    # (e.g. "Forecaster", "Permission"). In some environments betterproto ends up
+    # evaluating those with a globals dict that doesn't include the expected names.
+    # Copy all PascalCase exports from `dp_sdk.ocf.dp` into builtins so eval() can
+    # always resolve them.
+    for _name, _obj in _dp_module.__dict__.items():
+        if _name and _name[0].isupper():
+            setattr(_builtins, _name, _obj)
+
+# Some generated annotations reference these names directly.
+_dp_module.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
+_dp_module.datetime = datetime
+
+# Extra safety: in some environments `get_type_hints()` ends up evaluating
+# forward refs with a globals dict that doesn't include these names. Putting
+# them in builtins makes the eval succeed regardless.
+_builtins.EnergySource = EnergySource
+_builtins.LocationType = LocationType
+_builtins.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
+_builtins.datetime = datetime
+
+# Robust fallback: generated dp_sdk message annotations include many forward refs
+# (e.g. "Forecaster", "Permission"). In some environments betterproto ends up
+# evaluating those with a globals dict that doesn't include the expected names.
+# Copy all PascalCase exports from `dp_sdk.ocf.dp` into builtins so eval() can
+# always resolve them.
+for _name, _obj in _dp_module.__dict__.items():
+    if _name and _name[0].isupper():
+        setattr(_builtins, _name, _obj)
+
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
+
+
+def _insert_forecast_values(
+    db_session: Session,
+    forecast_meta: dict,
+    forecast_values_df: pd.DataFrame,
+    *,
+    ml_model_name: str | None,
+    ml_model_version: str | None,
+) -> None:
+    """Insert a forecast + its values into the DB.
+
+    This mirrors how fixtures insert data in tests and is intentionally minimal.
+    """
+    model_name = ml_model_name or "default"
+    model_version = ml_model_version or "0.0.0"
+    ml_model = get_or_create_model(db_session, model_name, model_version)
+
+    forecast_uuid = uuid4()
+    created_utc = forecast_meta["timestamp_utc"]
+
+    forecast = ForecastSQL(
+        location_uuid=str(forecast_meta["location_uuid"]),
+        timestamp_utc=forecast_meta["timestamp_utc"],
+        forecast_version=str(forecast_meta["forecast_version"]),
+        created_utc=created_utc,
+        forecast_uuid=forecast_uuid,
+    )
+    db_session.add(forecast)
+
+    values_to_add: list[ForecastValueSQL] = []
+    for _, row in forecast_values_df.iterrows():
+        probabilistic_values = row.get("probabilistic_values")
+        if isinstance(probabilistic_values, dict):
+            probabilistic_values = json.dumps(probabilistic_values)
+        elif probabilistic_values is not None and not isinstance(probabilistic_values, str):
+            # Best-effort: coerce unknown types to JSON.
+            probabilistic_values = json.dumps(probabilistic_values)
+
+        values_to_add.append(
+            ForecastValueSQL(
+                horizon_minutes=int(row["horizon_minutes"]),
+                forecast_power_kw=float(row["forecast_power_kw"]),
+                start_utc=row["start_utc"],
+                end_utc=row["end_utc"],
+                ml_model_uuid=ml_model.model_uuid,
+                forecast_uuid=forecast_uuid,
+                created_utc=created_utc,
+                probabilistic_values=probabilistic_values,
+            ),
+        )
+
+    db_session.add_all(values_to_add)
+    # Ensure queries in the same session can see newly added rows.
+    db_session.flush()
 
 def save_forecast(
     _db_session: Session,
@@ -61,33 +170,33 @@ def save_forecast(
         (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
     ).astype("int")
 
-    # if write_to_db:
-    #     insert_forecast_values(
-    #         db_session,
-    #         forecast_meta,
-    #         forecast_values_df,
-    #         ml_model_name=ml_model_name,
-    #         ml_model_version=ml_model_version,
-    #     )
+    if _write_to_db:
+        _insert_forecast_values(
+            _db_session,
+            forecast_meta,
+            forecast_values_df,
+            ml_model_name=ml_model_name,
+            ml_model_version=_ml_model_version,
+        )
 
-    # if use_adjuster:
-    #     log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
-    #     forecast_values_df_adjust = adjust_forecast_with_adjuster(
-    #         db_session,
-    #         forecast_meta,
-    #         forecast_values_df,
-    #         ml_model_name=ml_model_name,
-    #         average_minutes=adjuster_average_minutes,
-    #     )
+    if _use_adjuster and ml_model_name is not None:
+        log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
+        forecast_values_df_adjust = adjust_forecast_with_adjuster(
+            _db_session,
+            forecast_meta,
+            forecast_values_df,
+            ml_model_name=ml_model_name,
+            average_minutes=_adjuster_average_minutes,
+        )
 
-    #     if write_to_db:
-    #         insert_forecast_values(
-    #             db_session,
-    #             forecast_meta,
-    #             forecast_values_df_adjust,
-    #             ml_model_name=f"{ml_model_name}_adjust",
-    #             ml_model_version=ml_model_version,
-    #         )
+        if _write_to_db:
+            _insert_forecast_values(
+                _db_session,
+                forecast_meta,
+                forecast_values_df_adjust,
+                ml_model_name=f"{ml_model_name}_adjust",
+                ml_model_version=_ml_model_version,
+            )
 
     output = f"Forecast for location_id={forecast_meta['location_uuid']},\
                timestamp={forecast_meta['timestamp_utc']},\

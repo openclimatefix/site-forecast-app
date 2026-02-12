@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 import json
 import sys
 from datetime import UTC, datetime, timedelta
@@ -7,36 +8,62 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pandas as pd
+import pytest
 
-# --- MOCKING MODULES BEFORE IMPORT ---
-# Mock betterproto
-mock_betterproto = MagicMock()
-mock_struct = MagicMock()
-mock_betterproto.lib.google.protobuf.Struct = mock_struct
-sys.modules["betterproto"] = mock_betterproto
-sys.modules["betterproto.lib"] = mock_betterproto.lib
-sys.modules["betterproto.lib.google"] = mock_betterproto.lib.google
-sys.modules["betterproto.lib.google.protobuf"] = mock_betterproto.lib.google.protobuf
 
-# Mock dp_sdk
-mock_dp = MagicMock()
-mock_ocs = MagicMock()
-mock_ocs.dp = mock_dp
-mock_sdk = MagicMock()
-mock_sdk.ocf = mock_ocs
-sys.modules["dp_sdk"] = mock_sdk
-sys.modules["dp_sdk.ocf"] = mock_ocs
-sys.modules["dp_sdk.ocf.dp"] = mock_dp
+@pytest.fixture()
+def save_forecast_to_dataplatform_with_mocks(monkeypatch):
+    """Import `site_forecast_app.save` under dp_sdk/betterproto mocks.
 
-# Import after mocking
-from site_forecast_app.save import save_forecast_to_dataplatform  # noqa: E402
+    This test file used to mutate `sys.modules` at import time, which polluted
+    the interpreter state for subsequent tests.
+    """
+    # Keep a reference to the real module (if already imported) so we can restore it.
+    original_save_module = sys.modules.get("site_forecast_app.save")
+
+    # Mock betterproto
+    mock_betterproto = MagicMock()
+    mock_struct = MagicMock()
+    mock_betterproto.lib.google.protobuf.Struct = mock_struct
+    monkeypatch.setitem(sys.modules, "betterproto", mock_betterproto)
+    monkeypatch.setitem(sys.modules, "betterproto.lib", mock_betterproto.lib)
+    monkeypatch.setitem(sys.modules, "betterproto.lib.google", mock_betterproto.lib.google)
+    monkeypatch.setitem(
+        sys.modules,
+        "betterproto.lib.google.protobuf",
+        mock_betterproto.lib.google.protobuf,
+    )
+
+    # Mock dp_sdk
+    mock_dp = MagicMock()
+    mock_ocs = MagicMock()
+    mock_ocs.dp = mock_dp
+    mock_sdk = MagicMock()
+    mock_sdk.ocf = mock_ocs
+    monkeypatch.setitem(sys.modules, "dp_sdk", mock_sdk)
+    monkeypatch.setitem(sys.modules, "dp_sdk.ocf", mock_ocs)
+    monkeypatch.setitem(sys.modules, "dp_sdk.ocf.dp", mock_dp)
+
+    # Force a fresh import under mocks
+    monkeypatch.delitem(sys.modules, "site_forecast_app.save", raising=False)
+    save_module = importlib.import_module("site_forecast_app.save")
+    save_module = importlib.reload(save_module)
+
+    yield save_module.save_forecast_to_dataplatform, mock_dp
+
+    # Restore the original module for the rest of the test session.
+    if original_save_module is not None:
+        sys.modules["site_forecast_app.save"] = original_save_module
+    else:
+        sys.modules.pop("site_forecast_app.save", None)
 
 
 # Helper to run async tests
 def async_run(coro):
     return asyncio.run(coro)
 
-def test_save_forecast_to_dataplatform_values():
+def test_save_forecast_to_dataplatform_values(save_forecast_to_dataplatform_with_mocks):
+    save_forecast_to_dataplatform, mock_dp = save_forecast_to_dataplatform_with_mocks
     # Setup Inputs
     init_time = datetime.now(UTC)
     forecast_df = pd.DataFrame([
@@ -119,7 +146,8 @@ def test_save_forecast_to_dataplatform_values():
     client.create_forecast.assert_called_once()
     assert client.create_forecast.call_args[0][0] == mock_dp.CreateForecastRequest.return_value
 
-def test_zero_capacity_handling(caplog):
+def test_zero_capacity_handling(caplog, save_forecast_to_dataplatform_with_mocks):
+    save_forecast_to_dataplatform, mock_dp = save_forecast_to_dataplatform_with_mocks
     mock_dp.reset_mock()
     forecast_df = pd.DataFrame(
         [{"start_utc": datetime.now(UTC), "forecast_power_kw": 1}],
