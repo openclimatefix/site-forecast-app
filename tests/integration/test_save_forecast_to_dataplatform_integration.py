@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
+from dp_sdk.ocf.dp import EnergySource, LocationType
 
 from site_forecast_app.save import save_forecast_to_dataplatform
 

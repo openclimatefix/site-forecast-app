@@ -2,6 +2,7 @@ import os
 
 import pytest_asyncio
 from dp_sdk.ocf import dp
+from dp_sdk.ocf.dp import EnergySource
 from grpclib.client import Channel
 
 

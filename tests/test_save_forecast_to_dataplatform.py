@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pandas as pd
 from dp_sdk.ocf import dp
+from dp_sdk.ocf.dp import EnergySource
 
 from site_forecast_app.save import save_forecast_to_dataplatform
 
