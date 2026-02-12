@@ -55,27 +55,6 @@ if isinstance(_dp_module, types.ModuleType):
         if _name and _name[0].isupper():
             setattr(_builtins, _name, _obj)
 
-# Some generated annotations reference these names directly.
-_dp_module.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
-_dp_module.datetime = datetime
-
-# Extra safety: in some environments `get_type_hints()` ends up evaluating
-# forward refs with a globals dict that doesn't include these names. Putting
-# them in builtins makes the eval succeed regardless.
-_builtins.EnergySource = EnergySource
-_builtins.LocationType = LocationType
-_builtins.betterproto_lib_google_protobuf = betterproto_lib_google_protobuf
-_builtins.datetime = datetime
-
-# Robust fallback: generated dp_sdk message annotations include many forward refs
-# (e.g. "Forecaster", "Permission"). In some environments betterproto ends up
-# evaluating those with a globals dict that doesn't include the expected names.
-# Copy all PascalCase exports from `dp_sdk.ocf.dp` into builtins so eval() can
-# always resolve them.
-for _name, _obj in _dp_module.__dict__.items():
-    if _name and _name[0].isupper():
-        setattr(_builtins, _name, _obj)
-
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
 
@@ -135,25 +114,27 @@ def _insert_forecast_values(
     db_session.flush()
 
 def save_forecast(
-    _db_session: Session,
+    db_session: Session,
     forecast: dict,
-    _write_to_db: bool,
+    write_to_db: bool | None = None,
     ml_model_name: str | None = None,
-    _ml_model_version: str | None = None,
-    _use_adjuster: bool = True,
-    _adjuster_average_minutes: int | None = 60,
+    ml_model_version: str | None = None,
+    use_adjuster: bool = True,
+    adjuster_average_minutes: int | None = 60,
+    **legacy_kwargs: object,
 ) -> None:
     """Saves a forecast for a given site & timestamp.
 
     Args:
-            _db_session: A SQLAlchemy session (unused, for backward compatibility)
+            db_session: A SQLAlchemy session
             forecast: a forecast dict containing forecast meta and predicted values
-            _write_to_db: If true, forecast values are written to db, otherwise to stdout
+            write_to_db: If true, forecast values are written to db, otherwise to stdout
             ml_model_name: Name of the ML model used for the forecast
-            _ml_model_version: Version of the ML model used for the forecast
-            _use_adjuster: Make new model, adjusted by last 7 days of ME values
-            _adjuster_average_minutes: The number of minutes that results are average over
+            ml_model_version: Version of the ML model used for the forecast
+            use_adjuster: Make new model, adjusted by last 7 days of ME values
+            adjuster_average_minutes: The number of minutes that results are average over
                 when calculating adjuster values
+            legacy_kwargs: Backward-compatible underscored kwargs from older callsites
 
     Raises:
             IOError: An error if database save fails
@@ -170,32 +151,42 @@ def save_forecast(
         (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
     ).astype("int")
 
-    if _write_to_db:
+    # Backward compatibility for older callsites using underscored kwargs.
+    if write_to_db is None:
+        write_to_db = legacy_kwargs.pop("_write_to_db", False)
+    ml_model_version = legacy_kwargs.pop("_ml_model_version", ml_model_version)
+    use_adjuster = legacy_kwargs.pop("_use_adjuster", use_adjuster)
+    adjuster_average_minutes = legacy_kwargs.pop(
+        "_adjuster_average_minutes",
+        adjuster_average_minutes,
+    )
+
+    if write_to_db:
         _insert_forecast_values(
-            _db_session,
+            db_session,
             forecast_meta,
             forecast_values_df,
             ml_model_name=ml_model_name,
-            ml_model_version=_ml_model_version,
+            ml_model_version=ml_model_version,
         )
 
-    if _use_adjuster and ml_model_name is not None:
+    if use_adjuster and ml_model_name is not None:
         log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
         forecast_values_df_adjust = adjust_forecast_with_adjuster(
-            _db_session,
+            db_session,
             forecast_meta,
             forecast_values_df,
             ml_model_name=ml_model_name,
-            average_minutes=_adjuster_average_minutes,
+            average_minutes=adjuster_average_minutes,
         )
 
-        if _write_to_db:
+        if write_to_db:
             _insert_forecast_values(
-                _db_session,
+                db_session,
                 forecast_meta,
                 forecast_values_df_adjust,
                 ml_model_name=f"{ml_model_name}_adjust",
-                ml_model_version=_ml_model_version,
+                ml_model_version=ml_model_version,
             )
 
     output = f"Forecast for location_id={forecast_meta['location_uuid']},\
