@@ -8,13 +8,16 @@ import logging
 import os
 from datetime import UTC, datetime
 from importlib.metadata import version
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
-from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
