@@ -213,8 +213,6 @@ def adjust_forecast_with_adjuster(
     average_minutes: the average minutes for the adjuster to group results by,
         this defaults to 60.
     """
-    return
-
     # get the ME values
     me_values = get_me_values(
         db_session,
