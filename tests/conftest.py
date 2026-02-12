@@ -14,7 +14,7 @@ from uuid import uuid4
 try:
     import dp_sdk.ocf.dp as _dp
     # Ensure types are accessible for get_type_hints()
-    if not hasattr(_dp, 'EnergySource'):
+    if not hasattr(_dp, "EnergySource"):
         from dp_sdk.ocf.dp import EnergySource, LocationType
         _dp.EnergySource = EnergySource
         _dp.LocationType = LocationType

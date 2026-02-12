@@ -14,7 +14,7 @@ from uuid import UUID
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
-from dp_sdk.ocf.dp import EnergySource, LocationType
+from dp_sdk.ocf.dp import EnergySource, LocationType  # noqa: F401
 from grpclib.client import Channel
 
 if TYPE_CHECKING:
