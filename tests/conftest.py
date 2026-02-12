@@ -13,11 +13,10 @@ from uuid import uuid4
 # This must happen before any protobuf classes are instantiated
 try:
     import dp_sdk.ocf.dp as _dp
-    # Ensure types are accessible for get_type_hints()
-    if not hasattr(_dp, "EnergySource"):
-        from dp_sdk.ocf.dp import EnergySource, LocationType
-        _dp.EnergySource = EnergySource
-        _dp.LocationType = LocationType
+    from dp_sdk.ocf.dp import EnergySource, LocationType
+    # Always inject types into module namespace to ensure get_type_hints() can resolve them
+    _dp.EnergySource = EnergySource
+    _dp.LocationType = LocationType
 except ImportError:
     pass  # dp_sdk not installed in this environment
 

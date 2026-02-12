@@ -1,9 +1,15 @@
 import os
 
+# Workaround for betterproto forward reference issue - must happen before dp import
+import dp_sdk.ocf.dp as _dp
 import pytest_asyncio
 from dp_sdk.ocf import dp
-from dp_sdk.ocf.dp import EnergySource  # noqa: F401
+from dp_sdk.ocf.dp import EnergySource, LocationType
 from grpclib.client import Channel
+
+# Apply the workaround
+_dp.EnergySource = EnergySource
+_dp.LocationType = LocationType
 
 
 @pytest_asyncio.fixture
