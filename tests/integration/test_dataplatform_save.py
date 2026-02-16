@@ -45,9 +45,15 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
     monkeypatch.setenv("DP_HOST", "localhost")
     monkeypatch.setenv("DP_PORT", "50051")
-    monkeypatch.setattr("site_forecast_app.save.save_forecast_to_dataplatform", fake_save_forecast_to_dataplatform)
+    monkeypatch.setattr(
+        "site_forecast_app.save.save_forecast_to_dataplatform",
+        fake_save_forecast_to_dataplatform,
+    )
     monkeypatch.setattr("site_forecast_app.save.Channel", FakeChannel)
-    monkeypatch.setattr("site_forecast_app.save.dp.DataPlatformDataServiceStub", FakeDPStub)
+    monkeypatch.setattr(
+        "site_forecast_app.save.dp.DataPlatformDataServiceStub",
+        FakeDPStub,
+    )
 
     site = sites[0]
     forecast = {
@@ -66,6 +72,7 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
                 forecast_values["start_utc"],
                 forecast_values["end_utc"],
                 forecast_values["forecast_power_kw"],
+                strict=False,
             )
         ],
     }
