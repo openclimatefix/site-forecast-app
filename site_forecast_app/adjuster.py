@@ -1,4 +1,4 @@
-"""Adjuster code, adjust forecast by last 7 days of ME."""
+"""Adjuster code: adjust forecast by last 7 days of ME."""
 
 import logging
 from datetime import datetime, timedelta
