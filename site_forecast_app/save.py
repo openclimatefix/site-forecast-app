@@ -261,6 +261,84 @@ async def _create_forecaster_if_not_exists(
         return create_forecaster_response.forecaster
 
 
+def _limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: float) -> float:
+    """Limit adjuster magnitude to a fraction of forecast and absolute cap."""
+    max_delta = 0.1 * value_fraction
+    delta_fraction = min(max(delta_fraction, -max_delta), max_delta)
+
+    max_delta_absolute = 1000.0 / capacity_mw if capacity_mw > 0 else 0
+    delta_fraction = min(max(delta_fraction, -max_delta_absolute), max_delta_absolute)
+    return delta_fraction
+
+
+async def _make_forecaster_adjuster(
+    client: DataPlatformClient,
+    location_uuid: str,
+    init_time_utc: datetime,
+    forecast_values: list[dp.CreateForecastRequestForecastValue],
+    model_tag: str,
+    forecaster: dp.Forecaster,
+) -> dp.CreateForecastRequest:
+    """Create adjusted forecast request using week-average deltas."""
+    deltas_request = dp.GetWeekAverageDeltasRequest(
+        location_uuid=location_uuid,
+        energy_source=dp.EnergySource.SOLAR,
+        pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
+        forecaster=forecaster,
+        observer_name="pvlive_day_after",
+    )
+    deltas_response = await client.get_week_average_deltas(deltas_request)
+    deltas = deltas_response.deltas
+
+    adjusted_values: list[dp.CreateForecastRequestForecastValue] = []
+    for fv in forecast_values:
+        delta_candidates = [d.delta_fraction for d in deltas if d.horizon_mins == fv.horizon_mins]
+        delta_fraction = delta_candidates[0] if len(delta_candidates) > 0 else 0
+
+        location = await client.get_location(
+            dp.GetLocationRequest(
+                location_uuid=location_uuid,
+                energy_source=dp.EnergySource.SOLAR,
+                include_geometry=False,
+            ),
+        )
+        capacity_mw = location.effective_capacity_watts / 1_000_000.0
+
+        delta_fraction = _limit_adjuster(
+            delta_fraction=delta_fraction,
+            value_fraction=fv.p50_fraction,
+            capacity_mw=capacity_mw,
+        )
+
+        new_p50 = max(0.0, min(1.0, fv.p50_fraction - delta_fraction))
+        new_other_stats: dict[str, float] = {}
+        for key, val in fv.other_statistics_fractions.items():
+            new_val = max(0.0, min(1.0, val - delta_fraction))
+            new_other_stats[key] = new_val
+
+        adjusted_values.append(
+            dp.CreateForecastRequestForecastValue(
+                horizon_mins=fv.horizon_mins,
+                p50_fraction=new_p50,
+                metadata=fv.metadata,
+                other_statistics_fractions=new_other_stats,
+            ),
+        )
+
+    adjuster_forecaster = await _create_forecaster_if_not_exists(
+        client=client,
+        model_tag=model_tag + "_adjust",
+    )
+
+    return dp.CreateForecastRequest(
+        forecaster=adjuster_forecaster,
+        location_uuid=location_uuid,
+        energy_source=dp.EnergySource.SOLAR,
+        init_time_utc=init_time_utc.replace(tzinfo=UTC),
+        values=adjusted_values,
+    )
+
+
 async def save_forecast_to_dataplatform(
     forecast_df: pd.DataFrame,
     location_uuid: UUID,
@@ -393,6 +471,17 @@ async def save_forecast_to_dataplatform(
                 values=forecast_values,
             )
             await client.create_forecast(forecast_request)
+
+            # Save adjusted forecast based on recent deltas
+            adjusted_forecast_request = await _make_forecaster_adjuster(
+                client=client,
+                location_uuid=target_uuid_str,
+                init_time_utc=init_time_utc,
+                forecast_values=forecast_values,
+                model_tag=model_tag,
+                forecaster=forecaster,
+            )
+            await client.create_forecast(adjusted_forecast_request)
 
     except Exception as e:
         import traceback
