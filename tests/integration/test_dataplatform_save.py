@@ -19,6 +19,7 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
         model_tag,
         init_time_utc,
         client,
+        use_adjuster=True,
     ):
         calls.append(
             {
@@ -27,6 +28,7 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
                 "model_tag": model_tag,
                 "init_time_utc": init_time_utc,
                 "client_type": type(client).__name__,
+                "use_adjuster": use_adjuster,
             },
         )
 
@@ -93,6 +95,7 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
     assert call["model_tag"] == "test-model"
     assert call["init_time_utc"] == forecast["meta"]["timestamp"]
     assert call["client_type"] == "FakeDPStub"
+    assert call["use_adjuster"] is False
 
 
 @pytest.mark.integration
@@ -103,17 +106,19 @@ def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, f
     adjust_calls: list[dict] = []
 
     async def fake_make_forecaster_adjuster(
-        _client,
+        client,
         location_uuid,
         init_time_utc,
-        _forecast_values,
+        forecast_values,
         model_tag,
         forecaster,
     ):
         adjust_calls.append(
             {
+                "client": client,
                 "location_uuid": location_uuid,
                 "init_time_utc": init_time_utc,
+                "forecast_values": forecast_values,
                 "model_tag": model_tag,
                 "forecaster": forecaster,
             },
