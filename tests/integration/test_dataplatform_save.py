@@ -18,7 +18,7 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
         location_uuid,
         model_tag,
         init_time_utc,
-        _client,
+        client,
         **_kwargs,
     ):
         calls.append(
@@ -104,10 +104,10 @@ def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, f
     adjust_calls: list[dict] = []
 
     async def fake_make_forecaster_adjuster(
-        _client,
+        client,  # noqa: ARG001
         location_uuid,
         init_time_utc,
-        _forecast_values,
+        forecast_values,  # noqa: ARG001
         model_tag,
         forecaster,
     ):
