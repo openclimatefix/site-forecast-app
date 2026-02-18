@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+MAX_DELTA_ABSOLUTE = 0.1
+
 
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
@@ -97,7 +99,7 @@ def _write_forecast_to_db(
     """Write a forecast dataframe to DB when enabled."""
     if not write_to_db:
         return
-        
+
     _insert_forecast_values(
         db_session,
         forecast_meta,
@@ -242,22 +244,19 @@ async def _create_forecaster_if_not_exists(
         return create_forecaster_response.forecaster
 
 
-def _limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: float) -> float:
+def _limit_adjuster(delta_fraction: float, value_fraction: float) -> float:
     """Limit adjuster magnitude to a fraction of forecast and absolute cap."""
     max_delta = 0.1 * value_fraction
     delta_fraction = min(max(delta_fraction, -max_delta), max_delta)
 
-    delta_fraction = min(max(delta_fraction, -max_delta_absolute), max_delta_absolute)
+    delta_fraction = min(max(delta_fraction, -MAX_DELTA_ABSOLUTE), MAX_DELTA_ABSOLUTE)
     return delta_fraction
 
 
 def add_or_convert_to_utc(timestamp: object) -> pd.Timestamp:
     """Ensure a timestamp is a timezone-aware UTC pd.Timestamp."""
     ts = pd.Timestamp(timestamp)
-    if ts.tz is None:
-        ts = ts.tz_localize("UTC")
-    else:
-        ts = ts.tz_convert("UTC")
+    ts = ts.tz_localize("UTC") if ts.tz is None else ts.tz_convert("UTC")
     return ts
 
 
@@ -321,19 +320,9 @@ async def _make_forecaster_adjuster(
         delta_candidates = [d.delta_fraction for d in deltas if d.horizon_mins == fv.horizon_mins]
         delta_fraction = delta_candidates[0] if len(delta_candidates) > 0 else 0
 
-        location = await client.get_location(
-            dp.GetLocationRequest(
-                location_uuid=location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                include_geometry=False,
-            ),
-        )
-        capacity_mw = location.effective_capacity_watts / 1_000_000.0
-
         delta_fraction = _limit_adjuster(
             delta_fraction=delta_fraction,
             value_fraction=fv.p50_fraction,
-            capacity_mw=capacity_mw,
         )
 
         new_p50 = max(0.0, min(1.0, fv.p50_fraction - delta_fraction))
