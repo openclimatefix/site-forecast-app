@@ -8,7 +8,6 @@ import logging
 import os
 from datetime import UTC, datetime
 from importlib.metadata import version
-from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 import pandas as pd
@@ -17,11 +16,9 @@ from dp_sdk.ocf import dp
 from grpclib.client import Channel
 from pvsite_datamodel.read.model import get_or_create_model
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
+from sqlalchemy.orm import Session  # noqa: TC002
 
 from site_forecast_app.adjuster import adjust_forecast_with_adjuster
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
