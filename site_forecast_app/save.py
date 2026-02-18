@@ -82,7 +82,7 @@ def _insert_forecast_values(
 
     db_session.add_all(values_to_add)
     # Ensure queries in the same session can see newly added rows.
-    db_session.flush()
+    db_session.commit()
 
 
 def _write_forecast_to_db(
@@ -165,22 +165,27 @@ def save_forecast(
 
     if use_adjuster and ml_model_name is not None:
         log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
-        forecast_values_df_adjust = adjust_forecast_with_adjuster(
-            db_session,
-            forecast_meta,
-            forecast_values_df,
-            ml_model_name=ml_model_name,
-            average_minutes=adjuster_average_minutes,
-        )
+        try:
+            forecast_values_df_adjust = adjust_forecast_with_adjuster(
+                db_session,
+                forecast_meta,
+                forecast_values_df,
+                ml_model_name=ml_model_name,
+                average_minutes=adjuster_average_minutes,
+            )
 
-        _write_forecast_to_db(
-            db_session,
-            forecast_meta,
-            forecast_values_df_adjust,
-            write_to_db=bool(write_to_db),
-            ml_model_name=f"{ml_model_name}_adjust",
-            ml_model_version=ml_model_version,
-        )
+            _write_forecast_to_db(
+                db_session,
+                forecast_meta,
+                forecast_values_df_adjust,
+                write_to_db=bool(write_to_db),
+                ml_model_name=f"{ml_model_name}_adjust",
+                ml_model_version=ml_model_version,
+            )
+        except Exception as e:
+            import traceback
+            log.error(f"Failed to adjust/save forecast for {ml_model_name}: {e}")
+            log.error(traceback.format_exc())
 
     output = f"Forecast for location_id={forecast_meta['location_uuid']},\
                timestamp={forecast_meta['timestamp_utc']},\
@@ -204,6 +209,7 @@ def save_forecast(
                     model_tag=ml_model_name if ml_model_name else "default-model",
                     init_time_utc=forecast_meta["timestamp_utc"],
                     client=client,
+                    use_adjuster=use_adjuster and ml_model_name is not None,
                 )
             finally:
                 channel.close()
@@ -345,6 +351,7 @@ async def save_forecast_to_dataplatform(
     model_tag: str,
     init_time_utc: datetime,
     client: DataPlatformClient,
+    use_adjuster: bool = True,
 ) -> None:
     """Save forecast to data platform."""
     # Ensure init_time_utc is timezone aware
@@ -473,15 +480,21 @@ async def save_forecast_to_dataplatform(
             await client.create_forecast(forecast_request)
 
             # Save adjusted forecast based on recent deltas
-            adjusted_forecast_request = await _make_forecaster_adjuster(
-                client=client,
-                location_uuid=target_uuid_str,
-                init_time_utc=init_time_utc,
-                forecast_values=forecast_values,
-                model_tag=model_tag,
-                forecaster=forecaster,
-            )
-            await client.create_forecast(adjusted_forecast_request)
+            if use_adjuster:
+                try:
+                    adjusted_forecast_request = await _make_forecaster_adjuster(
+                        client=client,
+                        location_uuid=target_uuid_str,
+                        init_time_utc=init_time_utc,
+                        forecast_values=forecast_values,
+                        model_tag=model_tag,
+                        forecaster=forecaster,
+                    )
+                    await client.create_forecast(adjusted_forecast_request)
+                except Exception as e:
+                    import traceback
+                    log.error(f"Failed to adjust/save forecast to data platform: {e}")
+                    log.error(traceback.format_exc())
 
     except Exception as e:
         import traceback
