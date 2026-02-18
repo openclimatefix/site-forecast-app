@@ -401,10 +401,6 @@ async def save_forecast_to_dataplatform(
                 "Using original.",
             )
 
-    except Exception as e:
-        log.warning(f"Failed to lookup UUID mapping: {e}. Proceeding with original UUID.")
-
-    try:
         # Get or create forecaster
         forecaster = await _create_forecaster_if_not_exists(
             client=client,
@@ -448,14 +444,11 @@ async def save_forecast_to_dataplatform(
 
             other_stats = {}
             if row.get("probabilistic_values"):
-                try:
-                    probs = json.loads(row["probabilistic_values"])
-                    for key, val_kw in probs.items():
-                        frac = (val_kw * 1000) / capacity_watts
-                        # Clamp to [0, 1.0] to satisfy validation
-                        other_stats[key] = max(0.0, min(frac, 1.0))
-                except (json.JSONDecodeError, TypeError):
-                    log.warning("Failed to parse probabilistic_values")
+                probs = json.loads(row["probabilistic_values"])
+                for key, val_kw in probs.items():
+                    frac = (val_kw * 1000) / capacity_watts
+                    # Clamp to [0, 1.0] to satisfy validation
+                    other_stats[key] = max(0.0, min(frac, 1.0))
 
             forecast_values.append(
                 dp.CreateForecastRequestForecastValue(
