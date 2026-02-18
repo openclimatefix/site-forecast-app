@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 async def main() -> None:
     """Synchronize legacy sites from Postgres to Data Platform."""
     # Load environment variables
-    #load_dotenv(".env.local")
+    load_dotenv(".env.local")
 
     # 1. Get legacy sites from Postgres
     db_url = os.environ["DB_URL"]

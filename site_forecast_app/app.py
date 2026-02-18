@@ -221,10 +221,10 @@ def app_run(
                         save_forecast(
                             session,
                             forecast=forecast,
-                            _write_to_db=write_to_db,
+                            write_to_db=write_to_db,
                             ml_model_name=ml_model.name,
-                            _ml_model_version=version,
-                            _adjuster_average_minutes=model_config.adjuster_average_minutes,
+                            ml_model_version=version,
+                            adjuster_average_minutes=model_config.adjuster_average_minutes,
                         )
                     successful_runs += 1
 
@@ -277,10 +277,10 @@ def app_run(
                         save_forecast(
                             session,
                             forecast=forecast,
-                            _write_to_db=write_to_db,
+                            write_to_db=write_to_db,
                             ml_model_name=ml_model.name,
-                            _ml_model_version=version,
-                            _adjuster_average_minutes=model_config.adjuster_average_minutes,
+                            ml_model_version=version,
+                            adjuster_average_minutes=model_config.adjuster_average_minutes,
                         )
                         successful_runs += 1
 

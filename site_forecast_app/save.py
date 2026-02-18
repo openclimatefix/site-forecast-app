@@ -97,7 +97,7 @@ def _write_forecast_to_db(
     """Write a forecast dataframe to DB when enabled."""
     if not write_to_db:
         return
-
+        
     _insert_forecast_values(
         db_session,
         forecast_meta,
@@ -109,12 +109,11 @@ def _write_forecast_to_db(
 def save_forecast(
     db_session: Session,
     forecast: dict,
-    write_to_db: bool | None = None,
+    write_to_db: bool = False,
     ml_model_name: str | None = None,
     ml_model_version: str | None = None,
     use_adjuster: bool = True,
     adjuster_average_minutes: int | None = 60,
-    **legacy_kwargs: object,
 ) -> None:
     """Saves a forecast for a given site & timestamp.
 
@@ -127,7 +126,6 @@ def save_forecast(
             use_adjuster: Make new model, adjusted by last 7 days of ME values
             adjuster_average_minutes: The number of minutes that results are average over
                 when calculating adjuster values
-            legacy_kwargs: Backward-compatible underscored kwargs from older callsites
 
     Raises:
             IOError: An error if database save fails
@@ -144,16 +142,6 @@ def save_forecast(
         (forecast_values_df["start_utc"] - forecast_meta["timestamp_utc"]) / pd.Timedelta("60s")
     ).astype("int")
 
-    # Backward compatibility for older callsites using underscored kwargs.
-    if write_to_db is None:
-        write_to_db = legacy_kwargs.pop("_write_to_db", False)
-    ml_model_version = legacy_kwargs.pop("_ml_model_version", ml_model_version)
-    use_adjuster = legacy_kwargs.pop("_use_adjuster", use_adjuster)
-    adjuster_average_minutes = legacy_kwargs.pop(
-        "_adjuster_average_minutes",
-        adjuster_average_minutes,
-    )
-
     _write_forecast_to_db(
         db_session,
         forecast_meta,
@@ -164,29 +152,15 @@ def save_forecast(
     )
 
     if use_adjuster and ml_model_name is not None:
-        log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
-        try:
-            forecast_values_df_adjust = adjust_forecast_with_adjuster(
-                db_session,
-                forecast_meta,
-                forecast_values_df,
-                ml_model_name=ml_model_name,
-                average_minutes=adjuster_average_minutes,
-            )
-            log.info(f"Adjusted forecast shape: {forecast_values_df_adjust.shape}")
-
-            _write_forecast_to_db(
-                db_session,
-                forecast_meta,
-                forecast_values_df_adjust,
-                write_to_db=bool(write_to_db),
-                ml_model_name=f"{ml_model_name}_adjust",
-                ml_model_version=ml_model_version,
-            )
-        except Exception as e:
-            import traceback
-            log.error(f"Failed to adjust/save forecast for {ml_model_name}: {e}")
-            log.error(traceback.format_exc())
+        _adjust_and_save_forecast(
+            db_session,
+            forecast_meta,
+            forecast_values_df,
+            ml_model_name=ml_model_name,
+            ml_model_version=ml_model_version,
+            adjuster_average_minutes=adjuster_average_minutes,
+            write_to_db=bool(write_to_db),
+        )
 
     output = f"Forecast for location_id={forecast_meta['location_uuid']},\
                timestamp={forecast_meta['timestamp_utc']},\
@@ -273,9 +247,54 @@ def _limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: f
     max_delta = 0.1 * value_fraction
     delta_fraction = min(max(delta_fraction, -max_delta), max_delta)
 
-    max_delta_absolute = 1000.0 / capacity_mw if capacity_mw > 0 else 0
     delta_fraction = min(max(delta_fraction, -max_delta_absolute), max_delta_absolute)
     return delta_fraction
+
+
+def add_or_convert_to_utc(timestamp: object) -> pd.Timestamp:
+    """Ensure a timestamp is a timezone-aware UTC pd.Timestamp."""
+    ts = pd.Timestamp(timestamp)
+    if ts.tz is None:
+        ts = ts.tz_localize("UTC")
+    else:
+        ts = ts.tz_convert("UTC")
+    return ts
+
+
+def _adjust_and_save_forecast(
+    db_session: Session,
+    forecast_meta: dict,
+    forecast_values_df: pd.DataFrame,
+    ml_model_name: str,
+    ml_model_version: str | None,
+    adjuster_average_minutes: int | None,
+    write_to_db: bool,
+) -> None:
+    """Adjust forecast using the adjuster and save to DB."""
+    log.info(f"Adjusting forecast for location_id={forecast_meta['location_uuid']}...")
+    try:
+        forecast_values_df_adjust = adjust_forecast_with_adjuster(
+            db_session,
+            forecast_meta,
+            forecast_values_df,
+            ml_model_name=ml_model_name,
+            average_minutes=adjuster_average_minutes,
+        )
+        log.info(f"Adjusted forecast shape: {forecast_values_df_adjust.shape}")
+
+        _write_forecast_to_db(
+            db_session,
+            forecast_meta,
+            forecast_values_df_adjust,
+            write_to_db=write_to_db,
+            ml_model_name=f"{ml_model_name}_adjust",
+            ml_model_version=ml_model_version,
+        )
+    except Exception as e:
+        import traceback
+
+        log.error(f"Failed to adjust/save forecast for {ml_model_name}: {e}")
+        log.error(traceback.format_exc())
 
 
 async def _make_forecaster_adjuster(
@@ -425,20 +444,8 @@ async def save_forecast_to_dataplatform(
                 horizon_mins = int(row["horizon_minutes"])
             else:
                 # Ensure both are pd.Timestamp
-                start_ts = pd.Timestamp(row["start_utc"])
-                init_ts = pd.Timestamp(init_time_utc)
-
-                # Make start_ts UTC aware
-                if start_ts.tz is None:
-                    start_ts = start_ts.tz_localize("UTC")
-                else:
-                    start_ts = start_ts.tz_convert("UTC")
-
-                # Make init_ts UTC aware
-                if init_ts.tz is None:
-                    init_ts = init_ts.tz_localize("UTC")
-                else:
-                    init_ts = init_ts.tz_convert("UTC")
+                start_ts = add_or_convert_to_utc(row["start_utc"])
+                init_ts = add_or_convert_to_utc(init_time_utc)
 
                 horizon_mins = int(
                     (start_ts - init_ts).total_seconds() / 60,
