@@ -20,7 +20,6 @@ import logging
 import os
 
 from betterproto.lib.google.protobuf import Struct, Value
-#from dotenv import load_dotenv
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
 from pvsite_datamodel import DatabaseConnection
