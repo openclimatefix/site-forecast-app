@@ -188,6 +188,10 @@ def save_forecast(
                     client=client,
                     use_adjuster=use_adjuster and ml_model_name is not None,
                 )
+            except Exception as e:
+                import traceback
+                log.error(f"Failed to save forecast to data platform with error {e}")
+                log.error(traceback.format_exc())
             finally:
                 channel.close()
 
@@ -376,112 +380,109 @@ async def save_forecast_to_dataplatform(
     legacy_uuid_str = str(location_uuid)
     target_uuid_str = legacy_uuid_str
 
-    try:
-        # Fetch locations to find mapping
-        # Note: This is inefficient for many sites/calls, but acceptable for
-        # current scale/CLI usage.
-        resp = await client.list_locations(dp.ListLocationsRequest())
 
-        found = False
-        for loc in resp.locations:
-            if loc.metadata and loc.metadata.fields:
-                val = loc.metadata.fields.get("legacy_uuid")
-                if val and val.string_value == legacy_uuid_str:
-                    target_uuid_str = loc.location_uuid
-                    found = True
-                    break
+    # Fetch locations to find mapping
+    # Note: This is inefficient for many sites/calls, but acceptable for
+    # current scale/CLI usage.
+    resp = await client.list_locations(dp.ListLocationsRequest())
 
-        if found:
-            log.info(
-                f"Mapped legacy UUID {legacy_uuid_str} to DP UUID {target_uuid_str}",
-            )
-        else:
-            log.debug(
-                f"Could not find DP location mapping for UUID {legacy_uuid_str}. "
-                "Using original.",
-            )
+    found = False
+    for loc in resp.locations:
+        if loc.metadata and loc.metadata.fields:
+            val = loc.metadata.fields.get("legacy_uuid")
+            if val and val.string_value == legacy_uuid_str:
+                target_uuid_str = loc.location_uuid
+                found = True
+                break
 
-        # Get or create forecaster
-        forecaster = await _create_forecaster_if_not_exists(
-            client=client,
-            model_tag=model_tag,
+    if found:
+        log.info(
+            f"Mapped legacy UUID {legacy_uuid_str} to DP UUID {target_uuid_str}",
+        )
+    else:
+        log.debug(
+            f"Could not find DP location mapping for UUID {legacy_uuid_str}. "
+            "Using original.",
         )
 
-        # Load Location
-        location = await client.get_location(
-            dp.GetLocationRequest(
-                location_uuid=target_uuid_str,
-                energy_source=dp.EnergySource.SOLAR,
-                include_geometry=False,
+    # Get or create forecaster
+    forecaster = await _create_forecaster_if_not_exists(
+        client=client,
+        model_tag=model_tag,
+    )
+
+    # Load Location
+    location = await client.get_location(
+        dp.GetLocationRequest(
+            location_uuid=target_uuid_str,
+            energy_source=dp.EnergySource.SOLAR,
+            include_geometry=False,
+        ),
+    )
+
+    # Prepare forecast values
+    capacity_watts = location.effective_capacity_watts
+    if capacity_watts == 0:
+        log.warning(f"Location {location_uuid} has 0 capacity, skipping data platform save")
+        return
+
+    forecast_values = []
+    for _, row in forecast_df.iterrows():
+        # Calculate horizon if not present
+        if "horizon_minutes" in row and pd.notna(row["horizon_minutes"]):
+            horizon_mins = int(row["horizon_minutes"])
+        else:
+            # Ensure both are pd.Timestamp
+            start_ts = add_or_convert_to_utc(row["start_utc"])
+            init_ts = add_or_convert_to_utc(init_time_utc)
+
+            horizon_mins = int(
+                (start_ts - init_ts).total_seconds() / 60,
+            )
+
+        # Convert Power kW to Fraction
+        # Fraction = (kW * 1000) / Watts
+        p50_fraction = (row["forecast_power_kw"] * 1000) / capacity_watts
+        # Clamp to [0, 1.0] to satisfy validation
+        p50_fraction = max(0.0, min(p50_fraction, 1.0))
+
+        other_stats = {}
+        if row.get("probabilistic_values"):
+            probs = json.loads(row["probabilistic_values"])
+            for key, val_kw in probs.items():
+                frac = (val_kw * 1000) / capacity_watts
+                # Clamp to [0, 1.0] to satisfy validation
+                other_stats[key] = max(0.0, min(frac, 1.0))
+
+        forecast_values.append(
+            dp.CreateForecastRequestForecastValue(
+                horizon_mins=horizon_mins,
+                p50_fraction=p50_fraction,
+                metadata=Struct().from_pydict({}),
+                other_statistics_fractions=other_stats,
             ),
         )
 
-        # Prepare forecast values
-        capacity_watts = location.effective_capacity_watts
-        if capacity_watts == 0:
-            log.warning(f"Location {location_uuid} has 0 capacity, skipping data platform save")
-            return
+    if len(forecast_values) > 0:
+        forecast_request = dp.CreateForecastRequest(
+            forecaster=forecaster,
+            location_uuid=target_uuid_str,
+            energy_source=dp.EnergySource.SOLAR,
+            init_time_utc=init_time_utc,
+            values=forecast_values,
+        )
+        await client.create_forecast(forecast_request)
 
-        forecast_values = []
-        for _, row in forecast_df.iterrows():
-            # Calculate horizon if not present
-            if "horizon_minutes" in row and pd.notna(row["horizon_minutes"]):
-                horizon_mins = int(row["horizon_minutes"])
-            else:
-                # Ensure both are pd.Timestamp
-                start_ts = add_or_convert_to_utc(row["start_utc"])
-                init_ts = add_or_convert_to_utc(init_time_utc)
-
-                horizon_mins = int(
-                    (start_ts - init_ts).total_seconds() / 60,
-                )
-
-            # Convert Power kW to Fraction
-            # Fraction = (kW * 1000) / Watts
-            p50_fraction = (row["forecast_power_kw"] * 1000) / capacity_watts
-            # Clamp to [0, 1.0] to satisfy validation
-            p50_fraction = max(0.0, min(p50_fraction, 1.0))
-
-            other_stats = {}
-            if row.get("probabilistic_values"):
-                probs = json.loads(row["probabilistic_values"])
-                for key, val_kw in probs.items():
-                    frac = (val_kw * 1000) / capacity_watts
-                    # Clamp to [0, 1.0] to satisfy validation
-                    other_stats[key] = max(0.0, min(frac, 1.0))
-
-            forecast_values.append(
-                dp.CreateForecastRequestForecastValue(
-                    horizon_mins=horizon_mins,
-                    p50_fraction=p50_fraction,
-                    metadata=Struct().from_pydict({}),
-                    other_statistics_fractions=other_stats,
-                ),
-            )
-
-        if len(forecast_values) > 0:
-            forecast_request = dp.CreateForecastRequest(
-                forecaster=forecaster,
+        # Save adjusted forecast based on recent deltas
+        if use_adjuster:
+            adjusted_forecast_request = await _make_forecaster_adjuster(
+                client=client,
                 location_uuid=target_uuid_str,
-                energy_source=dp.EnergySource.SOLAR,
                 init_time_utc=init_time_utc,
-                values=forecast_values,
+                forecast_values=forecast_values,
+                model_tag=model_tag,
+                forecaster=forecaster,
             )
-            await client.create_forecast(forecast_request)
+            await client.create_forecast(adjusted_forecast_request)
 
-            # Save adjusted forecast based on recent deltas
-            if use_adjuster:
-                adjusted_forecast_request = await _make_forecaster_adjuster(
-                    client=client,
-                    location_uuid=target_uuid_str,
-                    init_time_utc=init_time_utc,
-                    forecast_values=forecast_values,
-                    model_tag=model_tag,
-                    forecaster=forecaster,
-                )
-                await client.create_forecast(adjusted_forecast_request)
 
-    except Exception as e:
-        import traceback
-        log.error(f"Failed to save forecast to data platform with error {e}")
-        log.error(traceback.format_exc())
