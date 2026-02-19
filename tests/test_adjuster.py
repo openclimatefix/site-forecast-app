@@ -1,6 +1,7 @@
 """Test for adjuster.py"""
 
 from datetime import datetime
+from unittest import mock
 
 import pandas as pd
 import pytest
@@ -35,10 +36,13 @@ def test_get_me_values(db_session, sites, generation_db_values, forecasts):  # n
     assert me_df["me_kw"][90] != 0
 
 
-def test_get_me_values_15(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
+
+
+
+def test_get_me_values_15(db_session, sites, generation_db_values, forecasts, init_timestamp):  # noqa: ARG001
     """Check ME results are found"""
 
-    hour = pd.Timestamp(datetime.now()).hour  # noqa: DTZ005
+    hour = init_timestamp.hour
     me_df_15 = get_me_values(
         db_session,
         hour,
@@ -83,15 +87,26 @@ def test_get_me_values_no_forecasts(db_session, sites, generation_db_values):  #
     assert len(me_df) == 0
 
 
-def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
+@mock.patch("site_forecast_app.adjuster.get_me_values")
+def test_adjust_forecast_with_adjuster(
+    mock_get_me, db_session, sites, generation_db_values, forecasts,  # noqa: ARG001
+):
     """Check forecast gets adjuster"""
+
+    # mock get_me_values return
+    mock_df = pd.DataFrame({
+        "horizon_minutes": [15, 30, 45, 60, 1200],
+        "me_kw": [0.0, 0.0, 0.0, 0.0, 10.0],  # Only adjust the last one
+    })
+    mock_get_me.return_value = mock_df
+
     forecast_meta = {"timestamp_utc": datetime.now(), "location_uuid": sites[0].location_uuid}  # noqa: DTZ005
     forecast_values_df = pd.DataFrame(
         {
             "forecast_power_kw": [1, 2, 3, 4, 5],
             "horizon_minutes": [15, 30, 45, 60, 1200],
             "start_utc": [
-                pd.Timestamp("2024-11-01 08:00:00") + pd.Timedelta(hours=i) for i in range(5)
+                pd.Timestamp("2024-11-01 12:00:00") + pd.Timedelta(hours=i) for i in range(5)
             ],
             # Provide initial probabilistic_values
             "probabilistic_values": [
@@ -118,13 +133,12 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
     ].iloc[0]["p50"]
 
     assert adjusted_p50 != original_p50
+    assert adjusted_p50 == 40  # 50 - 10
 
     assert len(adjusted_forecast_df) == 5
 
     assert adjusted_forecast_df["forecast_power_kw"][0:4].sum() == 10.0
-    assert adjusted_forecast_df["forecast_power_kw"][4] != 5
-
-    # note the way the tests are setup, only the horizon_minutes=90 has some ME values
+    assert adjusted_forecast_df["forecast_power_kw"][4] != 5  # 5 - 10 = -5 -> clipped to 0
 
 
 def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
