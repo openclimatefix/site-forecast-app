@@ -478,8 +478,11 @@ async def save_forecast_to_dataplatform(
         except Exception as e:
             # Catch "No location found" error
             if "No location found" in str(e) and client_location_name and capacity_kw is not None:
-                log.warning(f"Location {client_location_name} not found or invalid. Attempting to create it...")
-                
+                log.warning(
+                    f"Location {client_location_name} not found or invalid. "
+                    "Attempting to create it...",
+                )
+
                 # Create location
                 # Data Platform requires a closed polygon
                 delta = 0.001
@@ -493,7 +496,7 @@ async def save_forecast_to_dataplatform(
                     f"{lon - delta} {lat - delta}"
                     f"))"
                 )
-                
+
                 try:
                     create_req = dp.CreateLocationRequest(
                         location_name=client_location_name,
@@ -505,18 +508,18 @@ async def save_forecast_to_dataplatform(
                     create_resp = await client.create_location(create_req)
                     new_uuid = create_resp.location_uuid
                     log.info(f"Created new location {new_uuid} for {client_location_name}")
-                    
+
                     # Update request with new UUID
                     forecast_request.location_uuid = new_uuid
                     # Retry create forecast
                     await client.create_forecast(forecast_request)
-                    
+
                     # Update target_uuid_str for adjuster
                     target_uuid_str = new_uuid
-                    
+
                 except Exception as create_error:
                     log.error(f"Failed to create location or retry forecast: {create_error}")
-                    raise e # Raise original error if creation/retry fails
+                    raise e from create_error  # Raise original error if creation/retry fails
             else:
                 raise e
 

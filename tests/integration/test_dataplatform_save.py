@@ -4,7 +4,6 @@ import uuid
 
 import pandas as pd
 import pytest
-from betterproto.lib.google.protobuf import Struct, Value
 from dp_sdk.ocf import dp
 
 from site_forecast_app.save import save_forecast, save_forecast_to_dataplatform
@@ -12,7 +11,9 @@ from site_forecast_app.save import save_forecast, save_forecast_to_dataplatform
 
 @pytest.mark.integration
 @pytest.mark.asyncio(loop_scope="module")
-async def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, forecast_values, client):
+async def test_save_forecast_triggers_dataplatform(
+    monkeypatch, db_session, sites, forecast_values, client,
+):
     """Ensure save_forecast calls the Data Platform helper when enabled."""
 
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
@@ -25,7 +26,7 @@ async def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, site
     site = sites[0]
     # Ensure site has a name we can use
     site_name = site.client_location_name or "test_site_name_fixture"
-    
+
     create_location_request = dp.CreateLocationRequest(
         location_name=site_name,
         energy_source=dp.EnergySource.SOLAR,
@@ -60,7 +61,8 @@ async def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, site
     }
 
     # Monkeypatch asyncio.run to capture tasks generated inside save_forecast
-    # This prevents RuntimeError because asyncio.run() cannot be called when an event loop is running.
+    # This prevents RuntimeError because asyncio.run() cannot be called when an
+    # event loop is running.
     import asyncio
     captured_tasks = []
 
@@ -86,13 +88,13 @@ async def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, site
 
     # Verify that the forecast was actually created in the DP
     # We can check by listing forecasters or getting the forecast
-    
+
     forecaster_name = "test_model" # save_forecast replaces '-' with '_'
     list_forecasters_request = dp.ListForecastersRequest(
         forecaster_names_filter=[forecaster_name],
     )
     list_forecasters_response = await client.list_forecasters(list_forecasters_request)
-    
+
     assert len(list_forecasters_response.forecasters) > 0, "Forecaster not created in DP"
     forecaster = list_forecasters_response.forecasters[0]
 
@@ -114,7 +116,7 @@ async def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, site
         ),
         forecaster=forecaster,
     )
-    
+
     forecast_resp = await client.get_forecast_as_timeseries(get_forecast_request)
     assert len(forecast_resp.values) == len(forecast["values"]), (
         f"Forecast values count mismatch in DP. Expected {len(forecast['values'])}, "
@@ -231,7 +233,7 @@ async def test_save_forecast_to_dataplatform_integration(client):
 
     # 1. Create a Location in DP
     # We need a location UUID. Let's generate one.
-    
+
     # Try creating with Site type, fallback to something else if fails
     # assuming LocationType.Site exists or is valid.
     # If not, user might need to adjust. But let's assume valid based on usage in other tests.
@@ -268,7 +270,8 @@ async def test_save_forecast_to_dataplatform_integration(client):
     )
 
     # 3. Call save_forecast_to_dataplatform
-    # We pass client_location_name="test_site_integration". The function should map it to dp_location_uuid.
+    # We pass client_location_name="test_site_integration".
+    # The function should map it to dp_location_uuid.
     await save_forecast_to_dataplatform(
         forecast_df=fake_data,
         location_uuid=uuid.uuid4(),  # Random local UUID
