@@ -42,7 +42,7 @@ async def test_save_forecast_triggers_dataplatform(
         "meta": {
             "location_uuid": site.location_uuid,
             "version": "0.0.0-test",
-            "timestamp": dt.datetime.now(dt.UTC).replace(microsecond=0),
+            "timestamp": forecast_values["start_utc"][0],
             "client_location_name": site_name,
         },
         "values": [
@@ -199,7 +199,7 @@ def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, f
         "meta": {
             "location_uuid": site.location_uuid,
             "version": "0.0.0-test",
-            "timestamp": dt.datetime.now(dt.UTC).replace(microsecond=0),
+            "timestamp": forecast_values["start_utc"][0],
         },
         "values": [
             {
