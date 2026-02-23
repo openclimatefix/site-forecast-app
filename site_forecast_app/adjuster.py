@@ -98,6 +98,7 @@ def get_me_values(
     # only include the last x days
     query = query.filter(ForecastValueSQL.start_utc >= start_datetime)
     query = query.filter(GenerationSQL.start_utc >= start_datetime)
+    query = query.filter(ForecastSQL.timestamp_utc >= start_datetime - timedelta(days=7))
 
     # filter on site
     query = query.filter(ForecastSQL.location_uuid == site_uuid)

@@ -74,19 +74,30 @@ def download_satellite_data(satellite_source_file_path: str,
 
         ds = download_and_unzip(file_zip=satellite_source_file_path, file=temporary_satellite_data)
 
-        # log the timestamps for satellite data
-        times = ds.time.values
-        log.info(f"Satellite data timestamps: {times}")
+        use_backup = False
+        if ds is None:
+            # we could not load the 5 min satellite file, therefore lets use the backup
+            use_backup = True
+        else:
+            # log the timestamps for satellite data
+            times = ds.time.values
+            log.info(f"Satellite data timestamps: {times}")
 
-        # possibily download backup satellite
-        # if there are not enough time in the current satellite data
-        latest_satellite_time = times.max()
-        now = pd.Timestamp.now(tz=UTC).replace(tzinfo=None)
-        satellite_delay = now - latest_satellite_time
+            # possibily download backup satellite
+            # if there are not enough time in the current satellite data
+            latest_satellite_time = times.max()
+            now = pd.Timestamp.now(tz=UTC).replace(tzinfo=None)
+            satellite_delay = now - latest_satellite_time
 
-        log.info(f"Latest satellite time: {latest_satellite_time}")
+            log.info(f"Latest satellite time: {latest_satellite_time}")
+            if satellite_delay > timedelta(minutes=30):
+                use_backup = True
 
-        if satellite_backup_source_file_path and satellite_delay > timedelta(minutes=30):
+        if use_backup and satellite_backup_source_file_path is None:
+            log.warning("No backup satellite source file path provided.")
+            use_backup = False
+
+        if use_backup:
             log.info("Not enough satellite data available" \
                 f"downloading backup from {satellite_backup_source_file_path}")
 
