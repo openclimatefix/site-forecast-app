@@ -11,61 +11,38 @@ from site_forecast_app.save import save_forecast, save_forecast_to_dataplatform
 
 
 @pytest.mark.integration
-def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, forecast_values):
+@pytest.mark.asyncio(loop_scope="module")
+async def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, forecast_values, client):
     """Ensure save_forecast calls the Data Platform helper when enabled."""
 
-    calls: list[dict] = []
-
-    async def fake_save_forecast_to_dataplatform(
-        forecast_df,
-        location_uuid,
-        model_tag,
-        init_time_utc,
-        client,
-        use_adjuster=True,
-    ):
-        calls.append(
-            {
-                "len": len(forecast_df),
-                "location_uuid": str(location_uuid),
-                "model_tag": model_tag,
-                "init_time_utc": init_time_utc,
-                "client_type": type(client).__name__,
-                "use_adjuster": use_adjuster,
-            },
-        )
-
-    class FakeChannel:
-        def __init__(self, host: str, port: int):
-            self.host = host
-            self.port = port
-
-        def close(self):
-            return None
-
-    class FakeDPStub:
-        def __init__(self, channel):
-            self.channel = channel
-
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
-    monkeypatch.setenv("DP_HOST", "localhost")
-    monkeypatch.setenv("DP_PORT", "50051")
-    monkeypatch.setattr(
-        "site_forecast_app.save.save_forecast_to_dataplatform",
-        fake_save_forecast_to_dataplatform,
-    )
-    monkeypatch.setattr("site_forecast_app.save.Channel", FakeChannel)
-    monkeypatch.setattr(
-        "site_forecast_app.save.dp.DataPlatformDataServiceStub",
-        FakeDPStub,
-    )
+    # Point DP_HOST/PORT to the testcontainer started by the client fixture
+    # Access private attributes as grpclib Channel doesn't expose them publicly
+    monkeypatch.setenv("DP_HOST", client.channel._host)
+    monkeypatch.setenv("DP_PORT", str(client.channel._port))
 
+    # 1. Create a Location in DP so save_forecast can find it by name
     site = sites[0]
+    # Ensure site has a name we can use
+    site_name = site.client_location_name or "test_site_name_fixture"
+    
+    create_location_request = dp.CreateLocationRequest(
+        location_name=site_name,
+        energy_source=dp.EnergySource.SOLAR,
+        geometry_wkt="POINT(0 0)",
+        location_type=dp.LocationType.SITE,
+        effective_capacity_watts=int(site.capacity_kw * 1000),
+        valid_from_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
+    )
+    resp = await client.create_location(create_location_request)
+    dp_location_uuid = resp.location_uuid
+
     forecast = {
         "meta": {
             "location_uuid": site.location_uuid,
             "version": "0.0.0-test",
             "timestamp": dt.datetime.now(dt.UTC).replace(microsecond=0),
+            "client_location_name": site_name,
         },
         "values": [
             {
@@ -82,6 +59,18 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
         ],
     }
 
+    # Monkeypatch asyncio.run to capture tasks generated inside save_forecast
+    # This prevents RuntimeError because asyncio.run() cannot be called when an event loop is running.
+    import asyncio
+    captured_tasks = []
+
+    def fake_run(coro):
+        task = asyncio.create_task(coro)
+        captured_tasks.append(task)
+        return None
+
+    monkeypatch.setattr("site_forecast_app.save.asyncio.run", fake_run)
+
     save_forecast(
         db_session,
         forecast,
@@ -91,14 +80,46 @@ def test_save_forecast_triggers_dataplatform(monkeypatch, db_session, sites, for
         use_adjuster=False,
     )
 
-    assert len(calls) == 1
-    call = calls[0]
-    assert call["len"] == len(forecast_values["start_utc"])
-    assert call["location_uuid"] == str(site.location_uuid)
-    assert call["model_tag"] == "test-model"
-    assert call["init_time_utc"] == forecast["meta"]["timestamp"]
-    assert call["client_type"] == "FakeDPStub"
-    assert call["use_adjuster"] is False
+    # Allow async tasks created by save_forecast to complete
+    if captured_tasks:
+        await asyncio.gather(*captured_tasks)
+
+    # Verify that the forecast was actually created in the DP
+    # We can check by listing forecasters or getting the forecast
+    
+    forecaster_name = "test_model" # save_forecast replaces '-' with '_'
+    list_forecasters_request = dp.ListForecastersRequest(
+        forecaster_names_filter=[forecaster_name],
+    )
+    list_forecasters_response = await client.list_forecasters(list_forecasters_request)
+    
+    assert len(list_forecasters_response.forecasters) > 0, "Forecaster not created in DP"
+    forecaster = list_forecasters_response.forecasters[0]
+
+    # Check for forecast values
+    # We look for the first timestamp
+    start_ts = forecast["values"][0]["start_utc"]
+    end_ts = forecast["values"][-1]["end_utc"]
+
+    # Widen the window slightly to avoid boundary issues
+    query_start = start_ts - dt.timedelta(minutes=1)
+    query_end = end_ts + dt.timedelta(minutes=1)
+
+    get_forecast_request = dp.GetForecastAsTimeseriesRequest(
+        location_uuid=dp_location_uuid,
+        energy_source=dp.EnergySource.SOLAR,
+        time_window=dp.TimeWindow(
+            start_timestamp_utc=query_start,
+            end_timestamp_utc=query_end,
+        ),
+        forecaster=forecaster,
+    )
+    
+    forecast_resp = await client.get_forecast_as_timeseries(get_forecast_request)
+    assert len(forecast_resp.values) == len(forecast["values"]), (
+        f"Forecast values count mismatch in DP. Expected {len(forecast['values'])}, "
+        f"got {len(forecast_resp.values)}. Response: {forecast_resp.values}"
+    )
 
 
 @pytest.mark.integration
@@ -210,10 +231,7 @@ async def test_save_forecast_to_dataplatform_integration(client):
 
     # 1. Create a Location in DP
     # We need a location UUID. Let's generate one.
-    legacy_uuid = uuid.uuid4()
-
-    metadata = Struct(fields={"legacy_uuid": Value(string_value=str(legacy_uuid))})
-
+    
     # Try creating with Site type, fallback to something else if fails
     # assuming LocationType.Site exists or is valid.
     # If not, user might need to adjust. But let's assume valid based on usage in other tests.
@@ -224,7 +242,6 @@ async def test_save_forecast_to_dataplatform_integration(client):
         geometry_wkt="POINT(0 0)",
         location_type=dp.LocationType.SITE,
         effective_capacity_watts=10_000,
-        metadata=metadata,
         valid_from_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
     )
 
@@ -251,10 +268,11 @@ async def test_save_forecast_to_dataplatform_integration(client):
     )
 
     # 3. Call save_forecast_to_dataplatform
-    # We pass legacy_uuid. The function should map it to dp_location_uuid using the metadata.
+    # We pass client_location_name="test_site_integration". The function should map it to dp_location_uuid.
     await save_forecast_to_dataplatform(
         forecast_df=fake_data,
-        location_uuid=legacy_uuid,
+        location_uuid=uuid.uuid4(),  # Random local UUID
+        client_location_name="test_site_integration",
         model_tag="test-integration-mn",
         init_time_utc=init_time,
         client=client,

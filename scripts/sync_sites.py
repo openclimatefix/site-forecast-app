@@ -19,7 +19,6 @@ import asyncio
 import logging
 import os
 
-from betterproto.lib.google.protobuf import Struct, Value
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
 from pvsite_datamodel import DatabaseConnection
@@ -68,51 +67,57 @@ async def main() -> None:
         logger.info("Fetching existing locations from Data Platform...")
         dp_response = await client.list_locations(dp.ListLocationsRequest())
 
-        legacy_uuid_map = {}
+        legacy_name_map = {}
         for loc in dp_response.locations:
-            if loc.metadata and "legacy_uuid" in loc.metadata:
-                legacy_uuid_map[loc.metadata["legacy_uuid"]] = loc.location_uuid
+            legacy_name_map[loc.location_name] = loc.location_uuid
 
-        logger.info(f"Found {len(legacy_uuid_map)} existing synced sites.")
+        logger.info(f"Found {len(legacy_name_map)} existing synced sites.")
 
         # 4. Sync sites
         for site in legacy_sites:
-            legacy_uuid = str(site.location_uuid)
+            client_name = site.client_location_name
 
-            if legacy_uuid in legacy_uuid_map:
+            if client_name in legacy_name_map:
                 logger.info(
-                    f"Site {legacy_uuid} already exists as "
-                    f"{legacy_uuid_map[legacy_uuid]}. Skipping.",
+                    f"Site {client_name} already exists as "
+                    f"{legacy_name_map[client_name]}. Skipping.",
                 )
                 continue
 
-            logger.info(f"Creating site {legacy_uuid} in DP...")
+            logger.info(f"Creating site {client_name} in DP...")
 
-            # WKT Point
-            wkt = f"POINT ({site.longitude} {site.latitude})"
-
-            # Metadata with legacy_uuid
-            metadata = Struct(fields={"legacy_uuid": Value(string_value=legacy_uuid)})
+            # Data Platform requires a closed polygon (not a bare POINT).
+            # Build a tiny 0.001° bounding box around the site coordinates.
+            delta = 0.001
+            lon, lat = site.longitude, site.latitude
+            wkt = (
+                f"POLYGON (("
+                f"{lon - delta} {lat - delta}, "
+                f"{lon + delta} {lat - delta}, "
+                f"{lon + delta} {lat + delta}, "
+                f"{lon - delta} {lat + delta}, "
+                f"{lon - delta} {lat - delta}"
+                f"))"
+            )
 
             req = dp.CreateLocationRequest(
-                location_name=f"synced_site_{legacy_uuid[:8]}",
+                location_name=site.client_location_name,
                 energy_source=dp.EnergySource.SOLAR,
                 geometry_wkt=wkt,
                 effective_capacity_watts=int(site.capacity_kw * 1000) if site.capacity_kw else 0,
                 location_type=dp.LocationType.SITE,
-                metadata=metadata,
             )
 
             try:
                 resp = await client.create_location(req)
                 logger.info(
                     f"Successfully created location {resp.location_uuid} "
-                    f"for legacy {legacy_uuid}",
+                    f"for site {client_name}",
                 )
             except Exception as e:
                 import traceback
                 traceback.print_exc()
-                logger.error(f"Failed to create location for {legacy_uuid}: {type(e)} {e}")
+                logger.error(f"Failed to create location for {client_name}: {type(e)} {e}")
 
     finally:
         channel.close()

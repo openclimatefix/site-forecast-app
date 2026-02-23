@@ -135,6 +135,10 @@ def save_forecast(
         "location_uuid": forecast["meta"]["location_uuid"],
         "timestamp_utc": forecast["meta"]["timestamp"],
         "forecast_version": forecast["meta"]["version"],
+        "client_location_name": forecast["meta"].get("client_location_name"),
+        "capacity_kw": forecast["meta"].get("capacity_kw"),
+        "latitude": forecast["meta"].get("latitude"),
+        "longitude": forecast["meta"].get("longitude"),
     }
     forecast_values_df = pd.DataFrame(forecast["values"])
     forecast_values_df["horizon_minutes"] = (
@@ -180,10 +184,14 @@ def save_forecast(
                 await save_forecast_to_dataplatform(
                     forecast_df=forecast_values_df,
                     location_uuid=UUID(str(forecast_meta["location_uuid"])),
+                    client_location_name=forecast_meta.get("client_location_name"),
                     model_tag=ml_model_name if ml_model_name else "default-model",
                     init_time_utc=forecast_meta["timestamp_utc"],
                     client=client,
                     use_adjuster=use_adjuster and ml_model_name is not None,
+                    capacity_kw=forecast_meta.get("capacity_kw"),
+                    latitude=forecast_meta.get("latitude"),
+                    longitude=forecast_meta.get("longitude"),
                 )
             except Exception as e:
                 import traceback
@@ -210,11 +218,6 @@ async def _create_forecaster_if_not_exists(
         ch if (ch.isalnum() or ch in "._-") else "."
         for ch in raw_version.lower()
     )
-    while ".." in app_version:
-        app_version = app_version.replace("..", ".")
-    app_version = app_version.strip("._-")
-    if len(app_version) < 2:
-        app_version = "0.0"
 
     list_forecasters_request = dp.ListForecastersRequest(
         forecaster_names_filter=[forecaster_name],
@@ -358,10 +361,14 @@ async def _make_forecaster_adjuster(
 async def save_forecast_to_dataplatform(
     forecast_df: pd.DataFrame,
     location_uuid: UUID,
+    client_location_name: str | None,
     model_tag: str,
     init_time_utc: datetime,
     client: DataPlatformClient,
     use_adjuster: bool = True,
+    capacity_kw: float | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> None:
     """Save forecast to data platform."""
     # Ensure init_time_utc is timezone aware
@@ -373,33 +380,31 @@ async def save_forecast_to_dataplatform(
 
     log.info("Writing to data platform")
 
-    # Resolve UUID - check if there's a mapping from legacy to DP UUID
-    legacy_uuid_str = str(location_uuid)
-    target_uuid_str = legacy_uuid_str
+    target_uuid_str = str(location_uuid)
 
+    if client_location_name:
+        # Fetch locations to find mapping
+        resp = await client.list_locations(dp.ListLocationsRequest())
 
-    # Fetch locations to find mapping
-    # Note: This is inefficient for many sites/calls, but acceptable for
-    # current scale/CLI usage.
-    resp = await client.list_locations(dp.ListLocationsRequest())
-
-    found = False
-    for loc in resp.locations:
-        if loc.metadata and loc.metadata.fields:
-            val = loc.metadata.fields.get("legacy_uuid")
-            if val and val.string_value == legacy_uuid_str:
+        found = False
+        for loc in resp.locations:
+            if loc.location_name == client_location_name:
                 target_uuid_str = loc.location_uuid
                 found = True
                 break
 
-    if found:
-        log.info(
-            f"Mapped legacy UUID {legacy_uuid_str} to DP UUID {target_uuid_str}",
-        )
+        if found:
+            log.info(
+                f"Mapped client location {client_location_name} to DP UUID {target_uuid_str}",
+            )
+        else:
+            log.warning(
+                f"Could not find DP location for {client_location_name}."
+                "Using original.",
+            )
     else:
-        log.debug(
-            f"Could not find DP location mapping for UUID {legacy_uuid_str}. "
-            "Using original.",
+        log.warning(
+            "No client_location_name provided. Using location UUID directly.",
         )
 
     # Get or create forecaster
@@ -468,18 +473,64 @@ async def save_forecast_to_dataplatform(
             init_time_utc=init_time_utc,
             values=forecast_values,
         )
-        await client.create_forecast(forecast_request)
+        try:
+            await client.create_forecast(forecast_request)
+        except Exception as e:
+            # Catch "No location found" error
+            if "No location found" in str(e) and client_location_name and capacity_kw is not None:
+                log.warning(f"Location {client_location_name} not found or invalid. Attempting to create it...")
+                
+                # Create location
+                # Data Platform requires a closed polygon
+                delta = 0.001
+                lon, lat = longitude or 0.0, latitude or 0.0
+                wkt = (
+                    f"POLYGON (("
+                    f"{lon - delta} {lat - delta}, "
+                    f"{lon + delta} {lat - delta}, "
+                    f"{lon + delta} {lat + delta}, "
+                    f"{lon - delta} {lat + delta}, "
+                    f"{lon - delta} {lat - delta}"
+                    f"))"
+                )
+                
+                try:
+                    create_req = dp.CreateLocationRequest(
+                        location_name=client_location_name,
+                        energy_source=dp.EnergySource.SOLAR,
+                        geometry_wkt=wkt,
+                        effective_capacity_watts=int(capacity_kw * 1000),
+                        location_type=dp.LocationType.SITE,
+                    )
+                    create_resp = await client.create_location(create_req)
+                    new_uuid = create_resp.location_uuid
+                    log.info(f"Created new location {new_uuid} for {client_location_name}")
+                    
+                    # Update request with new UUID
+                    forecast_request.location_uuid = new_uuid
+                    # Retry create forecast
+                    await client.create_forecast(forecast_request)
+                    
+                    # Update target_uuid_str for adjuster
+                    target_uuid_str = new_uuid
+                    
+                except Exception as create_error:
+                    log.error(f"Failed to create location or retry forecast: {create_error}")
+                    raise e # Raise original error if creation/retry fails
+            else:
+                raise e
 
-        # Save adjusted forecast based on recent deltas
-        if use_adjuster:
-            adjusted_forecast_request = await _make_forecaster_adjuster(
-                client=client,
-                location_uuid=target_uuid_str,
-                init_time_utc=init_time_utc,
-                forecast_values=forecast_values,
-                model_tag=model_tag,
-                forecaster=forecaster,
-            )
-            await client.create_forecast(adjusted_forecast_request)
+
+    # Save adjusted forecast based on recent deltas
+    if use_adjuster:
+        adjusted_forecast_request = await _make_forecaster_adjuster(
+            client=client,
+            location_uuid=target_uuid_str,
+            init_time_utc=init_time_utc,
+            forecast_values=forecast_values,
+            model_tag=model_tag,
+            forecaster=forecaster,
+        )
+        await client.create_forecast(adjusted_forecast_request)
 
 

@@ -215,6 +215,10 @@ def app_run(
                                 "location_uuid": site.location_uuid,
                                 "version": version,
                                 "timestamp": timestamp,
+                                "client_location_name": site.client_location_name,
+                                "capacity_kw": site.capacity_kw,
+                                "latitude": site.latitude,
+                                "longitude": site.longitude,
                             },
                             "values": forecast_values[site.ml_id],
                         }
@@ -271,6 +275,10 @@ def app_run(
                                 "location_uuid": site_uuid,
                                 "version": version,
                                 "timestamp": timestamp,
+                                "client_location_name": site.client_location_name,
+                                "capacity_kw": site.capacity_kw,
+                                "latitude": site.latitude,
+                                "longitude": site.longitude,
                             },
                             "values": forecast_values,
                         }
