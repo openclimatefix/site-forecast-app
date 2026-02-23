@@ -98,7 +98,7 @@ def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
 
         # Prepare tuple for Dataset construction: (dims, data, attrs)
         # New dims = 'ens_stat' + original dims (minus 'sample')
-        new_dims = ("ens_stat",) + tuple(d for d in da.dims if d != "sample")
+        new_dims = ("ens_stat", *(d for d in da.dims if d != "sample")) 
         data_vars[name] = (new_dims, combined_data, da.attrs)
 
     # Reconstruct coords
