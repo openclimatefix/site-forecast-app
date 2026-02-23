@@ -65,29 +65,48 @@ def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
 
 
 def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
-    """Compute statistics e.g. mean, std etc over 'sample' (ensemble member) for all variables."""
-    mean_ds = ds.mean("sample")
-    std_ds = ds.std("sample")
+    """Compute statistics using pure Numpy for maximum speed on in-memory datasets."""
+    quantiles = [0.5, 0.10, 0.25, 0.75, 0.90]
+    # Match the order of concatenation below
+    stat_names = ["mean", "std", "median", "P10", "P25", "P75", "P90"]
 
-    # Compute all percentiles at once
-    quantiles_ds = ds.quantile([0.5, 0.10, 0.25, 0.75, 0.90], dim="sample")
+    data_vars = {}
 
-    # Rename percentile dimension to match ens_stat labels
-    quantiles_ds = quantiles_ds.rename({"quantile": "ens_stat"})
-    quantiles_ds = quantiles_ds.assign_coords(ens_stat=["median", "P10", "P25", "P75", "P90"])
+    for name, da in ds.data_vars.items():
+        # Get the integer axis index for 'sample' to tell Numpy where to operate
+        axis = da.get_axis_num("sample")
 
-    # Stack all stats into a single Dataset along new 'ens_stat' dimension
-    combined = xr.concat(
-        [
-            mean_ds.assign_coords(ens_stat="mean"),
-            std_ds.assign_coords(ens_stat="std"),
-            quantiles_ds,
-        ],
-        dim="ens_stat",
-        coords="minimal",
-    )
+        # Access the raw numpy array (zero-copy)
+        data = da.values
 
-    return combined
+        # Compute stats
+        m = np.mean(data, axis=axis)
+        s = np.std(data, axis=axis)
+        q = np.quantile(data, quantiles, axis=axis)
+
+        # Stack arrays
+        # np.nanquantile puts the quantile dimension first (axis 0).
+        # We need to expand mean/std to have that same leading dimension (1, ...) to concatenate.
+        combined_data = np.concatenate(
+            [
+                np.expand_dims(m, axis=0),
+                np.expand_dims(s, axis=0),
+                q,
+            ],
+            axis=0,
+        )
+
+        # Prepare tuple for Dataset construction: (dims, data, attrs)
+        # New dims = 'ens_stat' + original dims (minus 'sample')
+        new_dims = ("ens_stat",) + tuple(d for d in da.dims if d != "sample")
+        data_vars[name] = (new_dims, combined_data, da.attrs)
+
+    # Reconstruct coords
+    # Keep coords that don't depend on 'sample', add 'ens_stat'
+    coords = {c: ds.coords[c] for c in ds.coords if "sample" not in ds.coords[c].dims}
+    coords["ens_stat"] = stat_names
+
+    return xr.Dataset(data_vars, coords=coords, attrs=ds.attrs)
 
 
 def combine_to_single_init_time(ds: xr.Dataset) -> xr.Dataset:
@@ -157,16 +176,17 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             token_dict = json.loads(gcs_token_string)
             storage_option = {"token": token_dict}
 
-        ds_sliced = xr.open_mfdataset(
-            [zarr_path1, zarr_path2],
-            engine="zarr",
-            decode_timedelta=True,
-            concat_dim="init_time",
-            combine="nested",
-            chunks="auto",
-            preprocess=preprocess_slice,
-            storage_options=storage_option,
-        ).sortby("init_time")
+        ds_sliced_1 = xr.open_zarr(
+            zarr_path1, decode_timedelta=True, storage_options=storage_option,
+        )
+        ds_sliced_1 = preprocess_slice(ds_sliced_1)
+
+        ds_sliced_2 = xr.open_zarr(
+            zarr_path2, decode_timedelta=True, storage_options=storage_option,
+        )
+        ds_sliced_2 = preprocess_slice(ds_sliced_2)
+
+        ds_sliced = xr.concat([ds_sliced_2, ds_sliced_1], dim="init_time").sortby("init_time")
 
         log.info("Successfully opened GenCast data from GCS (lazy).")
 
