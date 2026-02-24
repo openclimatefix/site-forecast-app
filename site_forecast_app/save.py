@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib.metadata import version
 from uuid import UUID, uuid4
 
@@ -316,8 +316,21 @@ async def _make_forecaster_adjuster(
         forecaster=forecaster,
         observer_name="pvlive_day_after",
     )
-    deltas_response = await client.get_week_average_deltas(deltas_request)
-    deltas = deltas_response.deltas
+    try:
+        deltas_response = await client.get_week_average_deltas(deltas_request)
+        deltas = deltas_response.deltas
+    except Exception as e:
+        if "No observer" in str(e) or "NOT_FOUND" in str(e):
+            log.warning("Observer 'pvlive_day_after' not found. Creating it...")
+            try:
+                await client.create_observer(dp.CreateObserverRequest(name="pvlive_day_after"))
+                deltas_response = await client.get_week_average_deltas(deltas_request)
+                deltas = deltas_response.deltas
+            except Exception as create_error:
+                log.error(f"Failed to create observer or retry deltas: {create_error}")
+                deltas = []
+        else:
+            raise e
 
     adjusted_values: list[dp.CreateForecastRequestForecastValue] = []
     for fv in forecast_values:
@@ -414,16 +427,60 @@ async def save_forecast_to_dataplatform(
     )
 
     # Load Location
-    location = await client.get_location(
-        dp.GetLocationRequest(
-            location_uuid=target_uuid_str,
-            energy_source=dp.EnergySource.SOLAR,
-            include_geometry=False,
-        ),
-    )
+    try:
+        location = await client.get_location(
+            dp.GetLocationRequest(
+                location_uuid=target_uuid_str,
+                energy_source=dp.EnergySource.SOLAR,
+                include_geometry=False,
+            ),
+        )
+        capacity_watts = location.effective_capacity_watts
+    except Exception as e:
+        if "NOT_FOUND" in str(e) or "No such location" in str(e):
+            if client_location_name and capacity_kw is not None:
+                log.warning(
+                    f"Location {client_location_name} not found. "
+                    "Attempting to create it...",
+                )
+
+                # Create location
+                # Data Platform requires a closed polygon
+                delta = 0.001
+                lon, lat = longitude or 0.0, latitude or 0.0
+                wkt = (
+                    f"POLYGON (("
+                    f"{lon - delta} {lat - delta}, "
+                    f"{lon + delta} {lat - delta}, "
+                    f"{lon + delta} {lat + delta}, "
+                    f"{lon - delta} {lat + delta}, "
+                    f"{lon - delta} {lat - delta}"
+                    f"))"
+                )
+
+                try:
+                    create_req = dp.CreateLocationRequest(
+                        location_name=client_location_name,
+                        energy_source=dp.EnergySource.SOLAR,
+                        geometry_wkt=wkt,
+                        effective_capacity_watts=int(capacity_kw * 1000),
+                        location_type=dp.LocationType.SITE,
+                        valid_from_utc=init_time_utc - timedelta(days=7),
+                    )
+                    create_resp = await client.create_location(create_req)
+                    target_uuid_str = create_resp.location_uuid
+                    log.info(f"Created new location {target_uuid_str} for {client_location_name}")
+                    capacity_watts = int(capacity_kw * 1000)
+                except Exception as create_error:
+                    log.error(f"Failed to create location: {create_error}")
+                    raise e from create_error
+            else:
+                log.warning(f"Cannot create location: client_location_name={client_location_name}, capacity_kw={capacity_kw}")
+                raise e
+        else:
+            raise e
 
     # Prepare forecast values
-    capacity_watts = location.effective_capacity_watts
     if capacity_watts == 0:
         log.warning(f"Location {location_uuid} has 0 capacity, skipping data platform save")
         return
@@ -473,56 +530,7 @@ async def save_forecast_to_dataplatform(
             init_time_utc=init_time_utc,
             values=forecast_values,
         )
-        try:
-            await client.create_forecast(forecast_request)
-        except Exception as e:
-            # Catch "No location found" error
-            if "No location found" in str(e) and client_location_name and capacity_kw is not None:
-                log.warning(
-                    f"Location {client_location_name} not found or invalid. "
-                    "Attempting to create it...",
-                )
-
-                # Create location
-                # Data Platform requires a closed polygon
-                delta = 0.001
-                lon, lat = longitude or 0.0, latitude or 0.0
-                wkt = (
-                    f"POLYGON (("
-                    f"{lon - delta} {lat - delta}, "
-                    f"{lon + delta} {lat - delta}, "
-                    f"{lon + delta} {lat + delta}, "
-                    f"{lon - delta} {lat + delta}, "
-                    f"{lon - delta} {lat - delta}"
-                    f"))"
-                )
-
-                try:
-                    create_req = dp.CreateLocationRequest(
-                        location_name=client_location_name,
-                        energy_source=dp.EnergySource.SOLAR,
-                        geometry_wkt=wkt,
-                        effective_capacity_watts=int(capacity_kw * 1000),
-                        location_type=dp.LocationType.SITE,
-                    )
-                    create_resp = await client.create_location(create_req)
-                    new_uuid = create_resp.location_uuid
-                    log.info(f"Created new location {new_uuid} for {client_location_name}")
-
-                    # Update request with new UUID
-                    forecast_request.location_uuid = new_uuid
-                    # Retry create forecast
-                    await client.create_forecast(forecast_request)
-
-                    # Update target_uuid_str for adjuster
-                    target_uuid_str = new_uuid
-
-                except Exception as create_error:
-                    log.error(f"Failed to create location or retry forecast: {create_error}")
-                    raise e from create_error  # Raise original error if creation/retry fails
-            else:
-                raise e
-
+        await client.create_forecast(forecast_request)
 
     # Save adjusted forecast based on recent deltas
     if use_adjuster:
