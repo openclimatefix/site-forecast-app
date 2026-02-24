@@ -115,7 +115,7 @@ def test_run_model(
     forecast = run_model(model=model, timestamp=init_timestamp)
 
     assert isinstance(forecast, list)
-    assert len(forecast) == 192  # value for every 15mins over 2 days
+    assert len(forecast) == 36*4  # value for every 15mins over 36 hours
     assert all(isinstance(value["start_utc"], dt.datetime) for value in forecast)
     assert all(isinstance(value["end_utc"], dt.datetime) for value in forecast)
     assert all(isinstance(value["forecast_power_kw"], int) for value in forecast)
@@ -167,11 +167,10 @@ def test_app(
     n_forecasts = 4 + 12
     n_models = 4
     # 1 site, 4 models:
-    #   1 model does 48 hours
-    #   3 models do 36 hours
+    #   4 models do 36 hours
     # 1 regional model also does 36 hours for 12 more sites
     # average number of forecast is:
-    n_fv = ((48 + 36 * 15) / n_forecasts) * 4
+    n_fv = ((36 * 16) / n_forecasts) * 4
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
