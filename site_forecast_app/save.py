@@ -475,7 +475,10 @@ async def save_forecast_to_dataplatform(
                     log.error(f"Failed to create location: {create_error}")
                     raise e from create_error
             else:
-                log.warning(f"Cannot create location: client_location_name={client_location_name}, capacity_kw={capacity_kw}")
+                log.warning(
+                    f"Cannot create location: client_location_name={client_location_name}, "
+                    f"capacity_kw={capacity_kw}",
+                )
                 raise e
         else:
             raise e
