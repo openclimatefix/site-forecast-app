@@ -8,7 +8,7 @@ import os
 import random
 from uuid import uuid4
 
-import dp_sdk.ocf.dp as _dp
+import dp_sdk.ocf.dp as dp
 import numpy as np
 import pandas as pd
 import pytest
@@ -29,8 +29,8 @@ from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
 # Always inject types into module namespace to ensure get_type_hints() can resolve them
-_dp.EnergySource = EnergySource
-_dp.LocationType = LocationType
+dp.EnergySource = EnergySource
+dp.LocationType = LocationType
 
 
 
