@@ -124,116 +124,104 @@ async def test_save_forecast_triggers_dataplatform(
 
 
 @pytest.mark.integration
-def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, forecast_values):
-    """Ensure adjusted forecast also hits DP via create_forecast."""
+@pytest.mark.asyncio(loop_scope="module")
+async def test_save_forecast_sends_adjusted_forecast(client, sites):
+    """Ensure adjusted forecast also saves to DP via the real client.
 
-    create_calls: list = []
-    adjust_calls: list[dict] = []
+    With use_adjuster=True, save_forecast_to_dataplatform must write:
+    - a base forecast (under 'test_adj_model')
+    - an adjusted forecast (under 'test_adj_model_adjust')
 
-    async def fake_make_forecaster_adjuster(
-        client,
-        location_uuid,
-        init_time_utc,
-        forecast_values,
-        model_tag,
-        forecaster,
-    ):
-        adjust_calls.append(
-            {
-                "client": client,
-                "location_uuid": location_uuid,
-                "init_time_utc": init_time_utc,
-                "forecast_values": forecast_values,
-                "model_tag": model_tag,
-                "forecaster": forecaster,
-            },
-        )
-        return "adjusted-request"
-
-    class FakeChannel:
-        def __init__(self, host: str, port: int):
-            self.host = host
-            self.port = port
-
-        def close(self):
-            return None
-
+    We verify both forecasters exist in the real Data Platform and each
+    has at least one forecast value stored.
+    """
     site = sites[0]
-    site_name = site.client_location_name or "test_site_unit"
-    fake_dp_uuid = "fake-dp-location-uuid-1234"
+    # Use a fixed name that will never collide with the location created by
+    # test_save_forecast_triggers_dataplatform (which uses site.client_location_name).
+    site_name = "test_adj_site"
 
-    class FakeLocation:
-        location_name = site_name
-        location_uuid = fake_dp_uuid
+    # 1. Register the location in the real DP
+    # Use a small polygon — the DP requires valid, closed WGS84 geometry for SITE type.
+    geometry_wkt = "POLYGON ((0.001 0.001, 0.002 0.001, 0.002 0.002, 0.001 0.002, 0.001 0.001))"
+    create_location_request = dp.CreateLocationRequest(
+        location_name=site_name,
+        energy_source=dp.EnergySource.SOLAR,
+        geometry_wkt=geometry_wkt,
+        location_type=dp.LocationType.SITE,
+        effective_capacity_watts=int(site.capacity_kw * 1000),
+        valid_from_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
+    )
+    loc_resp = await client.create_location(create_location_request)
+    dp_location_uuid = loc_resp.location_uuid
 
-    class FakeDPStub:
-        def __init__(self, channel):
-            self.channel = channel
-
-        async def list_locations(self, _request):
-            # Return the site already seeded so _resolve_target_uuid finds it
-            return type("Resp", (), {"locations": [FakeLocation()]})
-
-        async def list_forecasters(self, _request):
-            return type("Resp", (), {"forecasters": []})
-
-        async def create_forecaster(self, request):
-            forecaster = type("Forecaster", (), {"forecaster_version": request.version})
-            return type("Resp", (), {"forecaster": forecaster})
-
-        async def update_forecaster(self, request):
-            forecaster = type("Forecaster", (), {"forecaster_version": request.new_version})
-            return type("Resp", (), {"forecaster": forecaster})
-
-        async def get_location(self, _request):
-            return type("Location", (), {"effective_capacity_watts": 1_000_000})
-
-        async def create_location(self):
-            return type("Resp", (), {"location_uuid": fake_dp_uuid})
-
-        async def create_forecast(self, request):
-            create_calls.append(request)
-            return None
-
-    monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
-    monkeypatch.setenv("DP_HOST", "localhost")
-    monkeypatch.setenv("DP_PORT", "50051")
-    monkeypatch.setattr("site_forecast_app.save.Channel", FakeChannel)
-    monkeypatch.setattr("site_forecast_app.save.dp.DataPlatformDataServiceStub", FakeDPStub)
-    monkeypatch.setattr(
-        "site_forecast_app.save._make_forecaster_adjuster",
-        fake_make_forecaster_adjuster,
+    # 2. Build a forecast dataframe — DP requires at least 2 values per request
+    init_time = dt.datetime(2025, 6, 1, 12, 0, 0, tzinfo=dt.UTC)
+    forecast_df = pd.DataFrame(
+        {
+            "start_utc": [
+                init_time + dt.timedelta(minutes=15),
+                init_time + dt.timedelta(minutes=30),
+            ],
+            "end_utc": [
+                init_time + dt.timedelta(minutes=30),
+                init_time + dt.timedelta(minutes=45),
+            ],
+            "forecast_power_kw": [5.0, 6.0],
+            "horizon_minutes": [15, 30],
+        }
     )
 
-    forecast = {
-        "meta": {
-            "location_uuid": site.location_uuid,
-            "version": "0.0.0-test",
-            "timestamp": forecast_values["start_utc"][0],
-            "client_location_name": site_name,
-        },
-        "values": [
-            {
-                "start_utc": forecast_values["start_utc"][0],
-                "end_utc": forecast_values["end_utc"][0],
-                "forecast_power_kw": forecast_values["forecast_power_kw"][0],
-            },
-        ],
-    }
-
-    save_forecast(
-        db_session,
-        forecast,
-        write_to_db=False,
-        ml_model_name="test-model",
-        ml_model_version="0.0.0-test",
+    # 3. Save with adjuster enabled — this should create both base + _adjust forecasts
+    await save_forecast_to_dataplatform(
+        forecast_df=forecast_df,
+        client_location_name=site_name,
+        model_tag="test-adj-model",
+        init_time_utc=init_time,
+        client=client,
         use_adjuster=True,
     )
 
-    # Expect base + adjusted calls
-    assert len(create_calls) == 2
-    assert "adjusted-request" in create_calls
-    assert len(adjust_calls) == 1
+    # 4. Verify base forecaster ("test_adj_model") was created and has values
+    base_name = "test_adj_model"
+    base_list_resp = await client.list_forecasters(
+        dp.ListForecastersRequest(forecaster_names_filter=[base_name])
+    )
+    assert len(base_list_resp.forecasters) > 0, f"Base forecaster '{base_name}' not found in DP"
+    base_forecaster = base_list_resp.forecasters[0]
+
+    base_forecast_resp = await client.get_forecast_as_timeseries(
+        dp.GetForecastAsTimeseriesRequest(
+            location_uuid=dp_location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=init_time,
+                end_timestamp_utc=init_time + dt.timedelta(hours=1),
+            ),
+            forecaster=base_forecaster,
+        )
+    )
+    assert len(base_forecast_resp.values) >= 1, "No base forecast values found in DP"
+
+    # 5. Verify adjusted forecaster ("test_adj_model_adjust") was created and has values
+    adj_name = "test_adj_model_adjust"
+    adj_list_resp = await client.list_forecasters(
+        dp.ListForecastersRequest(forecaster_names_filter=[adj_name])
+    )
+    assert len(adj_list_resp.forecasters) > 0, f"Adjusted forecaster '{adj_name}' not found in DP"
+    adj_forecaster = adj_list_resp.forecasters[0]
+
+    adj_forecast_resp = await client.get_forecast_as_timeseries(
+        dp.GetForecastAsTimeseriesRequest(
+            location_uuid=dp_location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=init_time,
+                end_timestamp_utc=init_time + dt.timedelta(hours=1),
+            ),
+            forecaster=adj_forecaster,
+        )
+    )
+    assert len(adj_forecast_resp.values) >= 1, "No adjusted forecast values found in DP"
 
 
 @pytest.mark.asyncio(loop_scope="module")
