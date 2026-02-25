@@ -36,8 +36,8 @@ RELEVANT_SLICE = {
 }
 
 
-def preprocess_slice(ds: xr.Dataset) -> xr.Dataset:
-    """Pre-selection hook to drop variables and slice to relevant data *before* concatenation."""
+def slice_relevant(ds: xr.Dataset) -> xr.Dataset:
+    """drop variables and slice to relevant data"""
     return ds[WEATHER_VARS].sel(**RELEVANT_SLICE)
 
 
@@ -65,7 +65,7 @@ def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
 
 
 def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
-    """Compute statistics using pure Numpy for maximum speed on in-memory datasets."""
+    """Compute statistics using Numpy for speed on in-memory datasets."""
     quantiles = [0.5, 0.10, 0.25, 0.75, 0.90]
     # Match the order of concatenation below
     stat_names = ["mean", "std", "median", "P10", "P25", "P75", "P90"]
@@ -110,7 +110,7 @@ def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
 
 
 def combine_to_single_init_time(ds: xr.Dataset) -> xr.Dataset:
-    """Combine two 12-hourly forecasts into one 6-hourly forecast."""
+    """Combine two 12-hourly step forecasts (init times) into one init time with 6-hourly steps."""
     # Shift dataset so each init_time aligns with previous one
     ds_prev = ds.shift(init_time=1, fill_value=np.nan)
 
@@ -175,17 +175,17 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         else:
             token_dict = json.loads(gcs_token_string)
             storage_option = {"token": token_dict}
-
-        ds_sliced_1 = xr.open_zarr(
+            
+        # Quicker to open separately and concat rather than xr.open_mfdataset
             zarr_path1, decode_timedelta=True, storage_options=storage_option,
         )
-        ds_sliced_1 = preprocess_slice(ds_sliced_1)
+        ds_sliced_1 = slice_relevant(ds_sliced_1)
 
         ds_sliced_2 = xr.open_zarr(
             zarr_path2, decode_timedelta=True, storage_options=storage_option,
         )
-        ds_sliced_2 = preprocess_slice(ds_sliced_2)
-
+        ds_sliced_2 = slice_relevant(ds_sliced_2)
+    
         ds_sliced = xr.concat([ds_sliced_2, ds_sliced_1], dim="init_time").sortby("init_time")
 
         log.info("Successfully opened GenCast data from GCS (lazy).")
