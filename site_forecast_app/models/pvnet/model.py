@@ -10,6 +10,7 @@ import shutil
 import numpy as np
 import pandas as pd
 import torch
+import xarray as xr
 from ocf_data_sampler.numpy_sample.common_types import TensorBatch
 from ocf_data_sampler.torch_datasets.pvnet_dataset import PVNetConcurrentDataset
 from ocf_data_sampler.torch_datasets.utils.torch_batch_utils import (
@@ -125,7 +126,7 @@ class PVNetModel:
         n_times = normed_preds.shape[1]
         sample_t0 = batch["t0"].numpy().astype("datetime64[s]")[0]
         valid_times = pd.to_datetime(
-            [sample_t0 + np.timedelta64(15 * (i+1), "m") for i in range(n_times)],
+            [sample_t0 + np.timedelta64(15 * (i + 1), "m") for i in range(n_times)],
         )
 
         self.valid_times = valid_times
@@ -143,17 +144,20 @@ class PVNetModel:
 
             # National data has location_id=0, regional location_ids start from 1:
             # relative_capacities = regional_capacities / national_capacity
-            relative_capacities = (self.generation_metadata.loc[1:][
-                "capacity_kwp"
-            ].values / self.generation_metadata.loc[0]["capacity_kwp"])
+            relative_capacities = (
+                self.generation_metadata.loc[1:]["capacity_kwp"].values
+                / self.generation_metadata.loc[0]["capacity_kwp"]
+            )
 
             # Construct sample for summation model
-            inputs = construct_sum_sample(pvnet_inputs=None,
-                                          relative_capacities=relative_capacities,
-                                          valid_times=self.valid_times,
-                                          target=None,
-                                          longitude=self.generation_metadata.loc[0]["longitude"],
-                                          latitude=self.generation_metadata.loc[0]["latitude"])
+            inputs = construct_sum_sample(
+                pvnet_inputs=None,
+                relative_capacities=relative_capacities,
+                valid_times=self.valid_times,
+                target=None,
+                longitude=self.generation_metadata.loc[0]["longitude"],
+                latitude=self.generation_metadata.loc[0]["latitude"],
+            )
 
             inputs["pvnet_outputs"] = normed_preds
             del inputs["pvnet_inputs"]
@@ -299,6 +303,14 @@ class PVNetModel:
         )
         # Remove negative values
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
+
+        if self.asset_type == "wind" and self.client == "ruvnl":
+            log.info("Feathering the forecast to the lastest value of generation")
+            values_df = feather_forecast(
+                values_df,
+                t0_time=self.t0,
+                generation_data=self.generation_data,
+            )
 
         values_df = self.add_probabilistic_values(
             capacity_kw,
@@ -451,3 +463,51 @@ class PVNetModel:
             revision=self.summation_version,
             token=self.hf_token,
         ).to(DEVICE)
+
+
+def feather_forecast(
+    values_df: pd.DataFrame,
+    t0_time: pd.Timestamp,
+    generation_data: xr.Dataset,
+) -> pd.DataFrame:
+    """Feather the forecast to the latest value of generation.
+
+    This is a post-processing step for wind forecasts to adjust the first few timesteps
+    to match the latest observed generation values.
+
+    Returns:
+        The adjusted predictions with feathering applied to the first few timesteps.
+    """
+    # Get the latest observed generation value (at t0)
+    if generation_data is not None:
+        closest_t0_generation_time = (
+            generation_data["time_utc"].sel(time_utc=t0_time, method="nearest").values
+        )
+        closest_t0_generation_value = (
+            generation_data["generation_kw"]
+            .isel(location_id=0)
+            .sel(time_utc=t0_time, method="nearest")
+            .values
+        )
+        # Check to see if last generation exists and is within the last hour
+        if np.isnan(closest_t0_generation_value) or (
+            t0_time - closest_t0_generation_time
+        ) >= pd.Timedelta(hours=1):
+            log.info("Latest generation value is missing or too stale, skipping feathering.")
+            return values_df
+
+        else:
+            # Feathering factor determines how quickly we want to transition
+            # from the latest observed value to the model's forecast
+            smooth_values = [i / 10 for i in range(8, 0, -1)]
+            # Apply feathering to the first few timesteps (e.g., first 8 timesteps = 2 hours)
+            for idx in range(len(smooth_values)):
+                weight = smooth_values[idx]
+                values_df.loc[idx, "forecast_power_kw"] -= (
+                    values_df.loc[idx, "forecast_power_kw"] - closest_t0_generation_value
+                ) * weight
+
+            return values_df
+    else:
+        log.warning("Generation data is missing, skipping feathering.")
+        return values_df
