@@ -1,6 +1,5 @@
 """Integration-style test for Data Platform save path."""
 import datetime as dt
-import uuid
 
 import pandas as pd
 import pytest
@@ -159,12 +158,21 @@ def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, f
         def close(self):
             return None
 
+    site = sites[0]
+    site_name = site.client_location_name or "test_site_unit"
+    fake_dp_uuid = "fake-dp-location-uuid-1234"
+
+    class FakeLocation:
+        location_name = site_name
+        location_uuid = fake_dp_uuid
+
     class FakeDPStub:
         def __init__(self, channel):
             self.channel = channel
 
         async def list_locations(self, _request):
-            return type("Resp", (), {"locations": []})
+            # Return the site already seeded so _resolve_target_uuid finds it
+            return type("Resp", (), {"locations": [FakeLocation()]})
 
         async def list_forecasters(self, _request):
             return type("Resp", (), {"forecasters": []})
@@ -180,6 +188,9 @@ def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, f
         async def get_location(self, _request):
             return type("Location", (), {"effective_capacity_watts": 1_000_000})
 
+        async def create_location(self):
+            return type("Resp", (), {"location_uuid": fake_dp_uuid})
+
         async def create_forecast(self, request):
             create_calls.append(request)
             return None
@@ -194,12 +205,12 @@ def test_save_forecast_sends_adjusted_forecast(monkeypatch, db_session, sites, f
         fake_make_forecaster_adjuster,
     )
 
-    site = sites[0]
     forecast = {
         "meta": {
             "location_uuid": site.location_uuid,
             "version": "0.0.0-test",
             "timestamp": forecast_values["start_utc"][0],
+            "client_location_name": site_name,
         },
         "values": [
             {
@@ -274,7 +285,6 @@ async def test_save_forecast_to_dataplatform_integration(client):
     # The function should map it to dp_location_uuid.
     await save_forecast_to_dataplatform(
         forecast_df=fake_data,
-        location_uuid=uuid.uuid4(),  # Random local UUID
         client_location_name="test_site_integration",
         model_tag="test-integration-mn",
         init_time_utc=init_time,

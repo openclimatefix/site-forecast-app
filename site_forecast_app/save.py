@@ -8,7 +8,7 @@ import logging
 import os
 from datetime import UTC, datetime, timedelta
 from importlib.metadata import version
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct
@@ -183,7 +183,6 @@ def save_forecast(
             try:
                 await save_forecast_to_dataplatform(
                     forecast_df=forecast_values_df,
-                    location_uuid=UUID(str(forecast_meta["location_uuid"])),
                     client_location_name=forecast_meta.get("client_location_name"),
                     model_tag=ml_model_name if ml_model_name else "default-model",
                     init_time_utc=forecast_meta["timestamp_utc"],
@@ -210,7 +209,7 @@ async def _create_forecaster_if_not_exists(
     model_tag: str,
 ) -> dp.Forecaster:
     """Create the current forecaster if it does not exist."""
-    forecaster_name = model_tag.replace("-", "_")
+    forecaster_name = model_tag.replace("-", "_").lower()
     raw_version = version("site-forecast-app")
     # DP validates version with a restricted charset; normalize local package versions
     # (which may contain e.g. '+' build metadata) to a compatible value.
@@ -222,12 +221,19 @@ async def _create_forecaster_if_not_exists(
     list_forecasters_request = dp.ListForecastersRequest(
         forecaster_names_filter=[forecaster_name],
     )
-    list_forecasters_response = await client.list_forecasters(list_forecasters_request)
+    try:
+        list_forecasters_response = await client.list_forecasters(list_forecasters_request)
+        existing_forecasters = list_forecasters_response.forecasters
+    except Exception as e:
+        if "NOT_FOUND" in str(e) or "No forecasters found" in str(e):
+            existing_forecasters = []
+        else:
+            raise
 
-    if len(list_forecasters_response.forecasters) > 0:
+    if len(existing_forecasters) > 0:
         filtered_forecasters = [
             f
-            for f in list_forecasters_response.forecasters
+            for f in existing_forecasters
             if f.forecaster_version == app_version
         ]
         if len(filtered_forecasters) == 1:
@@ -370,10 +376,8 @@ async def _make_forecaster_adjuster(
         values=adjusted_values,
     )
 
-
 async def save_forecast_to_dataplatform(
     forecast_df: pd.DataFrame,
-    location_uuid: UUID,
     client_location_name: str | None,
     model_tag: str,
     init_time_utc: datetime,
@@ -384,137 +388,201 @@ async def save_forecast_to_dataplatform(
     longitude: float | None = None,
 ) -> None:
     """Save forecast to data platform."""
-    # Ensure init_time_utc is timezone aware
-    if isinstance(init_time_utc, pd.Timestamp):
-        if init_time_utc.tz is None:
-            init_time_utc = init_time_utc.tz_localize("UTC")
-    elif init_time_utc.tzinfo is None:
-        init_time_utc = init_time_utc.replace(tzinfo=UTC)
+    # Early validation
+    if forecast_df.empty:
+        log.info("Empty forecast dataframe, skipping save")
+        return
+
+    if not client_location_name:
+        raise ValueError("client_location_name is required to save to the Data Platform")
+
+    # Just an additional check init_time_utc is timezone aware
+    init_time_utc = _ensure_timezone_aware(init_time_utc)
 
     log.info("Writing to data platform")
 
-    target_uuid_str = str(location_uuid)
+    # Resolve DP location UUID and create forecaster concurrently
+    target_uuid_task = _resolve_target_uuid(client, client_location_name)
+    forecaster_task = _create_forecaster_if_not_exists(client=client, model_tag=model_tag)
 
-    if client_location_name:
-        # Fetch locations to find mapping
-        resp = await client.list_locations(dp.ListLocationsRequest())
+    target_uuid_str, forecaster = await asyncio.gather(target_uuid_task, forecaster_task)
 
-        found = False
-        for loc in resp.locations:
-            if loc.location_name == client_location_name:
-                target_uuid_str = loc.location_uuid
-                found = True
-                break
-
-        if found:
-            log.info(
-                f"Mapped client location {client_location_name} to DP UUID {target_uuid_str}",
-            )
-        else:
-            log.warning(
-                f"Could not find DP location for {client_location_name}."
-                "Using original.",
-            )
-    else:
-        log.warning(
-            "No client_location_name provided. Using location UUID directly.",
+    # If location doesn't exist in DP yet, create it now
+    if target_uuid_str is None:
+        target_uuid_str = await _create_new_location(
+            client, client_location_name, capacity_kw or 0.0, latitude, longitude, init_time_utc,
         )
 
-    # Get or create forecaster
-    forecaster = await _create_forecaster_if_not_exists(
-        client=client,
-        model_tag=model_tag,
-    )
+    # Fetch location capacity
+    capacity_watts = await _get_location_capacity(client=client, target_uuid_str=target_uuid_str)
 
-    # Load Location
-    try:
-        location = await client.get_location(
-            dp.GetLocationRequest(
-                location_uuid=target_uuid_str,
-                energy_source=dp.EnergySource.SOLAR,
-                include_geometry=False,
-            ),
-        )
-        capacity_watts = location.effective_capacity_watts
-    except Exception as e:
-        if "NOT_FOUND" in str(e) or "No such location" in str(e):
-            if client_location_name and capacity_kw is not None:
-                log.warning(
-                    f"Location {client_location_name} not found. "
-                    "Attempting to create it...",
-                )
-
-                # Create location
-                # Data Platform requires a closed polygon
-                delta = 0.001
-                lon, lat = longitude or 0.0, latitude or 0.0
-                wkt = (
-                    f"POLYGON (("
-                    f"{lon - delta} {lat - delta}, "
-                    f"{lon + delta} {lat - delta}, "
-                    f"{lon + delta} {lat + delta}, "
-                    f"{lon - delta} {lat + delta}, "
-                    f"{lon - delta} {lat - delta}"
-                    f"))"
-                )
-
-                try:
-                    create_req = dp.CreateLocationRequest(
-                        location_name=client_location_name,
-                        energy_source=dp.EnergySource.SOLAR,
-                        geometry_wkt=wkt,
-                        effective_capacity_watts=int(capacity_kw * 1000),
-                        location_type=dp.LocationType.SITE,
-                        valid_from_utc=init_time_utc - timedelta(days=7),
-                    )
-                    create_resp = await client.create_location(create_req)
-                    target_uuid_str = create_resp.location_uuid
-                    log.info(f"Created new location {target_uuid_str} for {client_location_name}")
-                    capacity_watts = int(capacity_kw * 1000)
-                except Exception as create_error:
-                    log.error(f"Failed to create location: {create_error}")
-                    raise e from create_error
-            else:
-                log.warning(
-                    f"Cannot create location: client_location_name={client_location_name}, "
-                    f"capacity_kw={capacity_kw}",
-                )
-                raise e
-        else:
-            raise e
-
-    # Prepare forecast values
+    # Early exit if no capacity
     if capacity_watts == 0:
-        log.warning(f"Location {location_uuid} has 0 capacity, skipping data platform save")
+        log.warning(f"Location {target_uuid_str} has 0 capacity, skipping data platform save")
         return
 
+    # Vectorized forecast value preparation
+    forecast_values = _prepare_forecast_values_vectorized(
+        forecast_df, init_time_utc, capacity_watts,
+    )
+
+    if not forecast_values:
+        log.info("No valid forecast values to save")
+        return
+
+    # Create forecast requests
+    tasks = []
+
+    # Main forecast
+    forecast_request = dp.CreateForecastRequest(
+        forecaster=forecaster,
+        location_uuid=target_uuid_str,
+        energy_source=dp.EnergySource.SOLAR,
+        init_time_utc=init_time_utc,
+        values=forecast_values,
+    )
+    tasks.append(client.create_forecast(forecast_request))
+
+    # Adjusted forecast if needed
+    if use_adjuster:
+        adjusted_task = _create_adjusted_forecast(
+            client=client,
+            location_uuid=target_uuid_str,
+            init_time_utc=init_time_utc,
+            forecast_values=forecast_values,
+            model_tag=model_tag,
+            forecaster=forecaster,
+        )
+        tasks.append(adjusted_task)
+
+    # Execute forecasts concurrently
+    await asyncio.gather(*tasks)
+
+
+def _ensure_timezone_aware(dt: datetime) -> datetime:
+    """Ensure datetime is timezone-aware and always in UTC."""
+    if isinstance(dt, pd.Timestamp):
+        return dt.tz_localize("UTC") if dt.tz is None else dt.tz_convert("UTC")
+    return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+
+
+async def _resolve_target_uuid(
+    client: DataPlatformClient,
+    client_location_name: str,
+) -> str | None:
+    """Look up the DP location UUID by name.
+
+    Returns the UUID string if found, or None if the location does not exist yet.
+    Raises on unexpected gRPC errors.
+    """
+    resp = await client.list_locations(dp.ListLocationsRequest())
+    location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
+
+    if client_location_name in location_map:
+        target_uuid = location_map[client_location_name]
+        log.info(f"Mapped client location '{client_location_name}' to DP UUID {target_uuid}")
+        return target_uuid
+
+    log.warning(f"DP location '{client_location_name}' not found — will create it.")
+    return None
+
+
+async def _get_location_capacity(
+    client: DataPlatformClient,
+    target_uuid_str: str,
+) -> int:
+    """Fetch effective capacity (watts) for an existing DP location."""
+    location = await client.get_location(
+        dp.GetLocationRequest(
+            location_uuid=target_uuid_str,
+            energy_source=dp.EnergySource.SOLAR,
+            include_geometry=False,
+        ),
+    )
+    return location.effective_capacity_watts
+
+
+async def _create_new_location(
+    client: DataPlatformClient,
+    client_location_name: str,
+    capacity_kw: float,
+    latitude: float | None,
+    longitude: float | None,
+    init_time_utc: datetime,
+) -> int:
+    """Create a new location and return its capacity."""
+    log.warning(f"Location {client_location_name} not found. Attempting to create it...")
+
+    # Create geometry
+    delta = 0.001
+    lon, lat = longitude or 0.0, latitude or 0.0
+    coords = [
+        (lon - delta, lat - delta),
+        (lon + delta, lat - delta),
+        (lon + delta, lat + delta),
+        (lon - delta, lat + delta),
+        (lon - delta, lat - delta),
+    ]
+    wkt = f"POLYGON (({', '.join(f'{x} {y}' for x, y in coords)}))"
+
+    capacity_watts = int(capacity_kw * 1000)
+
+    try:
+        create_req = dp.CreateLocationRequest(
+            location_name=client_location_name,
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt=wkt,
+            effective_capacity_watts=capacity_watts,
+            location_type=dp.LocationType.SITE,
+            valid_from_utc=init_time_utc - timedelta(days=7),
+        )
+        create_resp = await client.create_location(create_req)
+        log.info(f"Created new location {create_resp.location_uuid} for '{client_location_name}'")
+        return create_resp.location_uuid
+    except Exception as create_error:
+        log.error(f"Failed to create location: {create_error}")
+        raise
+
+
+def _prepare_forecast_values_vectorized(
+    forecast_df: pd.DataFrame,
+    init_time_utc: datetime,
+    capacity_watts: int,
+) -> list:
+    """Prepare forecast values using vectorized operations where possible."""
+    # Precompute timezone-aware init_time if needed
+    init_ts = add_or_convert_to_utc(init_time_utc)
+
     forecast_values = []
-    for _, row in forecast_df.iterrows():
-        # Calculate horizon if not present
-        if "horizon_minutes" in row and pd.notna(row["horizon_minutes"]):
-            horizon_mins = int(row["horizon_minutes"])
+
+    # Pre-parse probabilistic values if they exist
+    prob_values_parsed = {}
+    if "probabilistic_values" in forecast_df.columns:
+        for idx, prob_str in forecast_df["probabilistic_values"].items():
+            if pd.notna(prob_str):
+                try:
+                    prob_values_parsed[idx] = json.loads(prob_str)
+                except json.JSONDecodeError:
+                    prob_values_parsed[idx] = {}
+
+    # Use itertuples for better performance than iterrows
+    for row in forecast_df.itertuples():
+        # Calculate horizon
+        if hasattr(row, "horizon_minutes") and pd.notna(row.horizon_minutes):
+            horizon_mins = int(row.horizon_minutes)
         else:
-            # Ensure both are pd.Timestamp
-            start_ts = add_or_convert_to_utc(row["start_utc"])
-            init_ts = add_or_convert_to_utc(init_time_utc)
+            start_ts = add_or_convert_to_utc(row.start_utc)
+            horizon_mins = int((start_ts - init_ts).total_seconds() / 60)
 
-            horizon_mins = int(
-                (start_ts - init_ts).total_seconds() / 60,
-            )
+        # Convert and clamp power fraction
+        p50_fraction = max(0.0, min(1.0, (row.forecast_power_kw * 1000) / capacity_watts))
 
-        # Convert Power kW to Fraction
-        # Fraction = (kW * 1000) / Watts
-        p50_fraction = (row["forecast_power_kw"] * 1000) / capacity_watts
-        # Clamp to [0, 1.0] to satisfy validation
-        p50_fraction = max(0.0, min(p50_fraction, 1.0))
-
+        # Process probabilistic values
         other_stats = {}
-        if row.get("probabilistic_values"):
-            probs = json.loads(row["probabilistic_values"])
-            for key, val_kw in probs.items():
-                frac = (val_kw * 1000) / capacity_watts
-                # Clamp to [0, 1.0] to satisfy validation
-                other_stats[key] = max(0.0, min(frac, 1.0))
+        if row.Index in prob_values_parsed:
+            for key, val_kw in prob_values_parsed[row.Index].items():
+                frac = max(0.0, min(1.0, (val_kw * 1000) / capacity_watts))
+                other_stats[key] = frac
 
         forecast_values.append(
             dp.CreateForecastRequestForecastValue(
@@ -525,26 +593,26 @@ async def save_forecast_to_dataplatform(
             ),
         )
 
-    if len(forecast_values) > 0:
-        forecast_request = dp.CreateForecastRequest(
-            forecaster=forecaster,
-            location_uuid=target_uuid_str,
-            energy_source=dp.EnergySource.SOLAR,
-            init_time_utc=init_time_utc,
-            values=forecast_values,
-        )
-        await client.create_forecast(forecast_request)
+    return forecast_values
 
-    # Save adjusted forecast based on recent deltas
-    if use_adjuster:
-        adjusted_forecast_request = await _make_forecaster_adjuster(
-            client=client,
-            location_uuid=target_uuid_str,
-            init_time_utc=init_time_utc,
-            forecast_values=forecast_values,
-            model_tag=model_tag,
-            forecaster=forecaster,
-        )
-        await client.create_forecast(adjusted_forecast_request)
+
+async def _create_adjusted_forecast(
+    client: DataPlatformClient,
+    location_uuid: str,
+    init_time_utc: datetime,
+    forecast_values: list,
+    model_tag: str,
+    forecaster: dp.Forecaster,
+) -> None:
+    """Create adjusted forecast."""
+    adjusted_forecast_request = await _make_forecaster_adjuster(
+        client=client,
+        location_uuid=location_uuid,
+        init_time_utc=init_time_utc,
+        forecast_values=forecast_values,
+        model_tag=model_tag,
+        forecaster=forecaster,
+    )
+    await client.create_forecast(adjusted_forecast_request)
 
 
