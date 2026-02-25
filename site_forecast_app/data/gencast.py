@@ -37,7 +37,7 @@ RELEVANT_SLICE = {
 
 
 def slice_relevant(ds: xr.Dataset) -> xr.Dataset:
-    """drop variables and slice to relevant data"""
+    """Drop variables and slice to relevant data."""
     return ds[WEATHER_VARS].sel(**RELEVANT_SLICE)
 
 
@@ -175,8 +175,9 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         else:
             token_dict = json.loads(gcs_token_string)
             storage_option = {"token": token_dict}
-            
+
         # Quicker to open separately and concat rather than xr.open_mfdataset
+        ds_sliced_1 = xr.open_zarr(
             zarr_path1, decode_timedelta=True, storage_options=storage_option,
         )
         ds_sliced_1 = slice_relevant(ds_sliced_1)
@@ -185,7 +186,7 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             zarr_path2, decode_timedelta=True, storage_options=storage_option,
         )
         ds_sliced_2 = slice_relevant(ds_sliced_2)
-    
+
         ds_sliced = xr.concat([ds_sliced_2, ds_sliced_1], dim="init_time").sortby("init_time")
 
         log.info("Successfully opened GenCast data from GCS (lazy).")
