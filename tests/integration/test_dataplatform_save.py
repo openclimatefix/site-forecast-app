@@ -168,7 +168,7 @@ async def test_save_forecast_sends_adjusted_forecast(client, sites):
             ],
             "forecast_power_kw": [5.0, 6.0],
             "horizon_minutes": [15, 30],
-        }
+        },
     )
 
     # 3. Save with adjuster enabled — this should create both base + _adjust forecasts
@@ -184,7 +184,7 @@ async def test_save_forecast_sends_adjusted_forecast(client, sites):
     # 4. Verify base forecaster ("test_adj_model") was created and has values
     base_name = "test_adj_model"
     base_list_resp = await client.list_forecasters(
-        dp.ListForecastersRequest(forecaster_names_filter=[base_name])
+        dp.ListForecastersRequest(forecaster_names_filter=[base_name]),
     )
     assert len(base_list_resp.forecasters) > 0, f"Base forecaster '{base_name}' not found in DP"
     base_forecaster = base_list_resp.forecasters[0]
@@ -198,14 +198,14 @@ async def test_save_forecast_sends_adjusted_forecast(client, sites):
                 end_timestamp_utc=init_time + dt.timedelta(hours=1),
             ),
             forecaster=base_forecaster,
-        )
+        ),
     )
     assert len(base_forecast_resp.values) >= 1, "No base forecast values found in DP"
 
     # 5. Verify adjusted forecaster ("test_adj_model_adjust") was created and has values
     adj_name = "test_adj_model_adjust"
     adj_list_resp = await client.list_forecasters(
-        dp.ListForecastersRequest(forecaster_names_filter=[adj_name])
+        dp.ListForecastersRequest(forecaster_names_filter=[adj_name]),
     )
     assert len(adj_list_resp.forecasters) > 0, f"Adjusted forecaster '{adj_name}' not found in DP"
     adj_forecaster = adj_list_resp.forecasters[0]
@@ -219,7 +219,7 @@ async def test_save_forecast_sends_adjusted_forecast(client, sites):
                 end_timestamp_utc=init_time + dt.timedelta(hours=1),
             ),
             forecaster=adj_forecaster,
-        )
+        ),
     )
     assert len(adj_forecast_resp.values) >= 1, "No adjusted forecast values found in DP"
 
