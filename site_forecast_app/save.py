@@ -29,6 +29,35 @@ MAX_DELTA_ABSOLUTE = 0.1
 DataPlatformClient = dp.DataPlatformDataServiceStub
 
 
+async def fetch_dp_location_map(client: DataPlatformClient) -> dict[str, str]:
+    """Fetch all SITE locations from the Data Platform once and return a name → UUID map.
+
+    Calling this once before iterating over sites avoids a separate list_locations
+    gRPC call for every forecast save.
+    """
+    resp = await client.list_locations(
+        dp.ListLocationsRequest(location_type_filter=dp.LocationType.SITE),
+    )
+    return {loc.location_name: loc.location_uuid for loc in resp.locations}
+
+
+def build_dp_location_map() -> dict[str, str]:
+    """Synchronous wrapper: open a throwaway channel, fetch the location map, close."""
+
+    async def _run() -> dict[str, str]:
+        channel = Channel(
+            host=os.getenv("DP_HOST", "localhost"),
+            port=int(os.getenv("DP_PORT", "50051")),
+        )
+        client = dp.DataPlatformDataServiceStub(channel)
+        try:
+            return await fetch_dp_location_map(client)
+        finally:
+            channel.close()
+
+    return asyncio.run(_run())
+
+
 def _insert_forecast_values(
     db_session: Session,
     forecast_meta: dict,
@@ -113,6 +142,7 @@ def save_forecast(
     ml_model_version: str | None = None,
     use_adjuster: bool = True,
     adjuster_average_minutes: int | None = 60,
+    location_map: dict[str, str] | None = None,
 ) -> None:
     """Saves a forecast for a given site & timestamp.
 
@@ -125,6 +155,8 @@ def save_forecast(
             use_adjuster: Make new model, adjusted by last 7 days of ME values
             adjuster_average_minutes: The number of minutes that results are average over
                 when calculating adjuster values
+            location_map: Optional pre-fetched mapping of DP location name to UUID.
+                When provided, avoids a list_locations gRPC call per site.
 
     Raises:
             IOError: An error if database save fails
@@ -191,6 +223,7 @@ def save_forecast(
                     capacity_kw=forecast_meta.get("capacity_kw"),
                     latitude=forecast_meta.get("latitude"),
                     longitude=forecast_meta.get("longitude"),
+                    location_map=location_map,
                 )
             except Exception as e:
                 import traceback
@@ -386,6 +419,7 @@ async def save_forecast_to_dataplatform(
     capacity_kw: float | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
+    location_map: dict[str, str] | None = None,
 ) -> None:
     """Save forecast to data platform."""
     # Early validation
@@ -402,7 +436,7 @@ async def save_forecast_to_dataplatform(
     log.info("Writing to data platform")
 
     # Resolve DP location UUID and create forecaster concurrently
-    target_uuid_task = _resolve_target_uuid(client, client_location_name)
+    target_uuid_task = _resolve_target_uuid(client, client_location_name, location_map)
     forecaster_task = _create_forecaster_if_not_exists(client=client, model_tag=model_tag)
 
     target_uuid_str, forecaster = await asyncio.gather(target_uuid_task, forecaster_task)
@@ -469,14 +503,20 @@ def _ensure_timezone_aware(dt: datetime) -> datetime:
 async def _resolve_target_uuid(
     client: DataPlatformClient,
     client_location_name: str,
+    location_map: dict[str, str] | None = None,
 ) -> str | None:
     """Look up the DP location UUID by name.
+
+    If a pre-fetched *location_map* (name → UUID) is supplied it is used directly,
+    avoiding an extra list_locations gRPC call.  When None, the map is fetched
+    on-demand as before.
 
     Returns the UUID string if found, or None if the location does not exist yet.
     Raises on unexpected gRPC errors.
     """
-    resp = await client.list_locations(dp.ListLocationsRequest())
-    location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
+    if location_map is None:
+        resp = await client.list_locations(dp.ListLocationsRequest())
+        location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
 
     if client_location_name in location_map:
         target_uuid = location_map[client_location_name]
