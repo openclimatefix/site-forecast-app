@@ -628,7 +628,6 @@ def _prepare_forecast_values_vectorized(
             dp.CreateForecastRequestForecastValue(
                 horizon_mins=horizon_mins,
                 p50_fraction=p50_fraction,
-                metadata=Struct().from_pydict({}),
                 other_statistics_fractions=other_stats,
             ),
         )
