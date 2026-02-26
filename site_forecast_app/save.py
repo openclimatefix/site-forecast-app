@@ -11,7 +11,6 @@ from importlib.metadata import version
 from uuid import uuid4
 
 import pandas as pd
-from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
 from pvsite_datamodel.read.model import get_or_create_model
