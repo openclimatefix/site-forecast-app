@@ -1,14 +1,5 @@
 # Here we define all the models that are available in the app
 models:
-  # NL solar 48 hour model
-  - name: nl
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: 0afd8c95a827abde105d7f63ee4241b9c0a3d4f3
-    site_group_uuid: 4dce2381-9e8d-467e-bbdd-4e342c9e1d89
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
     # NL model that include site history in the fusion layer
   - name: nl_36_simple_site # migrated
     type: pvnet
@@ -36,6 +27,14 @@ models:
     asset_type: pv
     satellite_scaling_method: constant
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+  - name: nl_national_pv_ecmwf_sat_resnet
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 1a27240d339b6608f8f883cee37cc62cc9808337
+    site_group_uuid: 4dce2381-9e8d-467e-bbdd-4e342c9e1d89
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
