@@ -13,5 +13,3 @@ __pycache__/
 # Test reports
 ut-report.xml
 
-# Lock files (generated)
-uv.lock
