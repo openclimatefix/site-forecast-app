@@ -1,4 +1,4 @@
-"""Shared utility helpers for the site forecast app."""
+"""Shared utility helpers used across the save subpackage."""
 
 from __future__ import annotations
 

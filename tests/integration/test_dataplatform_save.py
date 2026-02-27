@@ -70,7 +70,7 @@ async def test_save_forecast_triggers_dataplatform(
         captured_tasks.append(task)
         return None
 
-    monkeypatch.setattr("site_forecast_app.dataplatform.asyncio.run", fake_run)
+    monkeypatch.setattr("site_forecast_app.save.data_platform.asyncio.run", fake_run)
 
     save_forecast(
         db_session,

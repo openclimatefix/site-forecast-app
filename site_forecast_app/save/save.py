@@ -1,10 +1,4 @@
-"""Orchestrates saving forecasts to the database and/or Data Platform.
-
-Sub-modules:
-  - site_forecast_app.db          - Database persistence helpers
-  - site_forecast_app.dataplatform - Data Platform client operations
-  - site_forecast_app.utils        - Shared utility functions
-"""
+"""Orchestrates saving forecasts to the database and/or Data Platform."""
 
 from __future__ import annotations
 
@@ -14,25 +8,13 @@ import os
 import pandas as pd
 from sqlalchemy.orm import Session  # noqa: TC002
 
-from site_forecast_app.dataplatform import (
-    DataPlatformClient,
-    build_dp_location_map,
-    fetch_dp_location_map,
-    save_forecast_to_dataplatform,
+from site_forecast_app.save.data_platform import (
+    save_forecast_to_dataplatform,  # noqa: F401  (re-exported via __init__)
     save_to_dataplatform,
 )
-from site_forecast_app.db import adjust_and_save_forecast, write_forecast_to_db
+from site_forecast_app.save.database import adjust_and_save_forecast, write_forecast_to_db
 
 log = logging.getLogger(__name__)
-
-# Re-export for backwards compatibility so callers that import from save still work.
-__all__ = [
-    "DataPlatformClient",
-    "build_dp_location_map",
-    "fetch_dp_location_map",
-    "save_forecast",
-    "save_forecast_to_dataplatform",
-]
 
 
 def save_forecast(
