@@ -157,6 +157,10 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
     Returns:
         An xarray Dataset containing the GenCast data in the format required for ocf-data-sampler.
     """
+    # check if data already exists at output path and if so, skip processing
+    if os.path.exists(output_path):
+        log.info(f"File already exists at {output_path}, skipping GenCast data pull.")
+        return
     # Get latest initialised forecasts
     last_expected_init_time = get_latest_6hr_init_time()
     previous_expected_init_time = get_latest_6hr_init_time(
@@ -176,18 +180,16 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
             token_dict = json.loads(gcs_token_string)
             storage_option = {"token": token_dict}
 
-        # Quicker to open separately and concat rather than xr.open_mfdataset
-        ds_sliced_1 = xr.open_zarr(
-            zarr_path1, decode_timedelta=True, storage_options=storage_option,
-        )
-        ds_sliced_1 = slice_relevant(ds_sliced_1)
-
-        ds_sliced_2 = xr.open_zarr(
-            zarr_path2, decode_timedelta=True, storage_options=storage_option,
-        )
-        ds_sliced_2 = slice_relevant(ds_sliced_2)
-
-        ds_sliced = xr.concat([ds_sliced_2, ds_sliced_1], dim="init_time").sortby("init_time")
+        ds_sliced = xr.open_mfdataset(
+            [zarr_path1, zarr_path2],
+            engine="zarr",
+            decode_timedelta=True,
+            concat_dim="init_time",
+            combine="nested",
+            chunks="auto",
+            preprocess=slice_relevant,
+            storage_options=storage_option,
+        ).sortby("init_time")
 
         log.info("Successfully opened GenCast data from GCS (lazy).")
 
