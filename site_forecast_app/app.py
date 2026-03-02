@@ -80,11 +80,14 @@ def get_sites(
 
 def determine_location_type(site: LocationSQL, model_config: Model) -> dp.LocationType:
     """Determine the Data Platform LocationType based on site and model properties."""
-    model_name_lower = model_config.name.lower()
+    if site.ml_id == 0:
+        loc_type = model_config.summation_location_type or "nation"
+    else:
+        loc_type = model_config.location_type
 
-    if "national" in model_name_lower or site.ml_id == 0:
+    if loc_type == "nation":
         return dp.LocationType.NATION
-    if "regional" in model_name_lower:
+    if loc_type == "state":
         return dp.LocationType.STATE
 
     return dp.LocationType.SITE
