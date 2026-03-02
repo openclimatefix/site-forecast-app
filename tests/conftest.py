@@ -8,11 +8,13 @@ import os
 import random
 from uuid import uuid4
 
+import dp_sdk.ocf.dp as dp
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 import zarr
+from dp_sdk.ocf.dp import EnergySource, LocationType
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
 from pvsite_datamodel.sqlmodels import (
@@ -25,6 +27,12 @@ from pvsite_datamodel.sqlmodels import (
 )
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
+
+# Always inject types into module namespace to ensure get_type_hints() can resolve them
+dp.EnergySource = EnergySource
+dp.LocationType = LocationType
+
+
 
 log = logging.getLogger(__name__)
 
@@ -209,11 +217,8 @@ def generate_probabilistic_values():
 
 
 @pytest.fixture()
-def forecasts(db_session, sites):
+def forecasts(db_session, sites, init_timestamp):
     """Make fake forecasts"""
-    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(  # noqa: DTZ005
-        dt.timedelta(minutes=15),
-    )
 
     n = 24 * 4  # 24 hours of readings of 15
     start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]

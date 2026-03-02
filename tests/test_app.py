@@ -150,14 +150,14 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
-    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data,  # noqa: ARG001
+    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data, init_timestamp,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
-    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
+    args = ["--date", init_timestamp.strftime("%Y-%m-%d-%H-%M")]
     if write_to_db:
         args.append("--write-to-db")
 
