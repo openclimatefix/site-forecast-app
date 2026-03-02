@@ -53,6 +53,7 @@ def save_forecast(
         "capacity_kw": forecast["meta"].get("capacity_kw"),
         "latitude": forecast["meta"].get("latitude"),
         "longitude": forecast["meta"].get("longitude"),
+        "location_type": forecast["meta"].get("location_type"),
     }
 
     forecast_values_df = pd.DataFrame(forecast["values"])

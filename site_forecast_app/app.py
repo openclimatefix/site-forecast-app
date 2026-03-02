@@ -1,5 +1,6 @@
 """Main forecast app entrypoint."""
 
+import asyncio
 import datetime as dt
 import logging
 import os
@@ -8,6 +9,7 @@ import sys
 import click
 import pandas as pd
 import sentry_sdk
+from dp_sdk.ocf import dp
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
 from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
@@ -18,7 +20,11 @@ from site_forecast_app import __version__
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pydantic_models import Model
-from site_forecast_app.save import build_dp_location_map, save_forecast
+from site_forecast_app.save import (
+    fetch_dp_location_map,
+    get_dataplatform_client,
+    save_forecast,
+)
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
@@ -70,6 +76,18 @@ def get_sites(
 
     log.info(f"Found {len(sites)} sites in {country}")
     return sites
+
+
+def determine_location_type(site: LocationSQL, model_config: Model) -> dp.LocationType:
+    """Determine the Data Platform LocationType based on site and model properties."""
+    model_name_lower = model_config.name.lower()
+
+    if "national" in model_name_lower or site.ml_id == 0:
+        return dp.LocationType.NATION
+    if "regional" in model_name_lower:
+        return dp.LocationType.STATE
+
+    return dp.LocationType.SITE
 
 
 def run_model(model: PVNetModel, timestamp: pd.Timestamp) -> dict | None:
@@ -157,7 +175,10 @@ def app_run(
         dp_location_map: dict[str, str] | None = None
         if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
             try:
-                dp_location_map = build_dp_location_map()
+                async def _fetch() -> dict[str, str]:
+                    async with get_dataplatform_client() as client:
+                        return await fetch_dp_location_map(client)
+                dp_location_map = asyncio.run(_fetch())
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
             except Exception:
                 log.warning(
@@ -232,6 +253,7 @@ def app_run(
                                 "capacity_kw": site.capacity_kw,
                                 "latitude": site.latitude,
                                 "longitude": site.longitude,
+                                "location_type": determine_location_type(site, model_config),
                             },
                             "values": forecast_values[site.ml_id],
                         }
@@ -293,6 +315,7 @@ def app_run(
                                 "capacity_kw": site.capacity_kw,
                                 "latitude": site.latitude,
                                 "longitude": site.longitude,
+                                "location_type": determine_location_type(site, model_config),
                             },
                             "values": forecast_values,
                         }

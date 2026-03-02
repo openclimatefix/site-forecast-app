@@ -32,14 +32,12 @@ DataPlatformClient = dp.DataPlatformDataServiceStub
 
 
 async def fetch_dp_location_map(client: DataPlatformClient) -> dict[str, str]:
-    """Fetch all SITE locations from the Data Platform once and return a name → UUID map.
+    """Fetch all locations (SITE, NATION, STATE, etc.) from the Data Platform.
 
-    Calling this once before iterating over sites avoids a separate list_locations
-    gRPC call for every forecast save.
+    Returns a name → UUID map. Pre-fetching avoids separate list_locations calls
+    for every forecast save.
     """
-    resp = await client.list_locations(
-        dp.ListLocationsRequest(location_type_filter=dp.LocationType.SITE),
-    )
+    resp = await client.list_locations(dp.ListLocationsRequest())
     return {loc.location_name: loc.location_uuid for loc in resp.locations}
 
 
@@ -109,6 +107,7 @@ def save_to_dataplatform(
                 capacity_kw=capacity_kw,
                 latitude=forecast_meta.get("latitude"),
                 longitude=forecast_meta.get("longitude"),
+                location_type=forecast_meta.get("location_type", dp.LocationType.SITE),
                 location_map=location_map,
             )
 
@@ -169,9 +168,13 @@ async def create_new_location(
     latitude: float | None,
     longitude: float | None,
     init_time_utc: datetime,
-) -> int:
+    location_type: dp.LocationType = dp.LocationType.SITE,
+) -> str:
     """Create a new location in the Data Platform and return its UUID."""
-    log.warning(f"Location {client_location_name} not found. Attempting to create it...")
+    log.warning(
+        f"Location {client_location_name} (type={location_type.name}) not found. "
+        "Attempting to create it...",
+    )
 
     delta = 0.001
     lon, lat = longitude or 0.0, latitude or 0.0
@@ -191,7 +194,7 @@ async def create_new_location(
             energy_source=dp.EnergySource.SOLAR,
             geometry_wkt=wkt,
             effective_capacity_watts=capacity_watts,
-            location_type=dp.LocationType.SITE,
+            location_type=location_type,
             valid_from_utc=init_time_utc - timedelta(days=7),
         )
         create_resp = await client.create_location(create_req)
@@ -403,6 +406,7 @@ async def save_forecast_to_dataplatform(
     capacity_kw: float | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
+    location_type: dp.LocationType = dp.LocationType.SITE,
     location_map: dict[str, str] | None = None,
 ) -> None:
     """Save forecast to the Data Platform."""
@@ -436,7 +440,13 @@ async def save_forecast_to_dataplatform(
             f"(capacity_kw={capacity_kw}, lat={latitude}, lon={longitude})",
         )
         target_uuid_str = await create_new_location(
-            client, client_location_name, capacity_kw or 0.0, latitude, longitude, init_time_utc,
+            client,
+            client_location_name,
+            capacity_kw or 0.0,
+            latitude,
+            longitude,
+            init_time_utc,
+            location_type=location_type,
         )
         log.info(f"created location uuid={target_uuid_str}")
     else:
