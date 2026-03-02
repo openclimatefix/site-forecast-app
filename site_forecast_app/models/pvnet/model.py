@@ -482,21 +482,24 @@ def feather_forecast(
     Returns:
         The adjusted predictions with feathering applied to the first few timesteps.
     """
-    # Get the latest observed generation value (at t0)
     if generation_data is not None:
-        closest_t0_generation_time = (
-            generation_data["time_utc"].sel(time_utc=t0_time, method="nearest").values
-        )
-        closest_t0_generation_value = (
-            generation_data["generation_kw"]
-            .isel(location_id=0)
+        gen_data_array = generation_data["generation_kw"].isel(location_id=0)
+
+        # Look for first non forward filled value
+        value_changed_mask = gen_data_array != gen_data_array.shift(time_utc=1)
+
+        # Filter the DataArray using the mask, then select the nearest time
+        closest_t0_generation= (
+            gen_data_array
+            .where(value_changed_mask, drop=True)
+            .isel(time_utc=slice(None, -1))
             .sel(time_utc=t0_time, method="nearest")
-            .values
         )
-        # Check to see if last generation exists and is within the last hour
-        if np.isnan(closest_t0_generation_value) or (
-            t0_time - closest_t0_generation_time
-        ) >= pd.Timedelta(hours=1):
+        closest_t0_generation_value = closest_t0_generation.values
+        closest_t0_generation_time = closest_t0_generation.time_utc.values
+
+        # Check to see if last generation time is within the last hour
+        if t0_time - closest_t0_generation_time > pd.Timedelta(hours=1):
             log.info("Latest generation value is missing or too stale, skipping feathering.")
             return values_df
 
