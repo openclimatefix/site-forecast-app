@@ -311,6 +311,10 @@ class PVNetModel:
                 t0_time=self.t0,
                 generation_data=self.generation_data,
             )
+            # Add rolling average smoothing
+            values_df["forecast_power_kw"] = (
+                values_df["forecast_power_kw"].rolling(4, min_periods=1).mean().astype(int)
+            )
 
         values_df = self.add_probabilistic_values(
             capacity_kw,
