@@ -26,6 +26,8 @@ from pvsite_datamodel.sqlmodels import (
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
+from site_forecast_app.data.gencast import get_latest_6hr_init_time
+
 log = logging.getLogger(__name__)
 
 random.seed(42)
@@ -119,6 +121,21 @@ def sites(db_session):
         capacity_kw=20000,
         ml_id=1,
         asset_type="pv",
+        country="india",
+    )
+    db_session.add(site)
+    sites.append(site)
+
+    # This site is an india site for RUVNL,
+    # we want it to be in the test data for india so we adjust the lat and lon
+    site = LocationSQL(
+        client_location_id=1,
+        client_location_name="test_site_ruvnl",
+        latitude=26.5,
+        longitude=72.65,
+        capacity_kw=20000,
+        ml_id=1,
+        asset_type="wind",
         country="india",
     )
     db_session.add(site)
@@ -283,9 +300,35 @@ def nwp_data(tmp_path_factory, time_before_present):
         freq=dt.timedelta(hours=1),
     )
 
-    # force lat and lon to be in 0.1 steps
-    ds.latitude.values[:] = [65.0 - i * 0.1 for i in range(len(ds.latitude))]
-    ds.longitude.values[:] = [3.0 + i * 0.1 for i in range(len(ds.longitude))]
+     # force lat and lon to be in 0.1 steps, and cover Europe/India
+    latitudes = [65.0 - i * 0.1 for i in range(610)]
+    longitudes = [3.0 + i * 0.1 for i in range(940)]
+
+    ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
+
+     # change variables values
+    variables = [
+        "temperature_sl",
+        "wind_u_component_10m",
+        "wind_v_component_10m",
+        "wind_u_component_100m",
+        "wind_v_component_100m",
+        "wind_u_component_200m",
+        "wind_v_component_200m",
+        "downward_shortwave_radiation_flux_gl",
+        "direct_shortwave_radiation_flux_gl",
+        "downward_longwave_radiation_flux_gl",
+        "downward_ultraviolet_radiation_flux_gl",
+        "cloud_cover_high",
+        "cloud_cover_low",
+        "cloud_cover_medium",
+        "cloud_cover_total",
+        "snow_depth_gl",
+        "visibility_sl",
+        "total_precipitation_rate_gl",
+    ]
+
+    ds = ds.assign_coords(variable=variables)
 
     # This is important to avoid saving errors
     for v in list(ds.coords.keys()):
@@ -301,24 +344,6 @@ def nwp_data(tmp_path_factory, time_before_present):
         np.zeros([len(ds[c]) for c in ds.xindexes]),
         coords=[ds[c] for c in ds.xindexes],
     )
-
-    # change variables values
-    ds.variable.values[0:14] = [
-        "temperature_sl",
-        "wind_u_component_10m",
-        "wind_v_component_10m",
-        "downward_shortwave_radiation_flux_gl",
-        "direct_shortwave_radiation_flux_gl",
-        "downward_longwave_radiation_flux_gl",
-        "downward_ultraviolet_radiation_flux_gl",
-        "cloud_cover_high",
-        "cloud_cover_low",
-        "cloud_cover_medium",
-        "cloud_cover_total",
-        "snow_depth_gl",
-        "visibility_sl",
-        "total_precipitation_rate_gl",
-    ]
 
     # AS NWP data is loaded by the app from environment variable,
     # save out data and set paths as environmental variables
@@ -389,6 +414,71 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
 
     os.environ["NWP_MO_GLOBAL_ZARR_PATH"] = temp_nwp_path_gfs
     ds.to_zarr(temp_nwp_path_gfs)
+
+
+@pytest.fixture(scope="session")
+def nwp_data_gencast(tmp_path_factory):
+    """Dummy NWP raw GenCast data"""
+
+    # Create two init times for GenCast data
+    string_path1 = get_latest_6hr_init_time()
+    string_path2 = get_latest_6hr_init_time(
+        now=dt.datetime.now(tz=dt.UTC) - dt.timedelta(hours=6),
+    )
+
+    init_time1 = pd.to_datetime(string_path1, format="%Y%m%d_%Hhr").to_numpy()
+    init_time2 = pd.to_datetime(string_path2, format="%Y%m%d_%Hhr").to_numpy()
+
+
+    # ensemble members
+    sample = np.arange(64, dtype=np.int64)
+
+    # time: 12-hourly timedeltas from 12 hours to 4 days (inclusive)
+    time = pd.to_timedelta(np.arange(12, 97, 12), unit="h")
+    # 12h, 24h, ..., 96h (4 days)
+
+    # lat / lon, in 0.25 degree steps
+    lat = np.array([6.0 + i * 0.25 for i in range(100)], dtype=np.float32)
+    lon = np.array([67.0 + i * 0.25 for i in range(100)], dtype=np.float32)
+
+    variables = [
+        "100m_u_component_of_wind",
+        "100m_v_component_of_wind",
+        "10m_u_component_of_wind",
+        "10m_v_component_of_wind",
+        "2m_temperature",
+    ]
+
+    shape = (sample.size, time.size, lat.size, lon.size)
+
+    data_vars = {
+        var: (("sample", "time", "lat", "lon"), np.zeros(shape, dtype=np.float32))
+        for var in variables
+    }
+
+    # Create two datasets with different init times, 6 hours apart
+    ds1 = xr.Dataset(
+        data_vars=data_vars,
+        coords={
+            "sample": sample,
+            "time": time,
+            "lat": lat,
+            "lon": lon,
+            "init_time": init_time1,
+        },
+    )
+
+    ds2 = ds1.copy(deep=True)
+    ds2 = ds2.assign_coords(init_time=init_time2)
+
+    # Set path to raw data and path where processed data will be saved/loaded to/from
+    temp_nwp_path_gencast_raw = f"{tmp_path_factory.mktemp('data_raw')}/gencast/"
+    temp_nwp_path_gencast = f"{tmp_path_factory.mktemp('data')}/nwp_gencast.zarr"
+
+    os.environ["NWP_GENCAST_GCS_BUCKET_PATH"] = temp_nwp_path_gencast_raw
+    os.environ["NWP_GENCAST_ZARR_PATH"] = temp_nwp_path_gencast
+    ds1.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path1}_01_preds/predictions.zarr")
+    ds2.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path2}_01_preds/predictions.zarr")
 
 
 @pytest.fixture(scope="session")
