@@ -123,7 +123,11 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         return
 
     # Load dataset from source
-    ds = xr.open_zarr(source_nwp_path, consolidated=False)
+    ds = xr.open_zarr(source_nwp_path, consolidated=False).load()
+
+    varname = next(iter(ds.data_vars))
+    if np.isnan(ds[varname].values).any():
+        raise ValueError(f"Found NaNs in {source_nwp_path}")
 
     # This is important to avoid saving errors
     for v in list(ds.coords.keys()):
@@ -135,7 +139,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     # make the dtype of variables is strings
     ds["variable"] = ds.variable.astype(str)
 
-    name = next(iter(ds.data_vars))
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
     if nwp_config.source == "mo_global" and scale_mo_global_clouds:
         log.warning("Scaling MO Global cloud variables by from 0-100 to 0-1")
@@ -147,7 +150,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         ]
         for cloud_var in cloud_vars:
             idx = list(ds.variable.values).index(cloud_var)
-            ds[name][:, :, idx] = ds[name][:, :, idx] / 100.0
+            ds[varname][:, :, idx] = ds[varname][:, :, idx] / 100.0
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
