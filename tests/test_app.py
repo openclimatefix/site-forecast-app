@@ -138,9 +138,9 @@ def test_save_forecast(db_session, sites, forecast_values):
     save_forecast(
         db_session,
         forecast,
-        write_to_db=True,
+        _write_to_db=True,
         ml_model_name="test",
-        ml_model_version="0.0.0",
+        _ml_model_version="0.0.0",
     )
 
     assert db_session.query(ForecastSQL).count() == 2

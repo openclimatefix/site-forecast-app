@@ -8,6 +8,18 @@ import os
 import random
 from uuid import uuid4
 
+# Workaround for betterproto forward reference issue with dp_sdk
+# Import dp module early and ensure all enum types are in its namespace
+# This must happen before any protobuf classes are instantiated
+try:
+    import dp_sdk.ocf.dp as _dp
+    from dp_sdk.ocf.dp import EnergySource, LocationType
+    # Always inject types into module namespace to ensure get_type_hints() can resolve them
+    _dp.EnergySource = EnergySource
+    _dp.LocationType = LocationType
+except ImportError:
+    pass  # dp_sdk not installed in this environment
+
 import numpy as np
 import pandas as pd
 import pytest
