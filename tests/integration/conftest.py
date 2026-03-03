@@ -14,7 +14,7 @@ def dp_address():
     """
 
     with PostgresContainer(
-        "ghcr.io/openclimatefix/data-platform-pgdb:logging",
+        f"ghcr.io/openclimatefix/data-platform-pgdb:{version('dp_sdk')}",
         username="postgres",
         password="postgres",  # noqa: S106
         dbname="postgres",
@@ -23,13 +23,10 @@ def dp_address():
         database_url = postgres.get_connection_url()
         database_url = database_url.replace("postgresql+psycopg2", "postgres")
         database_url = database_url.replace("localhost", "host.docker.internal")
-        try:
-             ver = version("dp_sdk")
-        except Exception:
-             ver = "latest"
+
 
         with DockerContainer(
-            image=f"ghcr.io/openclimatefix/data-platform:{ver}",
+            image=f"ghcr.io/openclimatefix/data-platform:{version('dp_sdk')}",
             env={"DATABASE_URL": database_url},
             ports=[50051],
         ) as data_platform_server:
