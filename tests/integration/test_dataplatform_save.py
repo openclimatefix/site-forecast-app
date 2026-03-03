@@ -1,25 +1,23 @@
 """Integration-style test for Data Platform save path."""
+import asyncio
 import datetime as dt
 
 import pytest
 from dp_sdk.ocf import dp
+from grpclib.client import Channel
 
 from site_forecast_app.save import save_forecast
 
 
 @pytest.mark.integration
-@pytest.mark.integration
 def test_save_forecast_integration(
     monkeypatch, db_session, sites, forecast_values, dp_address,
 ):
-    """ integration test for end-to-end Data Platform save flow."""
+    """Combined integration test for end-to-end Data Platform save flow."""
     host, port = dp_address
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
     monkeypatch.setenv("DP_HOST", host)
     monkeypatch.setenv("DP_PORT", str(port))
-
-    import asyncio
-    from grpclib.client import Channel
 
     # 1. Create a Location in DP
     site = sites[0]

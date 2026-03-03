@@ -2,8 +2,6 @@ import time
 from importlib.metadata import version
 
 import pytest
-from dp_sdk.ocf import dp
-from grpclib.client import Channel
 from testcontainers.core.container import DockerContainer
 from testcontainers.postgres import PostgresContainer
 
