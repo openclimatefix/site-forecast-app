@@ -4,7 +4,6 @@ import datetime as dt
 
 import pytest
 from dp_sdk.ocf import dp
-from grpclib.client import Channel
 
 from site_forecast_app.save import save_forecast
 from site_forecast_app.save.data_platform import (
@@ -114,7 +113,7 @@ def test_save_forecast_integration(
             dp_location_uuid,
             init_time,
             forecast["values"][-1]["end_utc"],
-        )
+        ),
     )
     assert len(forecast_resp.values) == len(forecast["values"])
 
