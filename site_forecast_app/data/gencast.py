@@ -135,9 +135,9 @@ def stack_ensemble_stats_into_channels(da: xr.DataArray) -> xr.DataArray:
 
     # Create new coordinate names in the correct order
     new_channel_coords = [
-        f"{stat}_{chan}"
+        f"{stat}_{variable}"
         for stat in da.coords["ens_stat"].to_index()
-        for chan in da.coords["variable"].to_index()
+        for variable in da.coords["variable"].to_index()
     ]
     data_combined = data_combined.assign_coords(channel=new_channel_coords)
 

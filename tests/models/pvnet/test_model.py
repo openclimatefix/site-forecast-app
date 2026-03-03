@@ -30,6 +30,7 @@ def test_feather_forecast():
 
     # check that the first 8 timesteps are adjusted to the latest value of generation
     # first timestamp should be (7000 - (7000-4000)*0.8) = 4600
+    # 7000 is first forecast value, 4000 is gen value at t0 time
     feathered_preds = feather_forecast(
         df_values, t0_time=pd.Timestamp("2024-01-01 03:00:00"), generation_data=generation_xr,
     )
