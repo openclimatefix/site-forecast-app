@@ -7,13 +7,62 @@ from dp_sdk.ocf import dp
 from grpclib.client import Channel
 
 from site_forecast_app.save import save_forecast
+from site_forecast_app.save.data_platform import (
+    create_new_location,
+    get_dataplatform_client,
+)
+
+
+async def verify_forecast_in_dp(
+    location_uuid: str,
+    init_time: dt.datetime,
+    forecast_end_time: dt.datetime,
+) -> dp.GetForecastAsTimeseriesResponse:
+    """Verifies the forecast in the Data Platform."""
+    async with get_dataplatform_client() as client:
+        forecaster_name = "test_model"
+        list_forecasters_request = dp.ListForecastersRequest(
+            forecaster_names_filter=[forecaster_name],
+        )
+        list_forecasters_response = await client.list_forecasters(list_forecasters_request)
+        assert len(list_forecasters_response.forecasters) > 0
+        forecaster = list_forecasters_response.forecasters[0]
+
+        query_start = init_time - dt.timedelta(minutes=1)
+        query_end = forecast_end_time + dt.timedelta(minutes=1)
+
+        get_forecast_request = dp.GetForecastAsTimeseriesRequest(
+            location_uuid=location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=query_start,
+                end_timestamp_utc=query_end,
+            ),
+            forecaster=forecaster,
+        )
+
+        return await client.get_forecast_as_timeseries(get_forecast_request)
+
+
+async def setup_test_location_in_dp(site_name: str, capacity_kw: float) -> str:
+    """Sets up a test location in the Data Platform."""
+    async with get_dataplatform_client() as client:
+        return await create_new_location(
+            client,
+            site_name,
+            capacity_kw,
+            latitude=0.0,
+            longitude=0.0,
+            init_time_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
+            location_type=dp.LocationType.SITE,
+        )
 
 
 @pytest.mark.integration
 def test_save_forecast_integration(
     monkeypatch, db_session, sites, forecast_values, dp_address,
 ):
-    """Combined integration test for end-to-end Data Platform save flow."""
+    """test for end-to-end Data Platform save flow."""
     host, port = dp_address
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
     monkeypatch.setenv("DP_HOST", host)
@@ -23,25 +72,7 @@ def test_save_forecast_integration(
     site = sites[0]
     site_name = site.client_location_name or "test_integration_site"
 
-    create_location_request = dp.CreateLocationRequest(
-        location_name=site_name,
-        energy_source=dp.EnergySource.SOLAR,
-        geometry_wkt="POINT(0 0)",
-        location_type=dp.LocationType.SITE,
-        effective_capacity_watts=int(site.capacity_kw * 1000),
-        valid_from_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
-    )
-
-    async def _create_loc():
-        channel = Channel(host=host, port=port)
-        try:
-            client = dp.DataPlatformDataServiceStub(channel)
-            return await client.create_location(create_location_request)
-        finally:
-            channel.close()
-
-    resp = asyncio.run(_create_loc())
-    dp_location_uuid = resp.location_uuid
+    dp_location_uuid = asyncio.run(setup_test_location_in_dp(site_name, site.capacity_kw))
 
     # 2. Prepare forecast data
     init_time = forecast_values["start_utc"][0]
@@ -78,37 +109,13 @@ def test_save_forecast_integration(
     )
 
     # 4. Verify in DP
-    async def _verify():
-        channel = Channel(host=host, port=port)
-        try:
-            client = dp.DataPlatformDataServiceStub(channel)
-            forecaster_name = "test_model"
-            list_forecasters_request = dp.ListForecastersRequest(
-                forecaster_names_filter=[forecaster_name],
-            )
-            list_forecasters_response = await client.list_forecasters(list_forecasters_request)
-            assert len(list_forecasters_response.forecasters) > 0
-            forecaster = list_forecasters_response.forecasters[0]
-
-            query_start = init_time - dt.timedelta(minutes=1)
-            query_end = forecast["values"][-1]["end_utc"] + dt.timedelta(minutes=1)
-
-            get_forecast_request = dp.GetForecastAsTimeseriesRequest(
-                location_uuid=dp_location_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                time_window=dp.TimeWindow(
-                    start_timestamp_utc=query_start,
-                    end_timestamp_utc=query_end,
-                ),
-                forecaster=forecaster,
-            )
-
-            forecast_resp = await client.get_forecast_as_timeseries(get_forecast_request)
-            return forecast_resp
-        finally:
-            channel.close()
-
-    forecast_resp = asyncio.run(_verify())
+    forecast_resp = asyncio.run(
+        verify_forecast_in_dp(
+            dp_location_uuid,
+            init_time,
+            forecast["values"][-1]["end_utc"],
+        )
+    )
     assert len(forecast_resp.values) == len(forecast["values"])
 
 

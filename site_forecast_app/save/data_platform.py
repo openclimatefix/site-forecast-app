@@ -250,10 +250,7 @@ def prepare_forecast_values(
     if "probabilistic_values" in forecast_df.columns:
         for idx, prob_str in forecast_df["probabilistic_values"].items():
             if pd.notna(prob_str):
-                try:
-                    prob_values_parsed[idx] = json.loads(prob_str)
-                except json.JSONDecodeError:
-                    prob_values_parsed[idx] = {}
+                prob_values_parsed[idx] = json.loads(prob_str)
 
     for row in forecast_df.itertuples():
         # Calculate horizon
