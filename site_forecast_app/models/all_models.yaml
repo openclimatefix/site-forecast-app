@@ -63,3 +63,20 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+  - name: windnet_gencast_ecmwf_v0
+    type: pvnet
+    id: openclimatefix-models/windnet_india
+    version: ff50642bc8032c11f762d619dad0bb3f66b8a70b
+    client: ruvnl
+  - name: windnet_gencast_ecmwf_v1
+    type: pvnet
+    id: openclimatefix-models/windnet_india
+    version: 7101356a5412e240bc85a79b53e438f79c130d20
+    client: ruvnl
+    asset_type: wind
+  - name: windnet_ecmwf_v0
+    type: pvnet
+    id: openclimatefix-models/windnet_india
+    version: 70e00da617d1a78f4d6c0fa8441993532fab0edd
+    client: ruvnl
+    asset_type: wind
