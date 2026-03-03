@@ -21,8 +21,7 @@ from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pydantic_models import Model
 from site_forecast_app.save import (
-    fetch_dp_location_map,
-    get_dataplatform_client,
+    build_dp_location_map,
     save_forecast,
 )
 
@@ -178,10 +177,7 @@ def app_run(
         dp_location_map: dict[str, str] | None = None
         if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
             try:
-                async def _fetch() -> dict[str, str]:
-                    async with get_dataplatform_client() as client:
-                        return await fetch_dp_location_map(client)
-                dp_location_map = asyncio.run(_fetch())
+                dp_location_map = asyncio.run(build_dp_location_map())
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
             except Exception:
                 log.warning(
@@ -266,7 +262,6 @@ def app_run(
                             write_to_db=write_to_db,
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
-                            adjuster_average_minutes=model_config.adjuster_average_minutes,
                             location_map=dp_location_map,
                         )
                     successful_runs += 1
@@ -328,7 +323,6 @@ def app_run(
                             write_to_db=write_to_db,
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
-                            adjuster_average_minutes=model_config.adjuster_average_minutes,
                             location_map=dp_location_map,
                         )
                         successful_runs += 1

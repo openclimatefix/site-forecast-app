@@ -8,12 +8,9 @@ import json
 import logging
 import os
 import traceback
-from datetime import UTC, datetime, timedelta
+from collections.abc import AsyncIterator  # noqa: TC003
+from datetime import datetime, timedelta
 from importlib.metadata import version
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
 
 import pandas as pd
 from dp_sdk.ocf import dp
@@ -22,7 +19,6 @@ from grpclib.client import Channel
 from site_forecast_app.save.utils import (
     add_or_convert_to_utc,
     ensure_timezone_aware,
-    limit_adjuster,
 )
 
 log = logging.getLogger(__name__)
@@ -41,14 +37,10 @@ async def fetch_dp_location_map(client: DataPlatformClient) -> dict[str, str]:
     return {loc.location_name: loc.location_uuid for loc in resp.locations}
 
 
-def build_dp_location_map() -> dict[str, str]:
-    """Synchronous wrapper: open a throwaway channel, fetch the location map, close."""
-
-    async def _run() -> dict[str, str]:
-        async with get_dataplatform_client() as client:
-            return await fetch_dp_location_map(client)
-
-    return asyncio.run(_run())
+async def build_dp_location_map() -> dict[str, str]:
+    """Async wrapper: open a channel, fetch the location map, close."""
+    async with get_dataplatform_client() as client:
+        return await fetch_dp_location_map(client)
 
 
 @contextlib.asynccontextmanager
@@ -74,11 +66,10 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
         channel.close()
 
 
-def save_to_dataplatform(
+async def save_to_dataplatform(
     forecast_df: pd.DataFrame,
     forecast_meta: dict,
     ml_model_name: str | None,
-    use_adjuster: bool,
     location_map: dict[str, str] | None = None,
 ) -> None:
     """Save Forecast to Dataplatform."""
@@ -91,11 +82,11 @@ def save_to_dataplatform(
         "Starting DP save | "
         f"location={client_location_name!r}  model={model_tag!r}  "
         f"init_time={init_time_utc}  capacity_kw={capacity_kw}  "
-        f"use_adjuster={use_adjuster}  df_rows={len(forecast_df)}  "
+        f"df_rows={len(forecast_df)}  "
         f"location_map_size={len(location_map) if location_map else None}",
     )
 
-    async def _run() -> None:
+    try:
         async with get_dataplatform_client() as client:
             await save_forecast_to_dataplatform(
                 forecast_df=forecast_df,
@@ -103,16 +94,12 @@ def save_to_dataplatform(
                 model_tag=model_tag,
                 init_time_utc=init_time_utc,
                 client=client,
-                use_adjuster=use_adjuster and ml_model_name is not None,
                 capacity_kw=capacity_kw,
                 latitude=forecast_meta.get("latitude"),
                 longitude=forecast_meta.get("longitude"),
                 location_type=forecast_meta.get("location_type", dp.LocationType.SITE),
                 location_map=location_map,
             )
-
-    try:
-        asyncio.run(_run())
         log.info(f"Save complete for location={client_location_name!r}")
     except Exception as e:
         log.error(f"Failed to save forecast to Data Platform: {e}")
@@ -176,16 +163,8 @@ async def create_new_location(
         "Attempting to create it...",
     )
 
-    delta = 0.001
     lon, lat = longitude or 0.0, latitude or 0.0
-    coords = [
-        (lon - delta, lat - delta),
-        (lon + delta, lat - delta),
-        (lon + delta, lat + delta),
-        (lon - delta, lat + delta),
-        (lon - delta, lat - delta),
-    ]
-    wkt = f"POLYGON (({', '.join(f'{x} {y}' for x, y in coords)}))"
+    wkt = f"POINT ({lon} {lat})"
     capacity_watts = int(capacity_kw * 1000)
 
     try:
@@ -305,104 +284,12 @@ def prepare_forecast_values(
     return forecast_values
 
 
-async def make_adjuster_forecast_request(
-    client: DataPlatformClient,
-    location_uuid: str,
-    init_time_utc: datetime,
-    forecast_values: list[dp.CreateForecastRequestForecastValue],
-    model_tag: str,
-    forecaster: dp.Forecaster,
-) -> dp.CreateForecastRequest:
-    """Build an adjusted forecast request using week-average deltas."""
-    deltas_request = dp.GetWeekAverageDeltasRequest(
-        location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
-        pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
-        forecaster=forecaster,
-        observer_name="pvlive_day_after",
-    )
-    try:
-        deltas_response = await client.get_week_average_deltas(deltas_request)
-        deltas = deltas_response.deltas
-    except Exception as e:
-        if "No observer" in str(e) or "NOT_FOUND" in str(e):
-            log.warning("Observer 'pvlive_day_after' not found. Creating it...")
-            try:
-                await client.create_observer(dp.CreateObserverRequest(name="pvlive_day_after"))
-                deltas_response = await client.get_week_average_deltas(deltas_request)
-                deltas = deltas_response.deltas
-            except Exception as create_error:
-                log.error(f"Failed to create observer or retry deltas: {create_error}")
-                deltas = []
-        else:
-            raise e
-
-    adjusted_values: list[dp.CreateForecastRequestForecastValue] = []
-    for fv in forecast_values:
-        delta_candidates = [d.delta_fraction for d in deltas if d.horizon_mins == fv.horizon_mins]
-        delta_fraction = delta_candidates[0] if len(delta_candidates) > 0 else 0
-
-        delta_fraction = limit_adjuster(
-            delta_fraction=delta_fraction,
-            value_fraction=fv.p50_fraction,
-        )
-
-        new_p50 = max(0.0, min(1.0, fv.p50_fraction - delta_fraction))
-        new_other_stats: dict[str, float] = {}
-        for key, val in fv.other_statistics_fractions.items():
-            new_val = max(0.0, min(1.0, val - delta_fraction))
-            new_other_stats[key] = new_val
-
-        adjusted_values.append(
-            dp.CreateForecastRequestForecastValue(
-                horizon_mins=fv.horizon_mins,
-                p50_fraction=new_p50,
-                metadata=fv.metadata,
-                other_statistics_fractions=new_other_stats,
-            ),
-        )
-
-    adjuster_forecaster = await create_forecaster_if_not_exists(
-        client=client,
-        model_tag=model_tag + "_adjust",
-    )
-
-    return dp.CreateForecastRequest(
-        forecaster=adjuster_forecaster,
-        location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
-        init_time_utc=init_time_utc.replace(tzinfo=UTC),
-        values=adjusted_values,
-    )
-
-
-async def create_adjusted_forecast(
-    client: DataPlatformClient,
-    location_uuid: str,
-    init_time_utc: datetime,
-    forecast_values: list[dp.CreateForecastRequestForecastValue],
-    model_tag: str,
-    forecaster: dp.Forecaster,
-) -> None:
-    """Build and submit the adjusted forecast to the Data Platform."""
-    adjusted_forecast_request = await make_adjuster_forecast_request(
-        client=client,
-        location_uuid=location_uuid,
-        init_time_utc=init_time_utc,
-        forecast_values=forecast_values,
-        model_tag=model_tag,
-        forecaster=forecaster,
-    )
-    await client.create_forecast(adjusted_forecast_request)
-
-
 async def save_forecast_to_dataplatform(
     forecast_df: pd.DataFrame,
     client_location_name: str | None,
     model_tag: str,
     init_time_utc: datetime,
     client: DataPlatformClient,
-    use_adjuster: bool = True,
     capacity_kw: float | None = None,
     latitude: float | None = None,
     longitude: float | None = None,
@@ -491,30 +378,10 @@ async def save_forecast_to_dataplatform(
         values=forecast_values,
     )
     log.info(
-        f"submitting base forecast  "
+        f"submitting forecast  "
         f"forecaster={forecaster.forecaster_name!r}  "
         f"location={target_uuid_str}  values={len(forecast_values)}",
     )
 
-    tasks = [client.create_forecast(base_request)]
-
-    if use_adjuster:
-        log.info("also queuing adjusted forecast")
-        tasks.append(
-            create_adjusted_forecast(
-                client=client,
-                location_uuid=target_uuid_str,
-                init_time_utc=init_time_utc,
-                forecast_values=forecast_values,
-                model_tag=model_tag,
-                forecaster=forecaster,
-            ),
-        )
-    else:
-        log.info("adjuster disabled, skipping adjusted forecast")
-
-    await asyncio.gather(*tasks)
-    log.info(
-        f"{'base + adjusted' if use_adjuster else 'base'} forecast(s) submitted "
-        f"for {client_location_name!r}",
-    )
+    await client.create_forecast(base_request)
+    log.info(f"Forecast submitted for {client_location_name!r}")

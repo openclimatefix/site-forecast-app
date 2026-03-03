@@ -5,17 +5,14 @@ from __future__ import annotations
 import json
 import logging
 import traceback
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import pandas as pd  # noqa: TC002
 from pvsite_datamodel.read.model import get_or_create_model
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL
 from sqlalchemy.orm import Session  # noqa: TC002
 
 from site_forecast_app.adjuster import adjust_forecast_with_adjuster
-
-if TYPE_CHECKING:
-    import pandas as pd
 
 log = logging.getLogger(__name__)
 

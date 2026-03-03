@@ -12,7 +12,7 @@ from site_forecast_app.save.data_platform import (
     save_forecast_to_dataplatform,  # noqa: F401  (re-exported via __init__)
     save_to_dataplatform,
 )
-from site_forecast_app.save.database import adjust_and_save_forecast, write_forecast_to_db
+from site_forecast_app.save.database import write_forecast_to_db
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +73,7 @@ def save_forecast(
 
     # Persist adjuster forecast to DB
     if use_adjuster and ml_model_name is not None:
+        from site_forecast_app.save.database import adjust_and_save_forecast
         adjust_and_save_forecast(
             db_session,
             forecast_meta,
@@ -94,10 +95,12 @@ def save_forecast(
     # Optionally push to the Data Platform
     if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
         log.info("Saving to Data Platform...")
-        save_to_dataplatform(
-            forecast_df=forecast_values_df,
-            forecast_meta=forecast_meta,
-            ml_model_name=ml_model_name,
-            use_adjuster=use_adjuster,
-            location_map=location_map,
+        import asyncio
+        asyncio.run(
+            save_to_dataplatform(
+                forecast_df=forecast_values_df,
+                forecast_meta=forecast_meta,
+                ml_model_name=ml_model_name,
+                location_map=location_map,
+            ),
         )
