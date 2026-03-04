@@ -40,6 +40,7 @@ dependencies = [
     "betterproto>=2.0.0b7",
     "grpclib>=0.4.7",
     "dp-sdk",
+    "gcsfs==2025.10.0",
 ]
 
 [dependency-groups]
@@ -52,6 +53,7 @@ dev = [
     "python-lsp-server",
     "python-lsp-ruff",
     "testcontainers",
+    "freezegun",
 ]
 
 [project.urls]
