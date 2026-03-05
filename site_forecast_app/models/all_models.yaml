@@ -9,6 +9,7 @@ models:
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
+    location_type: nation
   - name: nl_national_pv_ecmwf_sat_small
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -17,6 +18,7 @@ models:
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
+    location_type: nation
   - name: nl_regional_pv_ecmwf_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -27,6 +29,8 @@ models:
     asset_type: pv
     satellite_scaling_method: constant
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
   - name: nl_national_pv_ecmwf_sat_resnet
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -35,6 +39,7 @@ models:
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
+    location_type: nation
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -42,6 +47,7 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+    location_type: site
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -49,6 +55,7 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+    location_type: site
   - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_short
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -56,6 +63,7 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+    location_type: site
   - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_long
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -63,6 +71,7 @@ models:
     client: ad
     asset_type: pv
     satellite_scaling_method: minmax
+    location_type: site
   - name: windnet_gencast_ecmwf_v0
     type: pvnet
     id: openclimatefix-models/windnet_india

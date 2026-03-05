@@ -1,5 +1,6 @@
 """Main forecast app entrypoint."""
 
+import asyncio
 import datetime as dt
 import logging
 import os
@@ -8,6 +9,7 @@ import sys
 import click
 import pandas as pd
 import sentry_sdk
+from dp_sdk.ocf import dp
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
 from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
@@ -18,7 +20,10 @@ from site_forecast_app import __version__
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pydantic_models import Model
-from site_forecast_app.save import save_forecast
+from site_forecast_app.save import (
+    build_dp_location_map,
+    save_forecast,
+)
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
@@ -70,6 +75,21 @@ def get_sites(
 
     log.info(f"Found {len(sites)} sites in {country}")
     return sites
+
+
+def determine_location_type(site: LocationSQL, model_config: Model) -> dp.LocationType:
+    """Determine the Data Platform LocationType based on site and model properties."""
+    if site.ml_id == 0:
+        loc_type = model_config.summation_location_type or "nation"
+    else:
+        loc_type = model_config.location_type
+
+    if loc_type == "nation":
+        return dp.LocationType.NATION
+    if loc_type == "state":
+        return dp.LocationType.STATE
+
+    return dp.LocationType.SITE
 
 
 def run_model(model: PVNetModel, timestamp: pd.Timestamp) -> dict | None:
@@ -151,6 +171,19 @@ def app_run(
         all_model_configs = get_all_models(client_abbreviation=os.getenv("CLIENT_NAME", "nl"))
         successful_runs = 0
         runs = 0
+
+        # Pre-fetch the DP location map once so _resolve_target_uuid doesn't call
+        # list_locations on every individual forecast save.
+        dp_location_map: dict[str, str] | None = None
+        if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
+            try:
+                dp_location_map = asyncio.run(build_dp_location_map())
+                log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
+            except Exception:
+                log.warning(
+                    "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
+                    exc_info=True,
+                )
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
@@ -215,6 +248,11 @@ def app_run(
                                 "location_uuid": site.location_uuid,
                                 "version": version,
                                 "timestamp": timestamp,
+                                "client_location_name": site.client_location_name,
+                                "capacity_kw": site.capacity_kw,
+                                "latitude": site.latitude,
+                                "longitude": site.longitude,
+                                "location_type": determine_location_type(site, model_config),
                             },
                             "values": forecast_values[site.ml_id],
                         }
@@ -224,7 +262,7 @@ def app_run(
                             write_to_db=write_to_db,
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
-                            adjuster_average_minutes=model_config.adjuster_average_minutes,
+                            location_map=dp_location_map,
                         )
                     successful_runs += 1
 
@@ -272,6 +310,11 @@ def app_run(
                                 "location_uuid": site_uuid,
                                 "version": version,
                                 "timestamp": timestamp,
+                                "client_location_name": site.client_location_name,
+                                "capacity_kw": site.capacity_kw,
+                                "latitude": site.latitude,
+                                "longitude": site.longitude,
+                                "location_type": determine_location_type(site, model_config),
                             },
                             "values": forecast_values,
                         }
@@ -281,7 +324,7 @@ def app_run(
                             write_to_db=write_to_db,
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
-                            adjuster_average_minutes=model_config.adjuster_average_minutes,
+                            location_map=dp_location_map,
                         )
                         successful_runs += 1
 

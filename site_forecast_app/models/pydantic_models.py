@@ -66,6 +66,18 @@ class Model(BaseModel):
         description="HuggingFace hash for the summation model",
     )
 
+    location_type: Literal["site", "state", "nation"] = Field(
+        "site",
+        title="Location Type",
+        description="The type of location the model is for (site, state, or nation)",
+    )
+
+    summation_location_type: Literal["site", "state", "nation"] | None = Field(
+        None,
+        title="Summation Location Type",
+        description="The type of location for the summation outcome (site, state, or nation)",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""

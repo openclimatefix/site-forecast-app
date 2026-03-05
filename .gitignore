@@ -1,3 +1,15 @@
 /data/
 /site_forecast_app.egg-info/
 __pycache__/
+# Local environment files
+.env.local
+
+# Model files
+*.pt
+
+# Zarr archives
+*.zarr.zip
+
+# Test reports
+ut-report.xml
+
