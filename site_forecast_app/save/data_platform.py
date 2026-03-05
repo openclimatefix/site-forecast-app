@@ -53,11 +53,12 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
             await save_forecast_to_dataplatform(..., client=client)
 
     The channel is always closed on exit, even if an exception is raised.
-    Host and port are read from the ``DATA_PLATFORM_HOST`` / ``DATA_PLATFORM_PORT`` environment variables
+    Host and port are read from the ``DATA_PLATFORM_HOST``/
+    ``DATA_PLATFORM_PORT`` environment variables
     (defaulting to ``localhost:50051``).
     """
     channel = Channel(
-        host=os.getenv("DATA_PLATFORM_HOST", "localhost"),
+        host=os.getenv("DATA_PLATFORM_HOST","localhost"),
         port=int(os.getenv("DATA_PLATFORM_PORT", "50051")),
     )
     try:
