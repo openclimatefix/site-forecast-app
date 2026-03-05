@@ -64,8 +64,8 @@ def test_save_forecast_integration(
     """test for end-to-end Data Platform save flow."""
     host, port = dp_address
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
-    monkeypatch.setenv("DP_HOST", host)
-    monkeypatch.setenv("DP_PORT", str(port))
+    monkeypatch.setenv("DATA_PLATFORM_HOST", host)
+    monkeypatch.setenv("DATA_PLATFORM_PORT", str(port))
 
     # 1. Create a Location in DP
     site = sites[0]
