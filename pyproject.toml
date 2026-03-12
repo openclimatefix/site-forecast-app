@@ -158,3 +158,8 @@ dp-sdk = { url = "https://github.com/openclimatefix/data-platform/releases/downl
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: mark test as an integration test",
+]
