@@ -31,15 +31,30 @@ models:
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
     location_type: state
     summation_location_type: nation
-  - name: nl_national_pv_ecmwf_sat_resnet
+  - name: nl_regional_48h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 1a27240d339b6608f8f883cee37cc62cc9808337
-    site_group_uuid: 4dce2381-9e8d-467e-bbdd-4e342c9e1d89
+    version: ca49693efaeec8154463fc41c03872fd3daa08be
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: 5b7f40c9bec763b1d4d8f26e97d66da628ccba66
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
-    location_type: nation
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+  - name: nl_regional_2h_pv_ecmwf
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 6955410dca0c5a60e7881f9333503014f56c13fb
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: 296bde7b5af4cf256129800d3bc5013d8b27ffd5
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
