@@ -9,8 +9,7 @@ import logging
 import os
 import traceback
 from collections.abc import AsyncIterator  # noqa: TC003
-from datetime import UTC, datetime
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from importlib.metadata import version
 
 import pandas as pd

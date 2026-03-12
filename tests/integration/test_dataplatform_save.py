@@ -81,13 +81,13 @@ async def setup_nednl_observer() -> str:
     async with get_dataplatform_client() as client:
         # Check if it already exists to avoid duplicates
         list_resp = await client.list_observers(
-            dp.ListObserversRequest(observer_names_filter=["nednl"])
+            dp.ListObserversRequest(observer_names_filter=["nednl"]),
         )
         if list_resp.observers:
             return list_resp.observers[0].observer_uuid
 
         create_resp = await client.create_observer(
-            dp.CreateObserverRequest(name="nednl")
+            dp.CreateObserverRequest(name="nednl"),
         )
         return create_resp.observer_uuid
 
@@ -107,7 +107,7 @@ def test_save_forecast_integration(
     site_name = site.client_location_name or "test_integration_site"
 
     dp_location_uuid = asyncio.run(
-        setup_test_location_in_dp(site_name, site.capacity_kw, site.latitude, site.longitude)
+        setup_test_location_in_dp(site_name, site.capacity_kw, site.latitude, site.longitude),
     )
 
     # 2. Prepare forecast data
@@ -183,7 +183,7 @@ def test_save_adjuster_forecast_to_dataplatform(
     site_name = site.client_location_name or "test_adjuster_site"
 
     dp_location_uuid = asyncio.run(
-        setup_test_location_in_dp(site_name, site.capacity_kw, site.latitude, site.longitude)
+        setup_test_location_in_dp(site_name, site.capacity_kw, site.latitude, site.longitude),
     )
 
     # 1b. Create the 'nednl' observer (required by the adjuster's delta query)
