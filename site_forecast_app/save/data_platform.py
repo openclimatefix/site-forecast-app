@@ -141,7 +141,7 @@ async def make_forecaster_adjuster(
         energy_source=dp.EnergySource.SOLAR,
         pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
         forecaster=forecaster,
-        observer_name="nednl",
+        observer_name=os.getenv("OBSERVER_NAME", "nednl"),
     )
     deltas_response = await client.get_week_average_deltas(deltas_request)
     deltas = deltas_response.deltas
