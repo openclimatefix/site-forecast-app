@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 
@@ -35,7 +36,8 @@ def save_forecast(
         write_to_db: If true, forecast values are written to the DB, otherwise to stdout
         ml_model_name: Name of the ML model used for the forecast
         ml_model_version: Version of the ML model used for the forecast
-        use_adjuster: Make a new model adjusted by last 7 days of ME values
+        use_adjuster: Make a new model adjusted by last 7 days of ME values.
+            Also controls whether an adjusted forecast is sent to the Data Platform.
         adjuster_average_minutes: Minutes to average over when calculating adjuster values
         location_map: Optional pre-fetched mapping of DP location name to UUID.
             When provided, avoids a list_locations gRPC call per site.
@@ -95,12 +97,12 @@ def save_forecast(
     # Optionally push to the Data Platform
     if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
         log.info("Saving to Data Platform...")
-        import asyncio
         asyncio.run(
             save_to_dataplatform(
                 forecast_df=forecast_values_df,
                 forecast_meta=forecast_meta,
                 ml_model_name=ml_model_name,
                 location_map=location_map,
+                use_adjuster=use_adjuster and ml_model_name is not None,
             ),
         )
