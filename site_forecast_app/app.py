@@ -278,6 +278,7 @@ def app_run(
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
                             location_map=dp_location_map,
+                            use_adjuster_database=use_adjuster,
                         )
                     successful_runs += 1
 
@@ -340,7 +341,7 @@ def app_run(
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
                             location_map=dp_location_map,
-                            use_adjuster=use_adjuster,
+                            use_adjuster_database=use_adjuster,
                         )
                         successful_runs += 1
 
