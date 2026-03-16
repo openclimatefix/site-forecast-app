@@ -489,12 +489,24 @@ def feather_forecast(
         value_changed_mask = gen_data_array != gen_data_array.shift(time_utc=1)
 
         # Filter the DataArray using the mask, then select the nearest time
-        closest_t0_generation= (
+        # Note: .where(drop=True) can corrupt time_utc dtype to int64, so we
+        # explicitly cast it back to datetime64[ns] before calling .sel()
+        filtered_gen = (
             gen_data_array
             .where(value_changed_mask, drop=True)
             .isel(time_utc=slice(None, -1))
-            .sel(time_utc=t0_time, method="nearest")
         )
+
+        # If all generation is fill-value (e.g. no real data), the mask drops
+        # everything and filtered_gen is empty — skip feathering in that case.
+        if filtered_gen.sizes["time_utc"] == 0:
+            log.info("No non-fill generation values found, skipping feathering.")
+            return values_df
+
+        filtered_gen = filtered_gen.assign_coords(
+            time_utc=filtered_gen["time_utc"].values.astype("datetime64[ns]"),
+        )
+        closest_t0_generation = filtered_gen.sel(time_utc=t0_time, method="nearest")
         closest_t0_generation_value = closest_t0_generation.values
         closest_t0_generation_time = closest_t0_generation.time_utc.values
 
