@@ -486,7 +486,7 @@ def feather_forecast(
 
     # Skip feathering if generation data is empty or all values are identical
     # (identical values indicate full forward-fill / data corruption)
-    if len(gen_data_array.time_utc) == 0 or len(set(gen_data_array.values)) == 1:
+    if len(gen_data_array.values) == 0 or len(set(gen_data_array.values)) == 1:
         log.warning(
             "Generation data is empty or all values are identical "
             "(forward-filled or corrupted), skipping feathering.",
@@ -504,12 +504,6 @@ def feather_forecast(
         .where(value_changed_mask, drop=True)
         .isel(time_utc=slice(None, -1))
     )
-
-    # If all generation is fill-value (e.g. no real data), the mask drops
-    # everything and filtered_gen is empty — skip feathering in that case.
-    if filtered_gen.sizes["time_utc"] == 0:
-        log.info("No non-fill generation values found, skipping feathering.")
-        return values_df
 
     filtered_gen = filtered_gen.assign_coords(
         time_utc=filtered_gen["time_utc"].values.astype("datetime64[ns]"),
