@@ -482,51 +482,57 @@ def feather_forecast(
     Returns:
         The adjusted predictions with feathering applied to the first few timesteps.
     """
-    if generation_data is not None:
-        gen_data_array = generation_data["generation_kw"].isel(location_id=0)
+    gen_data_array = generation_data["generation_kw"].isel(location_id=0)
 
-        # Look for first non forward filled value
-        value_changed_mask = gen_data_array != gen_data_array.shift(time_utc=1)
-
-        # Filter the DataArray using the mask, then select the nearest time
-        # Note: .where(drop=True) can corrupt time_utc dtype to int64, so we
-        # explicitly cast it back to datetime64[ns] before calling .sel()
-        filtered_gen = (
-            gen_data_array
-            .where(value_changed_mask, drop=True)
-            .isel(time_utc=slice(None, -1))
+    # Skip feathering if generation data is empty or all values are identical
+    # (identical values indicate full forward-fill / data corruption)
+    if len(gen_data_array.time_utc) == 0 or len(set(gen_data_array.values)) == 1:
+        log.warning(
+            "Generation data is empty or all values are identical "
+            "(forward-filled or corrupted), skipping feathering.",
         )
-
-        # If all generation is fill-value (e.g. no real data), the mask drops
-        # everything and filtered_gen is empty — skip feathering in that case.
-        if filtered_gen.sizes["time_utc"] == 0:
-            log.info("No non-fill generation values found, skipping feathering.")
-            return values_df
-
-        filtered_gen = filtered_gen.assign_coords(
-            time_utc=filtered_gen["time_utc"].values.astype("datetime64[ns]"),
-        )
-        closest_t0_generation = filtered_gen.sel(time_utc=t0_time, method="nearest")
-        closest_t0_generation_value = closest_t0_generation.values
-        closest_t0_generation_time = closest_t0_generation.time_utc.values
-
-        # Check to see if last generation time is within the last hour
-        if t0_time - closest_t0_generation_time > pd.Timedelta(hours=1):
-            log.info("Latest generation value is missing or too stale, skipping feathering.")
-            return values_df
-
-        else:
-            # Feathering factor determines how quickly we want to transition
-            # from the latest observed value to the model's forecast
-            smooth_values = [i / 10 for i in range(8, 0, -1)]
-            # Apply feathering to the first few timesteps (e.g., first 8 timesteps = 2 hours)
-            for idx in range(len(smooth_values)):
-                weight = smooth_values[idx]
-                values_df.loc[idx, "forecast_power_kw"] -= (
-                    values_df.loc[idx, "forecast_power_kw"] - closest_t0_generation_value
-                ) * weight
-
-            return values_df
-    else:
-        log.warning("Generation data is missing, skipping feathering.")
         return values_df
+
+    # Look for first non forward filled value
+    value_changed_mask = gen_data_array != gen_data_array.shift(time_utc=1)
+
+    # Filter the DataArray using the mask, then select the nearest time
+    # Note: .where(drop=True) can corrupt time_utc dtype to int64, so we
+    # explicitly cast it back to datetime64[ns] before calling .sel()
+    filtered_gen = (
+        gen_data_array
+        .where(value_changed_mask, drop=True)
+        .isel(time_utc=slice(None, -1))
+    )
+
+    # If all generation is fill-value (e.g. no real data), the mask drops
+    # everything and filtered_gen is empty — skip feathering in that case.
+    if filtered_gen.sizes["time_utc"] == 0:
+        log.info("No non-fill generation values found, skipping feathering.")
+        return values_df
+
+    filtered_gen = filtered_gen.assign_coords(
+        time_utc=filtered_gen["time_utc"].values.astype("datetime64[ns]"),
+    )
+    closest_t0_generation = filtered_gen.sel(time_utc=t0_time, method="nearest")
+    closest_t0_generation_value = closest_t0_generation.values
+    closest_t0_generation_time = closest_t0_generation.time_utc.values
+
+    # Check to see if last generation time is within the last hour
+    if t0_time - closest_t0_generation_time > pd.Timedelta(hours=1):
+        log.info("Latest generation value is missing or too stale, skipping feathering.")
+        return values_df
+
+    else:
+        # Feathering factor determines how quickly we want to transition
+        # from the latest observed value to the model's forecast
+        smooth_values = [i / 10 for i in range(8, 0, -1)]
+        # Apply feathering to the first few timesteps (e.g., first 8 timesteps = 2 hours)
+        for idx in range(len(smooth_values)):
+            weight = smooth_values[idx]
+            values_df.loc[idx, "forecast_power_kw"] -= (
+                values_df.loc[idx, "forecast_power_kw"] - closest_t0_generation_value
+            ) * weight
+
+        return values_df
+

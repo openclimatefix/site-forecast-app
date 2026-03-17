@@ -79,6 +79,10 @@ def test_feather_forecast_dtype_corruption():
 
     Ensures feather_forecast handles forward-filled generation data without raising:
     TypeError: Cannot compare dtypes int64 and datetime64[ns]
+
+    We explicitly simulate the corruption by encoding time_utc as int64 (nanoseconds
+    since epoch), which is exactly what xarray produces internally in affected versions
+    after .where(drop=True). This makes the test deterministic regardless of xarray version.
     """
     start_times = pd.date_range("2024-01-01", periods=12, freq="h")
     end_times = start_times + pd.Timedelta(minutes=30)
@@ -88,16 +92,19 @@ def test_feather_forecast_dtype_corruption():
         {"start_utc": start_times, "end_utc": end_times, "forecast_power_kw": forecast_values},
     )
 
-    # Many repeated (forward-filled) values — the pattern that triggers dtype corruption
+    # Simulate dtype corruption: encode time_utc as int64 (nanoseconds since epoch),
+    # which is what xarray produces after .where(drop=True) in affected versions.
+    int64_times = start_times.astype(np.int64)
     gen_values = np.array([[1000, 1000, 1000, 1000, 2000, 2000, 3000, 4000, 4000, 4000, 4000, 4000]])  # noqa: E501
     generation_values_kw = xr.DataArray(
         gen_values,
-        coords={"location_id": [1], "time_utc": start_times},
+        coords={"location_id": [1], "time_utc": int64_times},
         dims=["location_id", "time_utc"],
     )
     generation_xr = xr.Dataset({"generation_kw": generation_values_kw})
 
-    # Must NOT raise TypeError: Cannot compare dtypes int64 and datetime64[ns]
+    # Without the assign_coords fix this raises:
+    # TypeError: Cannot compare dtypes int64 and datetime64[ns]
     feathered_preds = feather_forecast(
         df_values, t0_time=pd.Timestamp("2024-01-01 03:00:00"), generation_data=generation_xr,
     )
