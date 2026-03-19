@@ -136,15 +136,30 @@ Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
     help="Set the python logging log level",
     show_default=True,
 )
-def app(timestamp: dt.datetime | None, write_to_db: bool, log_level: str) -> None:
+@click.option(
+    "--use-adjuster-database",
+    is_flag=True,
+    default=True,
+    help="Set this flag to use the adjuster.",
+    envvar="USE_ADJUSTER_DATABASE",
+)
+def app(timestamp: dt.datetime | None,
+        write_to_db: bool,
+        log_level: str,
+        use_adjuster_database: bool) -> None:
     """Main click function for running forecasts for sites."""
-    app_run(timestamp=timestamp, write_to_db=write_to_db, log_level=log_level)
+    app_run(timestamp=timestamp,
+            write_to_db=write_to_db,
+            log_level=log_level,
+            use_adjuster_database=use_adjuster_database)
+
 
 
 def app_run(
     timestamp: dt.datetime | None,
     write_to_db: bool = False,
     log_level: str = "info",
+    use_adjuster_database: bool = True,
 ) -> None:
     """Main function for running forecasts for sites."""
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
@@ -263,6 +278,7 @@ def app_run(
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
                             location_map=dp_location_map,
+                            use_adjuster_database=use_adjuster_database,
                         )
                     successful_runs += 1
 
@@ -325,6 +341,7 @@ def app_run(
                             ml_model_name=ml_model.name,
                             ml_model_version=version,
                             location_map=dp_location_map,
+                            use_adjuster_database=use_adjuster_database,
                         )
                         successful_runs += 1
 
