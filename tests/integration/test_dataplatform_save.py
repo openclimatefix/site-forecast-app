@@ -221,7 +221,7 @@ def test_save_adjuster_forecast_to_dataplatform(
         write_to_db=False,
         ml_model_name="test-model",
         ml_model_version="0.0.0-test",
-        use_adjuster=True,
+        use_adjuster_database=True,
     )
 
     # 4. Verify base forecast exists in DP
