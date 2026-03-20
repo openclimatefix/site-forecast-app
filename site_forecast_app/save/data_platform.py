@@ -9,7 +9,7 @@ import logging
 import os
 import traceback
 from collections.abc import AsyncIterator  # noqa: TC003
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from importlib.metadata import version
 
 import pandas as pd
@@ -19,6 +19,7 @@ from grpclib.client import Channel
 from site_forecast_app.save.utils import (
     add_or_convert_to_utc,
     ensure_timezone_aware,
+    limit_adjuster,
 )
 
 log = logging.getLogger(__name__)
@@ -72,6 +73,7 @@ async def save_to_dataplatform(
     forecast_meta: dict,
     ml_model_name: str | None,
     location_map: dict[str, str] | None = None,
+    use_adjuster: bool = True,
 ) -> None:
     """Save Forecast to Dataplatform."""
     client_location_name = forecast_meta.get("client_location_name")
@@ -100,11 +102,98 @@ async def save_to_dataplatform(
                 longitude=forecast_meta.get("longitude"),
                 location_type=forecast_meta.get("location_type", dp.LocationType.SITE),
                 location_map=location_map,
+                use_adjuster=use_adjuster,
             )
         log.info(f"Save complete for location={client_location_name!r}")
     except Exception as e:
         log.error(f"Failed to save forecast to Data Platform: {e}")
         log.error(traceback.format_exc())
+
+
+
+async def make_forecaster_adjuster(
+    client: DataPlatformClient,
+    location_uuid: str,
+    init_time_utc: datetime,
+    forecast_values: list[dp.CreateForecastRequestForecastValue],
+    model_tag: str,
+    forecaster: dp.Forecaster,
+) -> dp.CreateForecastRequest:
+    """Build an adjusted forecast request using week-average deltas from the Data Platform.
+
+    Fetches week-average forecast vs. observation deltas for each horizon via
+    ``GetWeekAverageDeltasRequest``, applies ``limit_adjuster`` to cap the correction,
+    and returns a ``CreateForecastRequest`` tagged with the ``{model_tag}_adjust`` forecaster.
+
+    Args:
+        client: An active DataPlatform gRPC client.
+        location_uuid: DP location UUID string.
+        init_time_utc: Forecast initialisation time (timezone-aware).
+        forecast_values: Base forecast values to adjust.
+        model_tag: Model name used to look up/create the adjuster forecaster.
+        forecaster: The base forecaster object (used to fetch deltas).
+
+    Returns:
+        A ``CreateForecastRequest`` for the adjusted forecast.
+    """
+    deltas_request = dp.GetWeekAverageDeltasRequest(
+        location_uuid=location_uuid,
+        energy_source=dp.EnergySource.SOLAR,
+        pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
+        forecaster=forecaster,
+        observer_name=os.getenv("OBSERVER_NAME", "nednl"),
+    )
+    deltas_response = await client.get_week_average_deltas(deltas_request)
+    deltas = deltas_response.deltas
+
+    # Build a horizon -> delta_fraction lookup for O(1) access
+    delta_by_horizon: dict[int, float] = {d.horizon_mins: d.delta_fraction for d in deltas}
+
+    # Get location capacity for capping
+    location = await client.get_location(
+        dp.GetLocationRequest(
+            location_uuid=location_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            include_geometry=False,
+        ),
+    )
+    capacity_mw = location.effective_capacity_watts / 1_000_000.0
+
+    adjusted_values: list[dp.CreateForecastRequestForecastValue] = []
+    for fv in forecast_values:
+        raw_delta = delta_by_horizon.get(fv.horizon_mins, 0.0)
+        capped_delta = limit_adjuster(
+            delta_fraction=raw_delta,
+            value_fraction=fv.p50_fraction,
+            capacity_mw=capacity_mw,
+        )
+
+        new_p50 = max(0.0, min(1.0, fv.p50_fraction - capped_delta))
+        new_other_stats: dict[str, float] = {
+            key: max(0.0, min(1.0, val - capped_delta))
+            for key, val in fv.other_statistics_fractions.items()
+        }
+
+        adjusted_values.append(
+            dp.CreateForecastRequestForecastValue(
+                horizon_mins=fv.horizon_mins,
+                p50_fraction=new_p50,
+                other_statistics_fractions=new_other_stats,
+            ),
+        )
+
+    adjuster_forecaster = await create_forecaster_if_not_exists(
+        client=client,
+        model_tag=model_tag + "_adjust",
+    )
+
+    return dp.CreateForecastRequest(
+        forecaster=adjuster_forecaster,
+        location_uuid=location_uuid,
+        energy_source=dp.EnergySource.SOLAR,
+        init_time_utc=init_time_utc.replace(tzinfo=UTC),
+        values=adjusted_values,
+    )
 
 
 async def resolve_target_uuid(
@@ -293,6 +382,7 @@ async def save_forecast_to_dataplatform(
     longitude: float | None = None,
     location_type: dp.LocationType = dp.LocationType.SITE,
     location_map: dict[str, str] | None = None,
+    use_adjuster: bool = True,
 ) -> None:
     """Save forecast to the Data Platform."""
     if forecast_df.empty:
@@ -383,3 +473,22 @@ async def save_forecast_to_dataplatform(
 
     await client.create_forecast(base_request)
     log.info(f"Forecast submitted for {client_location_name!r}")
+
+    if use_adjuster:
+        log.info(f"Building adjuster forecast for {client_location_name!r}")
+        try:
+            adjusted_request = await make_forecaster_adjuster(
+                client=client,
+                location_uuid=target_uuid_str,
+                init_time_utc=init_time_utc,
+                forecast_values=forecast_values,
+                model_tag=model_tag,
+                forecaster=forecaster,
+            )
+            await client.create_forecast(adjusted_request)
+            log.info(f"Adjusted forecast submitted for {client_location_name!r}")
+        except Exception:
+            log.error(
+                f"Failed to save adjusted forecast to Data Platform for {client_location_name!r}\n"
+                + traceback.format_exc(),
+            )

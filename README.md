@@ -31,6 +31,7 @@ The following environment variables are required to run the app:
 - `SATELLITE_ZARR_PATH`: The path to the satellite zarr file, this can be a local path or a remote path
 - `SAVE_BATCHES_DIR`: The directory to save the batches to, this is required to save the batches of data that are processed by the app- `SAVE_BATCHES_DIR`: The directory to save the batches to, this is required to save the batches of data that are processed by the app
 - `HUGGINGFACE_TOKEN`: Token used for private models
+- `OBSERVER_NAME`: The name of the observer/grid operator (e.g. `nednl` for Netherlands, `india` for India). Used to select the correct observer-specific logic such as site queries and data saving behaviour.
 - `COUNTRY`: Can be `nl` for Netherlands, or `india` for India. 
 - `CLIENT_NAME`: The name of the client, this is used to the sites that should be run
 - `SATELLITE_SCALE_FACTOR`: The scale factor for the satellite data. Defaults to 1023 

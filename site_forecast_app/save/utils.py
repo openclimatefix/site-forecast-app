@@ -6,8 +6,6 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
-MAX_DELTA_ABSOLUTE = 0.1
-
 
 def add_or_convert_to_utc(timestamp: object) -> pd.Timestamp:
     """Ensure a timestamp is a timezone-aware UTC pd.Timestamp."""
@@ -23,9 +21,20 @@ def ensure_timezone_aware(dt: datetime) -> datetime:
     return dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
 
 
-def limit_adjuster(delta_fraction: float, value_fraction: float) -> float:
-    """Limit adjuster magnitude to a fraction of forecast and absolute cap."""
+def limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: float) -> float:
+    """Limit the adjuster to 10% of forecast and max 1000 MW."""
+    # limit adjusted fractions to 10% of fv.p50_fraction
     max_delta = 0.1 * value_fraction
-    delta_fraction = min(max(delta_fraction, -max_delta), max_delta)
-    delta_fraction = min(max(delta_fraction, -MAX_DELTA_ABSOLUTE), MAX_DELTA_ABSOLUTE)
+    if delta_fraction > max_delta:
+        delta_fraction = max_delta
+    elif delta_fraction < -max_delta:
+        delta_fraction = -max_delta
+
+    # limit adjust to 1000 MW
+    max_delta_absolute = 1000.0 / capacity_mw
+    if delta_fraction > max_delta_absolute:
+        delta_fraction = max_delta_absolute
+    elif delta_fraction < -max_delta_absolute:
+        delta_fraction = -max_delta_absolute
+
     return delta_fraction
