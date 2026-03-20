@@ -24,7 +24,7 @@ def save_forecast(
     write_to_db: bool = False,
     ml_model_name: str | None = None,
     ml_model_version: str | None = None,
-    use_adjuster: bool = True,
+    use_adjuster_database: bool = True,
     adjuster_average_minutes: int | None = 60,
     location_map: dict[str, str] | None = None,
 ) -> None:
@@ -36,7 +36,7 @@ def save_forecast(
         write_to_db: If true, forecast values are written to the DB, otherwise to stdout
         ml_model_name: Name of the ML model used for the forecast
         ml_model_version: Version of the ML model used for the forecast
-        use_adjuster: Make a new model adjusted by last 7 days of ME values.
+        use_adjuster_database: Make a new model adjusted by last 7 days of ME values.
             Also controls whether an adjusted forecast is sent to the Data Platform.
         adjuster_average_minutes: Minutes to average over when calculating adjuster values
         location_map: Optional pre-fetched mapping of DP location name to UUID.
@@ -74,7 +74,7 @@ def save_forecast(
     )
 
     # Persist adjuster forecast to DB
-    if use_adjuster and ml_model_name is not None:
+    if use_adjuster_database and ml_model_name is not None:
         from site_forecast_app.save.database import adjust_and_save_forecast
         adjust_and_save_forecast(
             db_session,
@@ -103,6 +103,6 @@ def save_forecast(
                 forecast_meta=forecast_meta,
                 ml_model_name=ml_model_name,
                 location_map=location_map,
-                use_adjuster=use_adjuster and ml_model_name is not None,
+                use_adjuster=use_adjuster_database and ml_model_name is not None,
             ),
         )
