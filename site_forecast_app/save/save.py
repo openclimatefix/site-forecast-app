@@ -103,6 +103,6 @@ def save_forecast(
                 forecast_meta=forecast_meta,
                 ml_model_name=ml_model_name,
                 location_map=location_map,
-                use_adjuster=use_adjuster_database and ml_model_name is not None,
+                use_adjuster=ml_model_name is not None,
             ),
         )
