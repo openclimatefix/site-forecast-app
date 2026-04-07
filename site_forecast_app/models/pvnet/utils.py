@@ -170,6 +170,11 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         # make the dtype of variables is strings
         ds["channel"] = ds.channel.astype(str)
 
+
+    # lets make sure its in the right order
+    if "init_time" in ds.coords:
+        ds = ds.transpose("init_time", "step", "variable", "latitude", "longitude")
+
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
     if nwp_config.source == "mo_global" and scale_mo_global_clouds:
         log.warning("Scaling MO Global cloud variables by from 0-100 to 0-1")
@@ -182,10 +187,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         for cloud_var in cloud_vars:
             idx = list(ds.variable.values).index(cloud_var)
             ds[varname][:, :, idx] = ds[varname][:, :, idx] / 100.0
-
-    # lets make sure its in the right order
-    if "init_time" in ds.coords:
-        ds = ds.transpose("init_time", "step", "variable", "latitude", "longitude")
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
