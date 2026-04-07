@@ -353,7 +353,7 @@ def nwp_data(tmp_path_factory, time_before_present):
 
 
 @pytest.fixture(scope="session")
-def nwp_mo_global_data(tmp_path_factory, time_before_present):
+def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
     """Dummy NWP data for india"""
     make_nwp_mo_global_data(tmp_path_factory, time_before_present, 65.0, 3.0)
 
