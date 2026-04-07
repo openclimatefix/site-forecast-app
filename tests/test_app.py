@@ -193,7 +193,7 @@ def test_app(
 
 
 def test_app_ad(
-    db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data,  # noqa: ARG001
+    db_session, sites, nwp_data, nwp_mo_global_data_india, generation_db_values, satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
