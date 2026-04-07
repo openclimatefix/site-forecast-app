@@ -71,6 +71,22 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
                 "interval_end_minutes"
             ]
 
+            if os.getenv("CLIENT_NAME", "nl") == "nl":
+                # TODO this is temp, should remove after
+                # https://github.com/openclimatefix/site-forecast-app/issues/133
+                # this is only for NL
+                if "wind_u_10m" in nwp_config[nwp_source]["channels"]:
+                    nwp_config[nwp_source]["channels"].remove("wind_u_10m")
+                    nwp_config[nwp_source]["channels"].append("wind_u_component_10m")
+                    nwp_config[nwp_source]["normalisation_constants"]["wind_u_component_10m"] \
+                        = nwp_config[nwp_source]["normalisation_constants"]["wind_u_10m"]
+
+                if "wind_v_10m" in nwp_config[nwp_source]["channels"]:
+                    nwp_config[nwp_source]["channels"].remove("wind_v_10m")
+                    nwp_config[nwp_source]["channels"].append("wind_v_component_10m")
+                    nwp_config[nwp_source]["normalisation_constants"]["wind_v_component_10m"] \
+                        = nwp_config[nwp_source]["normalisation_constants"]["wind_v_10m"]
+
     if "satellite" in config["input_data"]:
         satellite_config = config["input_data"]["satellite"]
         satellite_config["zarr_path"] = production_paths["satellite"]["filepath"]
