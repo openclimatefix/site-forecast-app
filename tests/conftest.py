@@ -353,7 +353,17 @@ def nwp_data(tmp_path_factory, time_before_present):
 
 
 @pytest.fixture(scope="session")
-def nwp_mo_global_data(tmp_path_factory, time_before_present):
+def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
+    """Dummy NWP data for india"""
+    make_nwp_mo_global_data(tmp_path_factory, time_before_present, 65.0, 3.0)
+
+@pytest.fixture(scope="session")
+def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
+    """Dummy NWP data for netherlands"""
+    make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
+
+
+def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, center_lon):
     """Dummy NWP data"""
 
     # Load dataset which only contains coordinates, but no data
@@ -369,8 +379,8 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
     )
 
     # force lat and lon to be in 0.1 steps
-    ds.latitude.values[:] = [65.0 - i * 0.1 for i in range(len(ds.latitude))]
-    ds.longitude.values[:] = [3.0 + i * 0.1 for i in range(len(ds.longitude))]
+    ds.latitude.values[:] = [center_lat - i * 0.1 for i in range(len(ds.latitude))]
+    ds.longitude.values[:] = [center_lon + i * 0.1 for i in range(len(ds.longitude))]
 
     # This is important to avoid saving errors
     for v in list(ds.coords.keys()):
@@ -382,7 +392,7 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
             ds[v].encoding.clear()
 
     # change variables values to for MO global
-    ds.variable.values[0:14] = [
+    ds.variable.values[0:15] = [
         "temperature_sl",
         "wind_u_component_10m",
         "wind_v_component_10m",
@@ -397,6 +407,7 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
         "downward_longwave_radiation_flux_gl",
         "direct_shortwave_radiation_flux_gl",
         "total_precipitation_rate_gl",
+        "pressure_msl",
     ]
 
     # interpolate 3 hourly step to 1 hour steps

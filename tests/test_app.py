@@ -94,6 +94,7 @@ def test_run_model(
     db_session,
     sites,
     nwp_data,  # noqa: ARG001
+    nwp_mo_global_data_nl,  # noqa: ARG001
     generation_db_values,  # noqa: ARG001
     init_timestamp,
     satellite_data,  # noqa: ARG001
@@ -150,7 +151,13 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
-    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data,  # noqa: ARG001
+    write_to_db,
+    db_session,
+    sites,  # noqa: ARG001
+    nwp_data,  # noqa: ARG001
+    nwp_mo_global_data_nl,  # noqa: ARG001
+    generation_db_values,   # noqa: ARG001
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
@@ -165,10 +172,10 @@ def test_app(
     assert result.exit_code == 0
 
     fv_per_hour = 4 # 15 min resolution = 4 values per hour
-    n_forecasts = 5 + 12*3
-    n_models = 5
+    n_forecasts = 6 + 12*4
+    n_models = 6
     # 1 site, 5 models do 36 hours
-    # 3 regional models also do 36 hours for 12 more sites
+    # 4 regional models also do 36 hours for 12 more sites
     # average number of forecast is:
     n_fv = ((36 * n_forecasts) / n_forecasts) * fv_per_hour
 
@@ -186,7 +193,7 @@ def test_app(
 
 
 def test_app_ad(
-    db_session, sites, nwp_data, nwp_mo_global_data, generation_db_values, satellite_data,  # noqa: ARG001
+    db_session, sites, nwp_data, nwp_mo_global_data_india, generation_db_values, satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 

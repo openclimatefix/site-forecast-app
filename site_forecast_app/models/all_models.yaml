@@ -55,6 +55,19 @@ models:
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
     location_type: state
     summation_location_type: nation
+  - name: nl_regional_pv_ecmwf_mo_sat
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 570c62524ba46bac02eaef451ed83382bc997283
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: f40884b26ebd91f4613374fe04b453d2cf60256d
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites

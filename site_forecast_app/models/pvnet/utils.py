@@ -71,6 +71,22 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
                 "interval_end_minutes"
             ]
 
+            if os.getenv("CLIENT_NAME", "nl") == "nl" and nwp_source == "mo_global":
+                # TODO this is temp, should remove after
+                # https://github.com/openclimatefix/site-forecast-app/issues/133
+                # this is only for NL
+                if "wind_u_10m" in nwp_config[nwp_source]["channels"]:
+                    nwp_config[nwp_source]["channels"].remove("wind_u_10m")
+                    nwp_config[nwp_source]["channels"].append("wind_u_component_10m")
+                    nwp_config[nwp_source]["normalisation_constants"]["wind_u_component_10m"] \
+                        = nwp_config[nwp_source]["normalisation_constants"]["wind_u_10m"]
+
+                if "wind_v_10m" in nwp_config[nwp_source]["channels"]:
+                    nwp_config[nwp_source]["channels"].remove("wind_v_10m")
+                    nwp_config[nwp_source]["channels"].append("wind_v_component_10m")
+                    nwp_config[nwp_source]["normalisation_constants"]["wind_v_component_10m"] \
+                        = nwp_config[nwp_source]["normalisation_constants"]["wind_v_10m"]
+
     if "satellite" in config["input_data"]:
         satellite_config = config["input_data"]["satellite"]
         satellite_config["zarr_path"] = production_paths["satellite"]["filepath"]
@@ -153,6 +169,11 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     if "channel" in ds.coords:
         # make the dtype of variables is strings
         ds["channel"] = ds.channel.astype(str)
+
+
+    # lets make sure its in the right order
+    if "init_time" in ds.coords:
+        ds = ds.transpose("init_time", "step", "variable", "latitude", "longitude")
 
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
     if nwp_config.source == "mo_global" and scale_mo_global_clouds:
