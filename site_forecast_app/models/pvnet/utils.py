@@ -151,9 +151,6 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     # Load dataset from source
     ds = xr.open_zarr(source_nwp_path, consolidated=False).load()
 
-    # lets make sure its in the right order
-    ds = ds.transpose("init_time", "step", "variable", "latitude", "longitude")
-
     varname = next(iter(ds.data_vars))
     if np.isnan(ds[varname].values).any():
         raise ValueError(f"Found NaNs in {source_nwp_path}")
@@ -185,6 +182,10 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         for cloud_var in cloud_vars:
             idx = list(ds.variable.values).index(cloud_var)
             ds[varname][:, :, idx] = ds[varname][:, :, idx] / 100.0
+
+    # lets make sure its in the right order
+    if "init_time" in ds.coords:
+        ds = ds.transpose("init_time", "step", "variable", "latitude", "longitude")
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
