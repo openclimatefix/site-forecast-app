@@ -94,6 +94,7 @@ def test_run_model(
     db_session,
     sites,
     nwp_data,  # noqa: ARG001
+    nwp_mo_global_data_nl,  # noqa: ARG001
     generation_db_values,  # noqa: ARG001
     init_timestamp,
     satellite_data,  # noqa: ARG001
@@ -150,7 +151,13 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
-    write_to_db, db_session, sites, nwp_data, generation_db_values, satellite_data,  # noqa: ARG001
+    write_to_db,
+    db_session,
+    sites,  # noqa: ARG001
+    nwp_data,  # noqa: ARG001
+    nwp_mo_global_data_nl,  # noqa: ARG001
+    generation_db_values,   # noqa: ARG001
+    satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 
