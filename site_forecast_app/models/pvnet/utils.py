@@ -71,7 +71,7 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
                 "interval_end_minutes"
             ]
 
-            if os.getenv("CLIENT_NAME", "nl") == "nl":
+            if os.getenv("CLIENT_NAME", "nl") == "nl" and nwp_source == "mo_global":
                 # TODO this is temp, should remove after
                 # https://github.com/openclimatefix/site-forecast-app/issues/133
                 # this is only for NL

@@ -360,7 +360,7 @@ def nwp_mo_global_data(tmp_path_factory, time_before_present):
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
     """Dummy NWP data for netherlands"""
-    make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 5.0)
+    make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
 
 
 def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, center_lon):
@@ -392,7 +392,7 @@ def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, c
             ds[v].encoding.clear()
 
     # change variables values to for MO global
-    ds.variable.values[0:14] = [
+    ds.variable.values[0:15] = [
         "temperature_sl",
         "wind_u_component_10m",
         "wind_v_component_10m",
@@ -407,6 +407,7 @@ def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, c
         "downward_longwave_radiation_flux_gl",
         "direct_shortwave_radiation_flux_gl",
         "total_precipitation_rate_gl",
+        "pressure_msl",
     ]
 
     # interpolate 3 hourly step to 1 hour steps
