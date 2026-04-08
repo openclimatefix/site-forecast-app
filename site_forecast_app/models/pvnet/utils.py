@@ -72,8 +72,6 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
             ]
 
             if os.getenv("CLIENT_NAME", "nl") == "nl" and nwp_source == "mo_global":
-                # TODO this is temp, should remove after
-                # https://github.com/openclimatefix/site-forecast-app/issues/133
                 # this is only for NL
                 if "wind_u_10m" in nwp_config[nwp_source]["channels"]:
                     nwp_config[nwp_source]["channels"].remove("wind_u_10m")
