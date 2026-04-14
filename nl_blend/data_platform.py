@@ -1,9 +1,8 @@
+"""Data Platform I/O helpers for the NL site blending service."""
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
-
 from dp_sdk.ocf import dp
 
 from nl_blend.init_times import extract_latest_init_times
@@ -19,11 +18,9 @@ async def fetch_dp_forecast_values_as_timeseries(
     client: dp.DataPlatformDataServiceStub,
     location_uuid: str,
     model_name: str,
-    start_datetime: Optional[datetime],
+    start_datetime: datetime | None,
 ) -> list:
-    """
-    Fetches the latest forecast timeseries from the Data Platform for a single
-    model at a given location.
+    """Fetches latest forecast timeseries from Data Platform for a single model.
 
     The UK implementation fetches the single most-recent run for each model and
     returns up to 48 hours of values, filtered to >= start_datetime.
@@ -38,17 +35,17 @@ async def fetch_dp_forecast_values_as_timeseries(
         List of Data Platform timeseries value objects, possibly empty.
     """
     logger.debug(
-        f"Fetching timeseries for model='{model_name}' location='{location_uuid}'"
+        f"Fetching timeseries for model='{model_name}' location='{location_uuid}'",
     )
 
     # Single call to get all latest forecasts for this location, then filter
-    # by model name – this is the same pattern the UK uses (one call per model
+    # by model name - this is the same pattern the UK uses (one call per model
     # within a shared connection opened by the caller).
     response = await client.get_latest_forecasts(
         dp.GetLatestForecastsRequest(
             location_uuid=location_uuid,
             energy_source=dp.EnergySource.SOLAR,
-        )
+        ),
     )
 
     matching = [
@@ -58,7 +55,7 @@ async def fetch_dp_forecast_values_as_timeseries(
 
     if not matching:
         logger.warning(
-            f"No forecast found for model='{model_name}' at location='{location_uuid}'"
+            f"No forecast found for model='{model_name}' at location='{location_uuid}'",
         )
         return []
 
@@ -75,14 +72,14 @@ async def fetch_dp_forecast_values_as_timeseries(
                 end_timestamp_utc=forecast.initialization_timestamp_utc
                 + timedelta(hours=48),
             ),
-        )
+        ),
     )
 
     values = timeseries_response.values
 
     if start_datetime is not None:
         if start_datetime.tzinfo is None:
-            start_datetime = start_datetime.replace(tzinfo=timezone.utc)
+            start_datetime = start_datetime.replace(tzinfo=UTC)
         filtered = []
         for v in values:
             t = _to_aware_datetime(v.target_timestamp_utc)
@@ -97,17 +94,15 @@ async def get_all_forecast_values_as_dataframe(
     client: dp.DataPlatformDataServiceStub,
     location_uuid: str,
     model_name: str,
-    start_datetime: Optional[datetime],
+    start_datetime: datetime | None,
 ) -> pd.DataFrame:
-    """
-    Fetches the latest forecast timeseries for a model and returns a tidy
-    long-format DataFrame.
+    """Fetches latest forecast timeseries for a model and returns a tidy DataFrame.
 
     Columns:
-        target_time                          – UTC datetime of the forecast step
-        expected_power_generation_megawatts  – p50 value converted to MW
-        created_utc                          – wall-clock time of the fetch
-        model_name                           – name of the source model
+        target_time                          - UTC datetime of the forecast step
+        expected_power_generation_megawatts  - p50 value converted to MW
+        created_utc                          - wall-clock time of the fetch
+        model_name                           - name of the source model
 
     Returns an empty DataFrame (with the correct columns) when no data is found,
     matching the UK handling for absent models.
@@ -118,7 +113,7 @@ async def get_all_forecast_values_as_dataframe(
             "expected_power_generation_megawatts",
             "created_utc",
             "model_name",
-        ]
+        ],
     )
 
     dp_values = await fetch_dp_forecast_values_as_timeseries(
@@ -131,7 +126,7 @@ async def get_all_forecast_values_as_dataframe(
     if not dp_values:
         return _EMPTY
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = []
     for v in dp_values:
         capacity_mw = v.effective_capacity_watts / 1_000_000
@@ -145,7 +140,7 @@ async def get_all_forecast_values_as_dataframe(
                 "expected_power_generation_megawatts": p50_mw,
                 "created_utc": now,
                 "model_name": model_name,
-            }
+            },
         )
 
     return pd.DataFrame(rows)
@@ -158,13 +153,11 @@ async def get_all_forecast_values_as_dataframe(
 async def fetch_latest_nl_init_times(
     client: dp.DataPlatformDataServiceStub,
     location_uuid: str,
-    model_names: List[str],
+    model_names: list[str],
     t0: pd.Timestamp,
     max_delay: pd.Timedelta,
-) -> Dict[str, pd.Timestamp]:
-    """
-    Fetches all latest forecasts from Data Platform in a single call and
-    extracts the most-recent valid initialisation time for each requested model.
+) -> dict[str, pd.Timestamp]:
+    """Fetches all latest forecasts and extracts valid init times.
 
     A single DP call is made (matching the UK single-pass pattern) and the
     pure `extract_latest_init_times` function handles the filtering/selection
@@ -186,7 +179,7 @@ async def fetch_latest_nl_init_times(
             dp.GetLatestForecastsRequest(
                 location_uuid=location_uuid,
                 energy_source=dp.EnergySource.SOLAR,
-            )
+            ),
         )
         return extract_latest_init_times(
             forecasts=list(response.forecasts),
@@ -207,15 +200,13 @@ async def fetch_latest_nl_init_times(
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _to_aware_datetime(ts) -> datetime:
+def _to_aware_datetime(ts: datetime | pd.Timestamp | object) -> datetime:
+    """Converts a protobuf Timestamp or plain datetime to a UTC datetime.
+
+    Adds timezone-aware UTC datetime, normalising the various forms that come
+    back from the DP SDK.
     """
-    Converts a protobuf Timestamp or plain datetime to a timezone-aware UTC
-    datetime, normalising the various forms that come back from the DP SDK.
-    """
-    if hasattr(ts, "ToDatetime"):
-        dt = ts.ToDatetime()
-    else:
-        dt = ts
+    dt = ts.ToDatetime() if hasattr(ts, "ToDatetime") else ts
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt

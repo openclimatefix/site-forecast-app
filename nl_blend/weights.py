@@ -1,17 +1,18 @@
+"""Logic for calculating optimal model weights for NL site blending."""
 import logging
-from typing import Callable, Dict, List
+from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
 
-from site_forecast_app.save.data_platform import get_dataplatform_client
 from nl_blend.data_platform import fetch_latest_nl_init_times
 from nl_blend.init_times import calculate_model_delays, shift_mae_curves
+from site_forecast_app.save.data_platform import get_dataplatform_client
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants – NL model registry
+# Constants - NL model registry
 # ---------------------------------------------------------------------------
 
 # The absolute fallback: always available, longest horizon, weakest accuracy
@@ -27,17 +28,17 @@ NL_INTRADAY_MODELS = [
     "nl_national_pv_ecmwf_sat_small",
 ]
 
-ALL_NL_MODELS = [NL_BACKUP_MODEL] + NL_DAY_AHEAD_MODELS + NL_INTRADAY_MODELS
+ALL_NL_MODELS = [NL_BACKUP_MODEL, *NL_DAY_AHEAD_MODELS, *NL_INTRADAY_MODELS]
 
 # Blend kernel: weights applied at the transition zone between two models.
 # [1.0 primary, 0.75 primary, 0.5 primary, 0.25 primary] then 0.0 (backup takes over).
 # Matches the UK tapering kernel to avoid abrupt model switches.
-BLEND_KERNEL: List[float] = [0.75, 0.5, 0.25]
+BLEND_KERNEL: list[float] = [0.75, 0.5, 0.25]
 
 # Minimum horizon emitted in any blended forecast
 MIN_FORECAST_HORIZON = pd.Timedelta("30min")
 
-# Score-function horizons – matches the UK horizon window choices:
+# Score-function horizons - matches the UK horizon window choices:
 #   Stage 1 (day-ahead selection):  optimise over 36 h  (NL ECMWF covers 48 h)
 #   Stage 2 (intraday selection):   optimise over  8 h  (satellite models ~6-8 h)
 _STAGE1_SCORE_HOURS = 36
@@ -49,10 +50,10 @@ _STAGE2_SCORE_HOURS = 8
 # ---------------------------------------------------------------------------
 
 def make_avg_mae_func(n_hours: int) -> Callable[[pd.Series], float]:
-    """
-    Returns a scoring function that computes the mean MAE over the window
-    [MIN_FORECAST_HORIZON, n_hours], excluding the final boundary point
-    (matching the UK half-open interval convention).
+    """Returns a scoring function for MAE over a window.
+
+    Computes the mean MAE over [MIN_FORECAST_HORIZON, n_hours], excluding the
+    final boundary point (matching the UK half-open interval convention).
     """
     def _score(horizon_mae: pd.Series) -> float:
         window = horizon_mae.loc[MIN_FORECAST_HORIZON : f"{n_hours}h"]
@@ -70,10 +71,9 @@ def make_avg_mae_func(n_hours: int) -> Callable[[pd.Series], float]:
 def make_blend_weights_array(
     size: int,
     blend_start_index: int,
-    kernel: List[float],
+    kernel: list[float],
 ) -> np.ndarray:
-    """
-    Constructs a 1-D weight array for the primary (non-backup) model.
+    """Constructs a 1-D weight array for the primary (non-backup) model.
 
     Layout
     ------
@@ -90,11 +90,10 @@ def make_blend_weights_array(
 
 
 def index_of_last_non_nan_value(x: np.ndarray) -> int:
-    """
-    Returns the index of the last non-NaN element in x.
+    """Returns the index of the last non-NaN element in x.
 
     Returns -1 if x is entirely NaN, which causes the calling loop to produce
-    an empty range and silently skip the model – the same outcome as the UK
+    an empty range and silently skip the model - the same outcome as the UK
     implementation when a model has no valid horizon coverage.
     """
     non_nan_indices = np.where(~np.isnan(x))[0]
@@ -110,12 +109,12 @@ def index_of_last_non_nan_value(x: np.ndarray) -> int:
 def calculate_optimal_blend_weights(
     df_mae: pd.DataFrame,
     backup_model_name: str,
-    kernel: List[float],
+    kernel: list[float],
     score_func: Callable[[pd.Series], float],
 ) -> pd.DataFrame:
-    """
-    Finds the blend weight array that minimises score_func when mixing one
-    candidate model with the backup model.
+    """Finds the blend weight array that minimises score_func.
+
+    Minimises score_func when mixing one candidate model with the backup model.
     ------------------------------------------
     1. Start with the backup model scoring as the baseline.
     2. For each candidate model:
@@ -143,15 +142,16 @@ def calculate_optimal_blend_weights(
     if df_mae.empty:
         return pd.DataFrame(columns=df_mae.columns)
 
-    assert backup_model_name in df_mae.columns, (
-        f"backup_model_name='{backup_model_name}' not in df_mae columns: "
-        f"{list(df_mae.columns)}"
-    )
+    if backup_model_name not in df_mae.columns:
+        raise ValueError(
+            f"backup_model_name='{backup_model_name}' not in df_mae columns: "
+            f"{list(df_mae.columns)}",
+        )
 
     kernel_arr = np.array(kernel)
 
     # Fill NaN with a large penalty value so the score function always prefers
-    # a model with real data over one with gaps – matches the UK fill strategy.
+    # a model with real data over one with gaps - matches the UK fill strategy.
     fill_val = np.nanmax(df_mae.values) * 10
     df_filled = df_mae.fillna(fill_val)
 
@@ -168,31 +168,34 @@ def calculate_optimal_blend_weights(
         model_last_idx = index_of_last_non_nan_value(df_mae[model].values)
 
         if model_last_idx < 0:
-            # Model has no valid data at all – skip
-            logger.debug(f"Model {model} has no valid data at all – skip.")
+            # Model has no valid data at all - skip
+            logger.debug(f"Model {model} has no valid data at all - skip.")
             continue
 
         if model_last_idx >= backup_last_idx:
-            # Model covers at least as much horizon as the backup – use it fully
+            # Model covers at least as much horizon as the backup - use it fully
             candidate_weights = np.ones(len(df_mae))
             candidate_mae = (
                 candidate_weights * df_filled[model]
                 + (1 - candidate_weights) * df_filled[backup_model_name]
             )
             score = score_func(candidate_mae)
-            logger.debug(f"Model {model} full coverage score: {score:.5f} (baseline: {baseline_score:.5f})")
+            logger.debug(
+                f"Model {model} full coverage score: {score:.5f} "
+                f"(baseline: {baseline_score:.5f})",
+            )
             if score < best_score:
                 best_score = score
                 best_weights = candidate_weights
                 best_model = model
         else:
-            # Model has shorter coverage – sweep the taper start position
+            # Model has shorter coverage - sweep the taper start position
             max_blend_start = model_last_idx - len(kernel_arr) + 1
             for position in range(max_blend_start + 1):
                 if df_mae.index[position] < MIN_FORECAST_HORIZON:
                     continue
                 candidate_weights = make_blend_weights_array(
-                    len(df_mae), position, kernel_arr
+                    len(df_mae), position, kernel_arr,
                 )
                 candidate_mae = (
                     candidate_weights * df_filled[model]
@@ -236,16 +239,14 @@ async def get_nl_blend_weights(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
 ) -> pd.DataFrame:
-    """
-    Produces the final blend weight DataFrame for t0, matching the UK two-stage
-    cascade:
+    """Produces the final blend weight DataFrame for t0, matching the UK two-stage cascade.
 
-    Stage 1 – Day-ahead selection
+    Stage 1 - Day-ahead selection
         Choose the best day-ahead model (or keep the backup) by minimising
         average MAE over a 36-hour window. Produces an intermediate blend
         called 'stage1_blend'.
 
-    Stage 2 – Intraday injection
+    Stage 2 - Intraday injection
         Choose the best intraday model (or keep stage1_blend) by minimising
         average MAE over an 8-hour window.
 
@@ -291,7 +292,7 @@ async def get_nl_blend_weights(
     if missing:
         logger.info(
             f"No init time found for {missing}; assigning max_horizon delay "
-            f"so they are excluded from the blend."
+            f"so they are excluded from the blend.",
         )
     for m in missing:
         model_init_times[m] = t0 - max_horizon
@@ -305,15 +306,15 @@ async def get_nl_blend_weights(
 
     if df_delayed_mae.empty:
         logger.error(
-            "Shifted MAE DataFrame is empty – no model delays overlap with the "
-            "scorecard. Cannot produce blend weights."
+            "Shifted MAE DataFrame is empty - no model delays overlap with the "
+            "scorecard. Cannot produce blend weights.",
         )
         return pd.DataFrame()
 
     # ------------------------------------------------------------------ #
     # 4. Stage 1: blend day-ahead model into backup                       #
     # ------------------------------------------------------------------ #
-    stage1_cols = [NL_BACKUP_MODEL] + NL_DAY_AHEAD_MODELS
+    stage1_cols = [NL_BACKUP_MODEL, *NL_DAY_AHEAD_MODELS]
     # Keep only columns that survived the delay-shift
     stage1_cols = [c for c in stage1_cols if c in df_delayed_mae.columns]
 
@@ -338,7 +339,7 @@ async def get_nl_blend_weights(
     # ------------------------------------------------------------------ #
     # 5. Stage 2: blend intraday model into stage-1 result                #
     # ------------------------------------------------------------------ #
-    stage2_cols = NL_INTRADAY_MODELS + ["stage1_blend"]
+    stage2_cols = [*NL_INTRADAY_MODELS, "stage1_blend"]
     stage2_cols = [c for c in stage2_cols if c in df_delayed_mae.columns]
 
     df_stage2_weights = calculate_optimal_blend_weights(
@@ -376,7 +377,7 @@ async def get_nl_blend_weights(
 
     logger.info(
         f"Blend weights computed for {len(weights_df)} target times, "
-        f"participating models: {list(weights_df.columns)}"
+        f"participating models: {list(weights_df.columns)}",
     )
 
     return weights_df

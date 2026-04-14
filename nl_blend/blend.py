@@ -1,11 +1,12 @@
+"""Logic for blending multiple model forecasts into a single timeseries."""
 import asyncio
 import logging
-import pandas as pd
 from datetime import datetime
-from typing import Optional
 
-from site_forecast_app.save.data_platform import get_dataplatform_client
+import pandas as pd
+
 from nl_blend.data_platform import get_all_forecast_values_as_dataframe
+from site_forecast_app.save.data_platform import get_dataplatform_client
 
 logger = logging.getLogger(__name__)
 
@@ -14,8 +15,7 @@ def blend_forecasts_together(
     all_model_df: pd.DataFrame,
     weights_df: pd.DataFrame,
 ) -> pd.DataFrame:
-    """
-    Blends per-model forecast arrays using pre-calculated weight trajectories.
+    """Blends per-model forecast arrays using pre-calculated weight trajectories.
 
     Matches the UK approach:
       - Iterates over each unique target time in the weights index.
@@ -38,7 +38,7 @@ def blend_forecasts_together(
     """
     if all_model_df.empty or weights_df.empty:
         return pd.DataFrame(
-            columns=["target_time", "expected_power_generation_megawatts"]
+            columns=["target_time", "expected_power_generation_megawatts"],
         )
 
     # Build a fast lookup: target_time -> {model_name -> value}
@@ -62,13 +62,16 @@ def blend_forecasts_together(
             val = model_values.get((t, model))
             if val is None:
                 if w > 0:
-                    logger.debug(f"Missing forecast value for model {model} at target_time {t} despite weight={w}")
+                    logger.debug(
+                        f"Missing forecast value for model {model} at "
+                        f"target_time {t} despite weight={w}",
+                    )
                 continue
             blended_value += val * w
             weight_sum += w
 
         if weight_sum == 0.0:
-            # No model had data for this target time – skip, matching UK behaviour
+            # No model had data for this target time - skip, matching UK behaviour
             continue
 
         # Warn if weights don't sum to 1.0 (indicates a missing model) so the
@@ -77,14 +80,14 @@ def blend_forecasts_together(
             logger.warning(
                 f"Blend weights for target_time={t} sum to {weight_sum:.4f} "
                 f"(expected 1.0). A model may be missing. "
-                f"Available models: {list(t_weights.index)}"
+                f"Available models: {list(t_weights.index)}",
             )
 
         blended_rows.append(
             {
                 "target_time": t,
                 "expected_power_generation_megawatts": blended_value,
-            }
+            },
         )
 
     return pd.DataFrame(blended_rows)
@@ -93,16 +96,16 @@ def blend_forecasts_together(
 async def get_blend_forecast_values_latest(
     location_uuid: str,
     weights_df: pd.DataFrame,
-    start_datetime: Optional[datetime] = None,
+    start_datetime: datetime | None = None,
 ) -> pd.DataFrame:
-    """
-    Fetches the latest forecast timeseries for all models participating in the
-    blend and returns a single blended timeseries.
+    """Fetches latest forecast timeseries for all models participating in the blend.
+
+    Returns a single blended timeseries.
 
     Matches the UK approach:
       - A single Data Platform connection is opened and all models are fetched
         concurrently via asyncio.gather (one DP call per model, but within the
-        same connection context – not one full-list call per model).
+        same connection context - not one full-list call per model).
       - Results are concatenated into a long-format frame and passed to
         blend_forecasts_together.
 
@@ -116,17 +119,17 @@ async def get_blend_forecast_values_latest(
         [target_time, expected_power_generation_megawatts].
     """
     if weights_df.empty:
-        logger.warning("No weights provided – skipping blend.")
+        logger.warning("No weights provided - skipping blend.")
         return pd.DataFrame(
-            columns=["target_time", "expected_power_generation_megawatts"]
+            columns=["target_time", "expected_power_generation_megawatts"],
         )
 
     model_names = list(weights_df.columns)
     logger.info(
-        f"Fetching forecast values for {len(model_names)} model(s): {model_names}"
+        f"Fetching forecast values for {len(model_names)} model(s): {model_names}",
     )
 
-    # Single connection; all models fetched concurrently – matches UK single-pass pattern
+    # Single connection; all models fetched concurrently - matches UK single-pass pattern
     async with get_dataplatform_client() as client:
         tasks = [
             get_all_forecast_values_as_dataframe(
@@ -144,17 +147,17 @@ async def get_blend_forecast_values_latest(
     if not non_empty:
         logger.warning(
             "No forecast timeseries data returned from any model. "
-            "Cannot produce a blended forecast."
+            "Cannot produce a blended forecast.",
         )
         return pd.DataFrame(
-            columns=["target_time", "expected_power_generation_megawatts"]
+            columns=["target_time", "expected_power_generation_megawatts"],
         )
 
     all_model_df = pd.concat(non_empty, axis=0, ignore_index=True)
 
     logger.info(
         f"Fetched {len(all_model_df)} total forecast rows across "
-        f"{all_model_df['model_name'].nunique()} model(s)."
+        f"{all_model_df['model_name'].nunique()} model(s).",
     )
 
     return blend_forecasts_together(all_model_df, weights_df)

@@ -1,11 +1,13 @@
+"""Main entry point for the NL forecast blending application."""
 import asyncio
-import os
 import logging
+import os
+
 import pandas as pd
 
+from nl_blend.blend import get_blend_forecast_values_latest
 from nl_blend.init_times import load_nl_mae_scorecard
 from nl_blend.weights import get_nl_blend_weights
-from nl_blend.blend import get_blend_forecast_values_latest
 from site_forecast_app.save.data_platform import build_dp_location_map
 
 logging.basicConfig(level=logging.INFO)
@@ -15,22 +17,23 @@ logger = logging.getLogger("nl_blend_app")
 FORECAST_VALUE_WRITE_INTERVAL_MINUTES = 30
 
 
-async def run_blend_app():
-    """
-    Main execution point for the NL Blend app.
-      1. Determine blend reference time (t0)
-      2. Resolve target location UUID from Data Platform
-      3. Load the MAE scorecard
-      4. Calculate delay-adjusted blend weights
-      5. Fetch raw forecast timeseries and blend them
-      6. Save results:
-         - ForecastValueLatest: every run
-         - ForecastValue:       every 30 minutes only
+async def run_blend_app() -> None:
+    """Main execution point for the NL Blend app.
+
+    Steps:
+    1. Determine blend reference time (t0)
+    2. Resolve target location UUID from Data Platform
+    3. Load the MAE scorecard
+    4. Calculate delay-adjusted blend weights
+    5. Fetch raw forecast timeseries and blend them
+    6. Save results:
+       - ForecastValueLatest: every run
+       - ForecastValue:       every 30 minutes only
     """
     logger.info("Starting NL Blend execution.")
 
     # ------------------------------------------------------------------ #
-    # 1. Determine blend reference time – floor to 30-min boundary    #
+    # 1. Determine blend reference time - floor to 30-min boundary    #
     # ------------------------------------------------------------------ #
     t0 = pd.Timestamp.utcnow().floor("30min")
     logger.info(f"Blend t0: {t0}")
@@ -44,7 +47,7 @@ async def run_blend_app():
         if not dp_loc_map:
             logger.error("Data Platform returned an empty location map. Cannot continue.")
             return
-        location_uuid = list(dp_loc_map.values())[0]
+        location_uuid = next(iter(dp_loc_map.values()))
         logger.info(f"Using location UUID: {location_uuid}")
     except Exception:
         logger.exception("Failed to connect to Data Platform while fetching location map.")
@@ -54,13 +57,13 @@ async def run_blend_app():
     # 3. Load MAE scorecard                                                #
     # ------------------------------------------------------------------ #
     scorecard_path = os.path.join(
-        os.path.dirname(__file__), "data", "backtest_nmae_comparison.csv"
+        os.path.dirname(__file__), "data", "backtest_nmae_comparison.csv",
     )
     try:
         df_mae = load_nl_mae_scorecard(scorecard_path)
         logger.info(
             f"Loaded MAE scorecard from '{scorecard_path}' "
-            f"with models: {list(df_mae.columns)}"
+            f"with models: {list(df_mae.columns)}",
         )
     except Exception:
         logger.exception(f"Failed to load MAE scorecard from '{scorecard_path}'.")
@@ -101,14 +104,14 @@ async def run_blend_app():
     if blended_df.empty:
         logger.warning(
             "Blended timeseries is empty. "
-            "This is expected in dev when no forecast megawatts are stored."
+            "This is expected in dev when no forecast megawatts are stored.",
         )
         return
 
     logger.info(f"Blended timeseries (first 10 rows):\n{blended_df.head(10)}")
 
     # ------------------------------------------------------------------ #
-    # 6. Save results – mirrors the UK dual-table write strategy           #
+    # 6. Save results - mirrors the UK dual-table write strategy           #
     #    ForecastValueLatest: always written                               #
     #    ForecastValue:       written only every 30 minutes               #
     # ------------------------------------------------------------------ #
@@ -116,17 +119,17 @@ async def run_blend_app():
 
 
 async def _save_forecasts(t0: pd.Timestamp, blended_df: pd.DataFrame) -> None:
-    """
-    Persists the blended forecast following the UK dual-table write pattern:
-      - ForecastValueLatest is always updated so the API always has fresh data.
-      - ForecastValue is only written every 30 minutes to keep table growth manageable.
+    """Persists the blended forecast following the UK dual-table write pattern.
+
+    - ForecastValueLatest is always updated so the API always has fresh data.
+    - ForecastValue is only written every 30 minutes to keep table growth manageable.
 
     Replace the logger stubs below with real DB / Data Platform write calls.
     """
     # Always write to the latest-value store
     logger.info(
         f"Saving {len(blended_df)} rows to ForecastValueLatest "
-        f"(blend_name='nl_blend', t0={t0})."
+        f"(blend_name='nl_blend', t0={t0}).",
     )
     # TODO: await db_client.upsert_forecast_value_latest(blended_df, model_name="nl_blend")
 
@@ -134,13 +137,13 @@ async def _save_forecasts(t0: pd.Timestamp, blended_df: pd.DataFrame) -> None:
     if t0.minute % FORECAST_VALUE_WRITE_INTERVAL_MINUTES == 0:
         logger.info(
             f"Saving {len(blended_df)} rows to ForecastValue "
-            f"(blend_name='nl_blend', t0={t0})."
+            f"(blend_name='nl_blend', t0={t0}).",
         )
         # TODO: await db_client.insert_forecast_value(blended_df, model_name="nl_blend")
     else:
         logger.info(
             f"Skipping ForecastValue write at t0={t0} "
-            f"(only written every {FORECAST_VALUE_WRITE_INTERVAL_MINUTES} min)."
+            f"(only written every {FORECAST_VALUE_WRITE_INTERVAL_MINUTES} min).",
         )
 
 

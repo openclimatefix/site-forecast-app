@@ -1,5 +1,6 @@
+"""Logic for managing and extracting forecast initialization times for NL sites."""
 import logging
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 
@@ -14,8 +15,7 @@ MIN_FORECAST_HORIZON = pd.Timedelta("30min")
 # ---------------------------------------------------------------------------
 
 def load_nl_mae_scorecard(filepath: str) -> pd.DataFrame:
-    """
-    Loads the NL normalised MAE scorecard from a CSV file.
+    """Loads the NL normalised MAE scorecard from a CSV file.
 
     Supported CSV shapes
     --------------------
@@ -26,13 +26,13 @@ def load_nl_mae_scorecard(filepath: str) -> pd.DataFrame:
     Wide / legacy format (fallback):
         First column treated as the horizon label; remaining columns are models.
 
-    Returns
+    Returns:
     -------
     DataFrame indexed by pd.Timedelta (forecast horizon), one column per model.
 
-    Raises
+    Raises:
     ------
-    Exception if the file cannot be read or parsed – caller is responsible for
+    Exception if the file cannot be read or parsed - caller is responsible for
     handling this (app.py logs and exits).
     """
     try:
@@ -43,7 +43,7 @@ def load_nl_mae_scorecard(filepath: str) -> pd.DataFrame:
 
     if "horizon_minutes" in df.columns and "model" in df.columns:
         df_pivot = df.pivot(
-            index="horizon_minutes", columns="model", values="norm_abs_error"
+            index="horizon_minutes", columns="model", values="norm_abs_error",
         )
         df_pivot.index = pd.to_timedelta(df_pivot.index, unit="m")
         df_pivot.columns.name = None
@@ -61,13 +61,12 @@ def load_nl_mae_scorecard(filepath: str) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def calculate_model_delays(
-    model_init_times: Dict[str, pd.Timestamp],
+    model_init_times: dict[str, pd.Timestamp],
     t0: pd.Timestamp,
-) -> Dict[str, pd.Timedelta]:
-    """
-    Calculates each model's effective delay relative to t0.
+) -> dict[str, pd.Timedelta]:
+    """Calculates each model's effective delay relative to t0.
 
-    The delay is:  t0  –  floor(init_time, 30 min)
+    The delay is:  t0  -  floor(init_time, 30 min)
 
     This matches the UK approach: the initialisation time is rounded down to the
     nearest half-hour before subtracting, so a model initialised at 09:47 is
@@ -85,7 +84,7 @@ def calculate_model_delays(
     if t0.tz is None:
         t0 = t0.tz_localize("UTC")
 
-    delays: Dict[str, pd.Timedelta] = {}
+    delays: dict[str, pd.Timedelta] = {}
 
     for model_name, init_time in model_init_times.items():
         if init_time is None:
@@ -97,7 +96,10 @@ def calculate_model_delays(
         approx_init = init_time.floor("30min")
         delay = t0 - approx_init
 
-        logger.debug(f"Model {model_name} init_time: {init_time}, approx_init: {approx_init}, raw delay: {delay}")
+        logger.debug(
+            f"Model {model_name} init_time: {init_time}, "
+            f"approx_init: {approx_init}, raw delay: {delay}",
+        )
 
         if delay < pd.Timedelta(0):
             logger.debug(f"Clamping negative delay for {model_name} to 0")
@@ -114,10 +116,9 @@ def calculate_model_delays(
 
 def shift_mae_curves(
     df_mae: pd.DataFrame,
-    delays: Dict[str, pd.Timedelta],
+    delays: dict[str, pd.Timedelta],
 ) -> pd.DataFrame:
-    """
-    Shifts each model's MAE curve rightward by its delay.
+    """Shifts each model's MAE curve rightward by its delay.
 
     If a model is delayed by 60 min, its scorecard row at horizon=30 min
     actually represents performance at an effective horizon of 90 min.
@@ -141,7 +142,7 @@ def shift_mae_curves(
         logger.warning(
             "No overlap between MAE scorecard models and models with known delays. "
             f"Scorecard models: {list(df_mae.columns)}. "
-            f"Delay models: {list(delays.keys())}."
+            f"Delay models: {list(delays.keys())}.",
         )
         return pd.DataFrame(columns=df_mae.columns)
 
@@ -166,18 +167,18 @@ def shift_mae_curves(
 
 
 # ---------------------------------------------------------------------------
-# Init-time extraction (pure function – fully unit-testable)
+# Init-time extraction (pure function - fully unit-testable)
 # ---------------------------------------------------------------------------
 
 def extract_latest_init_times(
-    forecasts: List[Any],
-    model_names: List[str],
+    forecasts: list[Any],
+    model_names: list[str],
     t0: pd.Timestamp,
     max_delay: pd.Timedelta,
-) -> Dict[str, pd.Timestamp]:
-    """
-    Extracts the most-recent valid initialisation time for each requested model
-    from a list of Data Platform forecast objects.
+) -> dict[str, pd.Timestamp]:
+    """Extracts the most-recent valid initialisation time for each requested model.
+
+    From a list of Data Platform forecast objects.
 
     "Valid" means: init_time >= t0 - max_delay.
 
@@ -199,7 +200,7 @@ def extract_latest_init_times(
         t0 = t0.tz_localize("UTC")
 
     earliest_valid = t0 - max_delay
-    model_init_times: Dict[str, pd.Timestamp] = {}
+    model_init_times: dict[str, pd.Timestamp] = {}
 
     for forecast in forecasts:
         if not (
@@ -220,19 +221,18 @@ def extract_latest_init_times(
                 init_ts = pd.Timestamp(raw_init)
         except Exception:
             logger.warning(
-                f"Could not parse init timestamp for model '{forecaster_name}': {raw_init!r}"
+                f"Could not parse init timestamp for model '{forecaster_name}': {raw_init!r}",
             )
             continue
 
-        if init_ts.tz is None:
-            init_ts = init_ts.tz_localize("UTC")
-        else:
-            init_ts = init_ts.tz_convert("UTC")
+        init_ts = (
+            init_ts.tz_localize("UTC") if init_ts.tz is None else init_ts.tz_convert("UTC")
+        )
 
         if init_ts < earliest_valid:
             logger.debug(
                 f"Ignoring stale forecast for '{forecaster_name}': "
-                f"init={init_ts} < earliest_valid={earliest_valid}"
+                f"init={init_ts} < earliest_valid={earliest_valid}",
             )
             continue
 
