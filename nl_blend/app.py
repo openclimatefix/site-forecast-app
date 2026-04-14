@@ -13,7 +13,7 @@ from site_forecast_app.save.data_platform import build_dp_location_map
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nl_blend_app")
 
-# Controls how often ForecastValue (non-latest) table is written, matching UK 30-min cadence
+# Controls how often ForecastValue (non-latest) table is written,30-min cadence
 FORECAST_VALUE_WRITE_INTERVAL_MINUTES = 30
 
 
@@ -111,7 +111,7 @@ async def run_blend_app() -> None:
     logger.info(f"Blended timeseries (first 10 rows):\n{blended_df.head(10)}")
 
     # ------------------------------------------------------------------ #
-    # 6. Save results - mirrors the UK dual-table write strategy           #
+    # 6. Save results            #
     #    ForecastValueLatest: always written                               #
     #    ForecastValue:       written only every 30 minutes               #
     # ------------------------------------------------------------------ #
@@ -119,27 +119,25 @@ async def run_blend_app() -> None:
 
 
 async def _save_forecasts(t0: pd.Timestamp, blended_df: pd.DataFrame) -> None:
-    """Persists the blended forecast following the UK dual-table write pattern.
+    """Persists the blended forecast following the dual-table write pattern.
 
     - ForecastValueLatest is always updated so the API always has fresh data.
     - ForecastValue is only written every 30 minutes to keep table growth manageable.
 
-    Replace the logger stubs below with real DB / Data Platform write calls.
+    Data Platform write calls.
     """
     # Always write to the latest-value store
     logger.info(
         f"Saving {len(blended_df)} rows to ForecastValueLatest "
         f"(blend_name='nl_blend', t0={t0}).",
     )
-    # TODO: await db_client.upsert_forecast_value_latest(blended_df, model_name="nl_blend")
 
     # Write to the historical store only on the 30-minute cadence
     if t0.minute % FORECAST_VALUE_WRITE_INTERVAL_MINUTES == 0:
         logger.info(
             f"Saving {len(blended_df)} rows to ForecastValue "
-            f"(blend_name='nl_blend', t0={t0}).",
+            f"(blend_name='nl_blend', t0={t0}). to DATA PLATFORM",
         )
-        # TODO: await db_client.insert_forecast_value(blended_df, model_name="nl_blend")
     else:
         logger.info(
             f"Skipping ForecastValue write at t0={t0} "

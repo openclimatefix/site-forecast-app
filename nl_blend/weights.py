@@ -32,13 +32,13 @@ ALL_NL_MODELS = [NL_BACKUP_MODEL, *NL_DAY_AHEAD_MODELS, *NL_INTRADAY_MODELS]
 
 # Blend kernel: weights applied at the transition zone between two models.
 # [1.0 primary, 0.75 primary, 0.5 primary, 0.25 primary] then 0.0 (backup takes over).
-# Matches the UK tapering kernel to avoid abrupt model switches.
+# tapering kernel to avoid abrupt model switches.
 BLEND_KERNEL: list[float] = [0.75, 0.5, 0.25]
 
 # Minimum horizon emitted in any blended forecast
 MIN_FORECAST_HORIZON = pd.Timedelta("30min")
 
-# Score-function horizons - matches the UK horizon window choices:
+# Score-function horizons
 #   Stage 1 (day-ahead selection):  optimise over 36 h  (NL ECMWF covers 48 h)
 #   Stage 2 (intraday selection):   optimise over  8 h  (satellite models ~6-8 h)
 _STAGE1_SCORE_HOURS = 36
@@ -53,11 +53,11 @@ def make_avg_mae_func(n_hours: int) -> Callable[[pd.Series], float]:
     """Returns a scoring function for MAE over a window.
 
     Computes the mean MAE over [MIN_FORECAST_HORIZON, n_hours], excluding the
-    final boundary point (matching the UK half-open interval convention).
+    final boundary point.
     """
     def _score(horizon_mae: pd.Series) -> float:
         window = horizon_mae.loc[MIN_FORECAST_HORIZON : f"{n_hours}h"]
-        # Drop the last boundary point to keep intervals half-open, as in UK
+        # Drop the last boundary point to keep intervals half-open
         return float(window.iloc[:-1].mean())
 
     _score.__name__ = f"avg_mae_{n_hours}h"
@@ -93,7 +93,7 @@ def index_of_last_non_nan_value(x: np.ndarray) -> int:
     """Returns the index of the last non-NaN element in x.
 
     Returns -1 if x is entirely NaN, which causes the calling loop to produce
-    an empty range and silently skip the model - the same outcome as the UK
+    an empty range and silently skip the model
     implementation when a model has no valid horizon coverage.
     """
     non_nan_indices = np.where(~np.isnan(x))[0]
@@ -151,7 +151,7 @@ def calculate_optimal_blend_weights(
     kernel_arr = np.array(kernel)
 
     # Fill NaN with a large penalty value so the score function always prefers
-    # a model with real data over one with gaps - matches the UK fill strategy.
+    # a model with real data over one with gaps
     fill_val = np.nanmax(df_mae.values) * 10
     df_filled = df_mae.fillna(fill_val)
 
@@ -239,7 +239,7 @@ async def get_nl_blend_weights(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
 ) -> pd.DataFrame:
-    """Produces the final blend weight DataFrame for t0, matching the UK two-stage cascade.
+    """Produces the final blend weight DataFrame for t0.
 
     Stage 1 - Day-ahead selection
         Choose the best day-ahead model (or keep the backup) by minimising
@@ -285,7 +285,6 @@ async def get_nl_blend_weights(
     # ------------------------------------------------------------------ #
     # 2. Assign a penalty delay to any model not found in DP              #
     #    (max_horizon → effectively excluded from the blend)              #
-    #    Matches the UK behaviour of silently falling back rather than    #
     #    erroring when individual models are absent.                       #
     # ------------------------------------------------------------------ #
     missing = [m for m in ALL_NL_MODELS if m not in model_init_times]

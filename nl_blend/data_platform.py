@@ -22,7 +22,7 @@ async def fetch_dp_forecast_values_as_timeseries(
 ) -> list:
     """Fetches latest forecast timeseries from Data Platform for a single model.
 
-    The UK implementation fetches the single most-recent run for each model and
+    The  implementation fetches the single most-recent run for each model and
     returns up to 48 hours of values, filtered to >= start_datetime.
 
     Args:
@@ -39,7 +39,6 @@ async def fetch_dp_forecast_values_as_timeseries(
     )
 
     # Single call to get all latest forecasts for this location, then filter
-    # by model name - this is the same pattern the UK uses (one call per model
     # within a shared connection opened by the caller).
     response = await client.get_latest_forecasts(
         dp.GetLatestForecastsRequest(
@@ -105,7 +104,6 @@ async def get_all_forecast_values_as_dataframe(
         model_name                           - name of the source model
 
     Returns an empty DataFrame (with the correct columns) when no data is found,
-    matching the UK handling for absent models.
     """
     _EMPTY = pd.DataFrame(
         columns=[
@@ -159,7 +157,7 @@ async def fetch_latest_nl_init_times(
 ) -> dict[str, pd.Timestamp]:
     """Fetches all latest forecasts and extracts valid init times.
 
-    A single DP call is made (matching the UK single-pass pattern) and the
+    A single DP call is made and the
     pure `extract_latest_init_times` function handles the filtering/selection
     logic so it remains fully unit-testable without a live stub.
 

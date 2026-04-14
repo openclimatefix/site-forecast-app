@@ -17,7 +17,7 @@ def blend_forecasts_together(
 ) -> pd.DataFrame:
     """Blends per-model forecast arrays using pre-calculated weight trajectories.
 
-    Matches the UK approach:
+    approach:
       - Iterates over each unique target time in the weights index.
       - For each target time, multiplies available model values by their weights
         and sums them. Weights are constructed to sum to 1.0 by design
@@ -25,7 +25,7 @@ def blend_forecasts_together(
       - If weights deviate from 1.0 (e.g. a model is absent), a warning is
         logged rather than silently normalising, preserving observability.
       - Target times present in weights but absent from any model forecast are
-        skipped (no value is emitted), matching the UK fallback behaviour.
+        skipped (no value is emitted), matching the  fallback behaviour.
 
     Args:
         all_model_df: Long-format DataFrame with columns
@@ -71,7 +71,7 @@ def blend_forecasts_together(
             weight_sum += w
 
         if weight_sum == 0.0:
-            # No model had data for this target time - skip, matching UK behaviour
+            # No model had data for this target time - skip, matching  behaviour
             continue
 
         # Warn if weights don't sum to 1.0 (indicates a missing model) so the
@@ -102,7 +102,7 @@ async def get_blend_forecast_values_latest(
 
     Returns a single blended timeseries.
 
-    Matches the UK approach:
+    Matches the  approach:
       - A single Data Platform connection is opened and all models are fetched
         concurrently via asyncio.gather (one DP call per model, but within the
         same connection context - not one full-list call per model).
@@ -129,7 +129,7 @@ async def get_blend_forecast_values_latest(
         f"Fetching forecast values for {len(model_names)} model(s): {model_names}",
     )
 
-    # Single connection; all models fetched concurrently - matches UK single-pass pattern
+    # Single connection; all models fetched concurrently - matches  single-pass pattern
     async with get_dataplatform_client() as client:
         tasks = [
             get_all_forecast_values_as_dataframe(

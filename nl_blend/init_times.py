@@ -6,7 +6,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Minimum horizon we will ever emit a blended value for, matching the UK 30-min floor
+# Minimum horizon we will ever emit a blended value for,
 MIN_FORECAST_HORIZON = pd.Timedelta("30min")
 
 
@@ -68,7 +68,7 @@ def calculate_model_delays(
 
     The delay is:  t0  -  floor(init_time, 30 min)
 
-    This matches the UK approach: the initialisation time is rounded down to the
+    approach: the initialisation time is rounded down to the
     nearest half-hour before subtracting, so a model initialised at 09:47 is
     treated as if it started at 09:30, giving a delay of 30 min when t0=10:00.
 
@@ -183,7 +183,7 @@ def extract_latest_init_times(
     "Valid" means: init_time >= t0 - max_delay.
 
     This is a pure function (no I/O) so it can be unit-tested with mock objects
-    without a live Data Platform connection, matching the UK separation of
+    without a live Data Platform connection separation of
     concerns between I/O (data_platform.py) and logic (init_times.py).
 
     Args:
