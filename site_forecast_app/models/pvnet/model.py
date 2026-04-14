@@ -24,6 +24,7 @@ from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 from site_forecast_app.data.gencast import pull_gencast_data
 from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.satellite import download_satellite_data
+from site_forecast_app.data.nwp import NWPProcessAndCacheConfig, process_and_cache_nwp
 
 from .consts import (
     generation_path,
@@ -33,9 +34,7 @@ from .consts import (
     root_data_path,
 )
 from .utils import (
-    NWPProcessAndCacheConfig,
     populate_data_config_sources,
-    process_and_cache_nwp,
     satellite_path,
     save_batch,
     set_night_time_zeros,
