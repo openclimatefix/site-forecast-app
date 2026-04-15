@@ -23,8 +23,8 @@ from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
 from site_forecast_app.data.gencast import pull_gencast_data
 from site_forecast_app.data.generation import format_generation_data
-from site_forecast_app.data.satellite import download_satellite_data
 from site_forecast_app.data.nwp import NWPProcessAndCacheConfig, process_and_cache_nwp
+from site_forecast_app.data.satellite import download_satellite_data
 
 from .consts import (
     generation_path,

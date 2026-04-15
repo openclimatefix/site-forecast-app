@@ -77,7 +77,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
 def maybe_scale_mo_cloud_variables(ds: xr.Dataset) -> xr.Dataset:
     """Scale cloud variables in MetOffice Global data if requested."""
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
-    
+
     if scale_mo_global_clouds:
         log.warning("Scaling MO Global cloud variables from 0-100 to 0-1")
 

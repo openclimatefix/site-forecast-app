@@ -6,10 +6,10 @@ import pytest
 import xarray as xr
 
 from site_forecast_app.data.nwp import (
+    NWPProcessAndCacheConfig,
     maybe_regrid_mo_global,
     maybe_scale_mo_cloud_variables,
     process_and_cache_nwp,
-    NWPProcessAndCacheConfig
 )
 
 

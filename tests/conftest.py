@@ -291,8 +291,8 @@ def nwp_data_with_nans(tmp_path_factory, nwp_data):
     ds = xr.open_zarr(os.environ["NWP_ECMWF_ZARR_PATH"])
 
     # get the name of the first variable and fill with nans
-    channel = ds['variable'].values[0]
-    ds = ds.where(ds['variable'] != channel)
+    channel = ds["variable"].values[0]
+    ds = ds.where(ds["variable"] != channel)
 
     # save at new data path
     temp_nwp_path_ecmwf_nans = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf_nans.zarr"
