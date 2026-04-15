@@ -286,7 +286,7 @@ def time_before_present():
 
 
 @pytest.fixture(scope="session")
-def nwp_data_with_nans(tmp_path_factory, nwp_data):
+def nwp_data_with_nans(tmp_path_factory, nwp_data): # noqa: ARG001
     """Dummy ECMWF data with one variable filled with NaNs"""
     ds = xr.open_zarr(os.environ["NWP_ECMWF_ZARR_PATH"])
 

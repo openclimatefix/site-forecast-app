@@ -13,7 +13,7 @@ from site_forecast_app.data.nwp import (
 )
 
 
-def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl):
+def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl): # noqa: ARG001
     """Test cloud variables are scaled when requested."""
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
     nwp_ds = nwp_ds.transpose("init_time", "step", "variable", "latitude", "longitude")
@@ -34,7 +34,7 @@ def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl):
         assert output_ds["mo_global"].sel(variable=var).data.max() == 1
 
 
-def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl):
+def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl): # noqa: ARG001
     """Test cloud variables are NOT scaled if not requested."""
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
 
@@ -54,7 +54,7 @@ def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl):
         assert output_ds["mo_global"].sel(variable=var).data.max() == 100
 
 
-def test_maybe_regrid_mo_global_nl(nwp_mo_global_data_nl):
+def test_maybe_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
     """Test MetOffice Global is regridded for NL."""
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
 
@@ -72,7 +72,7 @@ def test_maybe_regrid_mo_global_nl(nwp_mo_global_data_nl):
     assert all(output_ds.longitude.data == ds_target_coords.longitude.data)
 
 
-def test_maybe_regrid_mo_global_india(nwp_mo_global_data_india):
+def test_maybe_regrid_mo_global_india(nwp_mo_global_data_india): # noqa: ARG001
     """Test MetOffice Global is NOT regridded for India."""
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
 
@@ -85,7 +85,7 @@ def test_maybe_regrid_mo_global_india(nwp_mo_global_data_india):
     assert all(output_ds.longitude.data == nwp_ds.longitude.data)
 
 
-def test_process_and_cash_nwp_raise_nan_error(tmp_path_factory, nwp_data_with_nans):
+def test_process_and_cash_nwp_raise_nan_error(tmp_path_factory, nwp_data_with_nans): # noqa: ARG001
     """Test an error is raised when there are NaNs in the NWP data."""
     config = NWPProcessAndCacheConfig(
                     source_nwp_path=os.environ["NWP_ECMWF_NANS_ZARR_PATH"],
