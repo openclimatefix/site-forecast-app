@@ -415,10 +415,22 @@ def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, c
     ds = ds.interp(step=steps, method="linear")
 
     ds["mo_global"] = xr.DataArray(
-        np.zeros([len(ds[c]) for c in ds.xindexes]),
-        coords=[ds[c] for c in ds.xindexes],
+        data=np.zeros([ds.sizes[d] for d in ds.sizes]),
+        coords=[ds[c] for c in ds.sizes],
     )
 
+    ds = ds.transpose("init_time", "step", "variable", "latitude", "longitude")
+
+    cloud_vars = [
+        "cloud_cover_high",
+        "cloud_cover_low",
+        "cloud_cover_medium",
+        "cloud_cover_total",
+    ]
+    for cloud_var in cloud_vars:
+        if cloud_var in ds.variable.values:
+            idx = list(ds.variable.values).index(cloud_var)
+            ds["mo_global"][:, :, idx] = np.full(ds["mo_global"][:, :, idx].shape, 100)
     # AS NWP data is loaded by the app from environment variable,
     # save out data and set paths as environmental variables
     temp_nwp_path_gfs = f"{tmp_path_factory.mktemp('data')}/nwp_mo_global.zarr"
