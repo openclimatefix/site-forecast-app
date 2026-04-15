@@ -284,6 +284,22 @@ def time_before_present():
     return _time_before_present
 
 
+
+@pytest.fixture(scope="session")
+def nwp_data_with_nans(tmp_path_factory, nwp_data):
+    """Dummy ECMWF data with one variable filled with NaNs"""
+    ds = xr.open_zarr(os.environ["NWP_ECMWF_ZARR_PATH"])
+
+    # get the name of the first variable and fill with nans
+    channel = ds['variable'].values[0]
+    ds = ds.where(ds['variable'] != channel)
+
+    # save at new data path
+    temp_nwp_path_ecmwf_nans = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf_nans.zarr"
+    os.environ["NWP_ECMWF_NANS_ZARR_PATH"] = temp_nwp_path_ecmwf_nans
+    ds.to_zarr(temp_nwp_path_ecmwf_nans)
+
+
 @pytest.fixture(scope="session")
 def nwp_data(tmp_path_factory, time_before_present):
     """Dummy NWP data"""
