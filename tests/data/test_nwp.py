@@ -7,9 +7,9 @@ import xarray as xr
 
 from site_forecast_app.data.nwp import (
     NWPProcessAndCacheConfig,
+    process_and_cache_nwp,
     regrid_mo_global,
     scale_mo_cloud_variables,
-    process_and_cache_nwp,
 )
 
 
