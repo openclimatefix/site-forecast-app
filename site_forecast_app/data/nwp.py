@@ -66,15 +66,15 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
 
     # MetOffice Global requires extra processing
     if nwp_config.source == "mo_global":
-        ds = maybe_scale_mo_cloud_variables(ds)
-        ds = maybe_regrid_mo_global(ds)
+        ds = scale_mo_cloud_variables(ds)
+        ds = regrid_mo_global(ds)
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
     ds.to_zarr(dest_nwp_path, mode="a")
 
 
-def maybe_scale_mo_cloud_variables(ds: xr.Dataset) -> xr.Dataset:
+def scale_mo_cloud_variables(ds: xr.Dataset) -> xr.Dataset:
     """Scale cloud variables in MetOffice Global data if requested."""
     scale_mo_global_clouds = os.getenv("MO_GLOBAL_SCALE_CLOUDS", "1") == "1"
 
@@ -97,7 +97,7 @@ def maybe_scale_mo_cloud_variables(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def maybe_regrid_mo_global(ds: xr.Dataset) -> xr.Dataset:
+def regrid_mo_global(ds: xr.Dataset) -> xr.Dataset:
     """Regrid MetOffice Global data for Netherlands.
 
     Netherlands models were trained on data using a different grid

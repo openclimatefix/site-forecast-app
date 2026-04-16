@@ -7,8 +7,8 @@ import xarray as xr
 
 from site_forecast_app.data.nwp import (
     NWPProcessAndCacheConfig,
-    maybe_regrid_mo_global,
-    maybe_scale_mo_cloud_variables,
+    regrid_mo_global,
+    scale_mo_cloud_variables,
     process_and_cache_nwp,
 )
 
@@ -21,7 +21,7 @@ def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl): # noqa: ARG001
     # Set environment variable to request scaling
     os.environ["MO_GLOBAL_SCALE_CLOUDS"] = "1"
 
-    output_ds = maybe_scale_mo_cloud_variables(nwp_ds)
+    output_ds = scale_mo_cloud_variables(nwp_ds)
 
     # Check cloud variables are on the scale of [0,1]
     cloud_vars = [
@@ -41,7 +41,7 @@ def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl): # noqa: ARG001
     # Set environment variable to request scaling
     os.environ["MO_GLOBAL_SCALE_CLOUDS"] = "0"
 
-    output_ds = maybe_scale_mo_cloud_variables(nwp_ds)
+    output_ds = scale_mo_cloud_variables(nwp_ds)
 
     # Check cloud variables are on the scale of [0,1]
     cloud_vars = [
@@ -54,7 +54,7 @@ def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl): # noqa: ARG001
         assert output_ds["mo_global"].sel(variable=var).data.max() == 100
 
 
-def test_maybe_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
+def test_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
     """Test MetOffice Global is regridded for NL."""
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
 
@@ -63,7 +63,7 @@ def test_maybe_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
     target_coords_path  = files("site_forecast_app.data").joinpath("nl_mo_target_coords.nc")
     ds_target_coords = xr.load_dataset(target_coords_path)
 
-    output_ds = maybe_regrid_mo_global(nwp_ds)
+    output_ds = regrid_mo_global(nwp_ds)
 
     # Check regridding returned numerical data
     assert not np.isnan(output_ds["mo_global"].values).any()
@@ -72,13 +72,13 @@ def test_maybe_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
     assert all(output_ds.longitude.data == ds_target_coords.longitude.data)
 
 
-def test_maybe_regrid_mo_global_india(nwp_mo_global_data_india): # noqa: ARG001
+def test_regrid_mo_global_india(nwp_mo_global_data_india): # noqa: ARG001
     """Test MetOffice Global is NOT regridded for India."""
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
 
     os.environ["CLIENT_NAME"] = "ad"
 
-    output_ds = maybe_regrid_mo_global(nwp_ds)
+    output_ds = regrid_mo_global(nwp_ds)
 
     # Check latitude and longitude have not changed
     assert all(output_ds.latitude.data == nwp_ds.latitude.data)
