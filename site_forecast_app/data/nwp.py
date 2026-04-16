@@ -37,7 +37,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
         return
 
     # Load dataset from source
-    ds = xr.open_zarr(source_nwp_path, consolidated=False).load()
+    ds = xr.open_zarr(source_nwp_path, consolidated=False, decode_timedelta=True).load()
 
     # Check there are no NaNs in the data
     varname = next(iter(ds.data_vars))
