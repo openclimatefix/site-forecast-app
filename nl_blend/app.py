@@ -149,8 +149,7 @@ async def run_blend_app() -> None:
 
         # -------------------------------------------------------------- #
         # 7. Save results                                                 #
-        #    ForecastValueLatest: always written                          #
-        #    ForecastValue:       written only every 30 minutes          #
+    
         # -------------------------------------------------------------- #
         await _save_forecasts(
             client=client,
