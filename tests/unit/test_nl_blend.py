@@ -263,12 +263,13 @@ class TestMissingModelData:
             "Expected a warning about blend weights not summing to 1.0"
         )
 
-        # p50 for model_A only: 0.5 * 100.0 = 50.0 (not normalised, as per design)
+        # p50 for model_A only: 0.5 * 100.0 = 50.0. Since model_B is missing,
+        # the weight sum is 0.5. The blended value is normalised to 50.0 / 0.5 = 100.0.
         result_indexed = result.set_index("target_time")
         for t in TARGET_TIMES:
             assert result_indexed.loc[
                 t, "expected_power_generation_megawatts",
-            ] == pytest.approx(50.0)
+            ] == pytest.approx(100.0)
 
     def test_all_models_missing_data_produces_no_rows(self):
         """If no model has data at a target time, that time step is skipped entirely."""
@@ -307,9 +308,9 @@ class TestMissingModelData:
         for t in TARGET_TIMES:
             # Only model_A contributes p10/p90, with weight 0.5
             # Since only model_A contributes (weight_sum=0.5 for p10),
-            # the blend is 0.5 * 10.0 = 5.0
-            assert result_indexed.loc[t, "p10_mw"] == pytest.approx(5.0)
-            assert result_indexed.loc[t, "p90_mw"] == pytest.approx(45.0)
+            # the blend is (0.5 * 10.0) / 0.5 = 10.0 (normalised).
+            assert result_indexed.loc[t, "p10_mw"] == pytest.approx(10.0)
+            assert result_indexed.loc[t, "p90_mw"] == pytest.approx(90.0)
 
 
 # ---------------------------------------------------------------------------
