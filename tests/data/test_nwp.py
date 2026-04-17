@@ -77,6 +77,7 @@ def test_regrid_mo_global_india(nwp_mo_global_data_india): # noqa: ARG001
     nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
 
     os.environ["CLIENT_NAME"] = "ad"
+    os.environ["COUNTRY"] = "india"
 
     output_ds = regrid_mo_global(nwp_ds)
 
