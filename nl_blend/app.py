@@ -39,9 +39,7 @@ async def run_blend_app() -> None:
     4. Load the MAE scorecard
     5. Calculate delay-adjusted blend weights
     6. Fetch raw forecast timeseries and blend them
-    7. Save results:
-       - ForecastValueLatest: every run
-       - ForecastValue:       every 30 minutes only
+    7. Save results to Data Platform
     """
     logger.info("Starting NL Blend execution.")
 
@@ -173,12 +171,7 @@ async def _save_forecasts(
     capacity_watts: int,
     blended_df: pd.DataFrame,
 ) -> None:
-    """Persists the blended forecast following the dual-table write pattern.
-
-    - ForecastValueLatest: always written (via CreateForecast with the
-      ``nl_blend`` forecaster) so the API always has fresh data.
-    - ForecastValue: written only every 30 minutes to keep table growth
-      manageable.
+    """Persists the blended forecast to the Data Platform.
 
     Args:
         client:         Active Data Platform gRPC client stub.
@@ -242,38 +235,18 @@ async def _save_forecasts(
     )
 
     # ------------------------------------------------------------------ #
-    # Always write ForecastValueLatest                                    #
+    # Always write to Data Platform                                       #
     # ------------------------------------------------------------------ #
     logger.info(
-        f"Saving {n_rows} rows to ForecastValueLatest "
+        f"Saving {n_rows} rows to Data Platform "
         f"(forecaster='nl_blend', t0={t0}, location={location_uuid}) - "
         f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
     )
     try:
         await client.create_forecast(base_request)
-        logger.info("ForecastValueLatest write succeeded.")
+        logger.info("Forecast write succeeded.")
     except Exception:
-        logger.exception("Failed to write ForecastValueLatest - continuing.")
-
-    # ------------------------------------------------------------------ #
-    # Write ForecastValue only on the 30-minute cadence                  #
-    # ------------------------------------------------------------------ #
-    if t0.minute % FORECAST_VALUE_WRITE_INTERVAL_MINUTES == 0:
-        logger.info(
-            f"Saving {n_rows} rows to ForecastValue "
-            f"(forecaster='nl_blend', t0={t0}, location={location_uuid}) - "
-            f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
-        )
-        try:
-            await client.create_forecast(base_request)
-            logger.info("ForecastValue write succeeded.")
-        except Exception:
-            logger.exception("Failed to write ForecastValue - continuing.")
-    else:
-        logger.info(
-            f"Skipping ForecastValue write at t0={t0} "
-            f"(only written every {FORECAST_VALUE_WRITE_INTERVAL_MINUTES} min).",
-        )
+        logger.exception("Failed to write forecast.")
 
 
 if __name__ == "__main__":
