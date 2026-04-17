@@ -1,6 +1,5 @@
 """Logic for calculating optimal model weights for NL site blending.
 
-
   Stage 1 - Select the single best backup model to blend against the backup
             (NL_BACKUP_MODEL). Scored over the first 36 forecast hours.
 
