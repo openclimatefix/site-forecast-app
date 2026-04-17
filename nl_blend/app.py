@@ -41,7 +41,7 @@ async def run_blend_app() -> None:
     logger.info("Starting NL Blend execution.")
 
     # ------------------------------------------------------------------ #
-    # 1. Determine blend reference time - floor to 30-min boundary        #
+    # Determine blend reference time - floor to 30-min boundary        #
     # ------------------------------------------------------------------ #
     t0 = pd.Timestamp.utcnow().floor("30min")
     logger.info(f"Blend t0: {t0}")
@@ -52,7 +52,7 @@ async def run_blend_app() -> None:
     async with get_dataplatform_client() as client:
 
         # -------------------------------------------------------------- #
-        # 2. Resolve location UUID from Data Platform                     #
+        # Resolve location UUID from Data Platform                     #
         # -------------------------------------------------------------- #
         logger.info("Fetching location map from Data Platform.")
         try:
@@ -67,7 +67,7 @@ async def run_blend_app() -> None:
             return
 
         # -------------------------------------------------------------- #
-        # 3. Fetch location capacity                                      #
+        # Fetch location capacity                                      #
         # -------------------------------------------------------------- #
         try:
             capacity_watts = await fetch_location_capacity_watts(
@@ -89,7 +89,7 @@ async def run_blend_app() -> None:
             return
 
         # -------------------------------------------------------------- #
-        # 4. Load MAE scorecard                                           #
+        # Load MAE scorecard                                           #
         # -------------------------------------------------------------- #
         scorecard_path = os.path.join(
             os.path.dirname(__file__), "data", "backtest_nmae_comparison.csv",
@@ -107,7 +107,7 @@ async def run_blend_app() -> None:
         max_horizon = df_mae.index.max()
 
         # -------------------------------------------------------------- #
-        # 5. Calculate delay-adjusted blend weights                       #
+        # Calculate delay-adjusted blend weights                       #
         # -------------------------------------------------------------- #
         logger.info("Calculating delay-adjusted blend weights.")
         try:
@@ -124,7 +124,7 @@ async def run_blend_app() -> None:
             return
 
         # -------------------------------------------------------------- #
-        # 6. Fetch forecast timeseries and produce blended values         #
+        # Fetch forecast timeseries and produce blended values         #
         # -------------------------------------------------------------- #
         logger.info("Fetching raw forecast values and blending.")
         try:
@@ -148,7 +148,7 @@ async def run_blend_app() -> None:
         logger.info(f"Blended timeseries (first 10 rows):\n{blended_df.head(10)}")
 
         # -------------------------------------------------------------- #
-        # 7. Save results                                                 #
+        # Save results                                                 #
 
         # -------------------------------------------------------------- #
         await _save_forecasts(

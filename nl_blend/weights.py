@@ -284,12 +284,12 @@ async def get_nl_blend_weights(
 
     Runs the same two-stage hierarchical optimisation:
 
-      Stage 1 - Find the best backup model to blend against NL_BACKUP_MODEL.
-                Uses BACKUP_SCORE_HOURS (36 h) as the optimisation window.
-                Constructs a 'backup_blend' MAE curve from the result.
+      Find the best backup model to blend against NL_BACKUP_MODEL.
+      Uses BACKUP_SCORE_HOURS (36 h) as the optimisation window.
+      Constructs a 'backup_blend' MAE curve from the result.
 
-      Stage 2 - Find the best intraday model to blend against the backup_blend.
-                Uses INTRADAY_SCORE_HOURS (8 h) as the optimisation window.
+      Find the best intraday model to blend against the backup_blend.
+      Uses INTRADAY_SCORE_HOURS (8 h) as the optimisation window.
 
     The backup model weights are then scaled by how much the backup_blend
     contributes at each horizon (from stage 2), so the final weights across
@@ -313,7 +313,7 @@ async def get_nl_blend_weights(
         Returns an empty DataFrame if the shifted MAE frame is empty.
     """
     # ---------------------------------------------------------------------- #
-    # 1. Fetch model initialisation times from Data Platform                 #
+    # Fetch model initialisation times from Data Platform                 #
     # ---------------------------------------------------------------------- #
     model_init_times = await fetch_latest_nl_init_times(
         client=client,
@@ -345,7 +345,7 @@ async def get_nl_blend_weights(
             model_init_times[m] = t0 - max_horizon
 
     # ---------------------------------------------------------------------- #
-    # 3. Compute numeric delays and shift the MAE scorecard                  #
+    # Compute numeric delays and shift the MAE scorecard                  #
     # ---------------------------------------------------------------------- #
     delays = calculate_model_delays(model_init_times, t0)
     logger.info(f"Computed model delays relative to t0 ({t0}): {delays}")
@@ -370,7 +370,7 @@ async def get_nl_blend_weights(
         return pd.DataFrame()
 
     # ---------------------------------------------------------------------- #
-    # 4. Stage 1 - select best backup model vs backup                     #
+    # select best backup model vs backup                     #
     # ---------------------------------------------------------------------- #
     backup_candidate_cols = [
         c for c in [NL_BACKUP_MODEL, *NL_BACKUP_MODELS]
@@ -398,13 +398,13 @@ async def get_nl_blend_weights(
     ).sum(skipna=True, axis=1).where(valid_mask)
 
     # ---------------------------------------------------------------------- #
-    # 6. Stage 2 - select best intraday model vs the backup_blend                #
+    # select best intraday model vs the backup_blend                #
     # ---------------------------------------------------------------------- #
     intraday_candidate_cols = [
         c for c in [*NL_INTRADAY_MODELS, "backup_blend"]
         if c in df_delayed_mae.columns
     ]
-    logger.info(f"Stage 2 - intraday candidates: {intraday_candidate_cols}")
+    logger.info(f" intraday candidates: {intraday_candidate_cols}")
 
     df_intraday_weights = calculate_optimal_blend_weights(
         df_mae=df_delayed_mae[intraday_candidate_cols],
@@ -415,7 +415,7 @@ async def get_nl_blend_weights(
     logger.info(f"Stage 2 weights (head):\n{df_intraday_weights.head()}")
 
     # ---------------------------------------------------------------------- #
-    # 7. Scale backup weights by the backup_blend contribution from stage 2  #
+    # Scale backup weights by the backup_blend contribution from stage 2  #
     #                                                                      #
     #    If the intraday model takes 70% at a horizon, the backup_blend takes    #
     #    30%. The individual backup model weights must be scaled by that 30% so  #
@@ -429,7 +429,7 @@ async def get_nl_blend_weights(
     df_intraday_weights = df_intraday_weights.drop(columns=["backup_blend"], errors="ignore")
 
     # ---------------------------------------------------------------------- #
-    # 8. Combine backup and intraday weights into a single DataFrame      #
+    # Combine backup and intraday weights into a single DataFrame      #
     # ---------------------------------------------------------------------- #
     df_all_weights = pd.concat([df_backup_weights, df_intraday_weights], axis=1)
 
@@ -437,7 +437,7 @@ async def get_nl_blend_weights(
     df_all_weights = df_all_weights.loc[:, df_all_weights.sum(axis=0) > 0]
 
     # ---------------------------------------------------------------------- #
-    # 9. Convert relative-horizon index -> absolute UTC target times         #
+    # Convert relative-horizon index -> absolute UTC target times         #
     # ---------------------------------------------------------------------- #
     df_all_weights.index = df_all_weights.index + t0
 
