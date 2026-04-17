@@ -6,14 +6,26 @@ import os
 import pandas as pd
 
 from nl_blend.blend import get_blend_forecast_values_latest
+from nl_blend.data_platform import (
+    build_forecast_value_objects,
+    fetch_location_capacity_watts,
+)
 from nl_blend.init_times import load_nl_mae_scorecard
 from nl_blend.weights import get_nl_blend_weights
-from site_forecast_app.save.data_platform import build_dp_location_map
+from site_forecast_app.save.data_platform import (
+    create_forecaster_if_not_exists,
+    fetch_dp_location_map,
+    get_dataplatform_client,
+)
+from dp_sdk.ocf import dp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nl_blend_app")
 
-# Controls how often ForecastValue (non-latest) table is written,30-min cadence
+# Forecaster name written to the Data Platform
+NL_BLEND_FORECASTER_NAME = "nl_blend"
+
+# Controls how often ForecastValue (non-latest) table is written, 30-min cadence
 FORECAST_VALUE_WRITE_INTERVAL_MINUTES = 30
 
 
@@ -23,121 +35,240 @@ async def run_blend_app() -> None:
     Steps:
     1. Determine blend reference time (t0)
     2. Resolve target location UUID from Data Platform
-    3. Load the MAE scorecard
-    4. Calculate delay-adjusted blend weights
-    5. Fetch raw forecast timeseries and blend them
-    6. Save results:
+    3. Fetch location capacity (watts) from Data Platform
+    4. Load the MAE scorecard
+    5. Calculate delay-adjusted blend weights
+    6. Fetch raw forecast timeseries and blend them
+    7. Save results:
        - ForecastValueLatest: every run
        - ForecastValue:       every 30 minutes only
     """
     logger.info("Starting NL Blend execution.")
 
     # ------------------------------------------------------------------ #
-    # 1. Determine blend reference time - floor to 30-min boundary    #
+    # 1. Determine blend reference time - floor to 30-min boundary        #
     # ------------------------------------------------------------------ #
     t0 = pd.Timestamp.utcnow().floor("30min")
     logger.info(f"Blend t0: {t0}")
 
     # ------------------------------------------------------------------ #
-    # 2. Resolve location UUID from Data Platform                          #
+    # Open a single Data Platform connection for the entire run           #
     # ------------------------------------------------------------------ #
-    logger.info("Fetching location map from Data Platform.")
-    try:
-        dp_loc_map = await build_dp_location_map()
-        if not dp_loc_map:
-            logger.error("Data Platform returned an empty location map. Cannot continue.")
+    async with get_dataplatform_client() as client:
+
+        # -------------------------------------------------------------- #
+        # 2. Resolve location UUID from Data Platform                     #
+        # -------------------------------------------------------------- #
+        logger.info("Fetching location map from Data Platform.")
+        try:
+            dp_loc_map = await fetch_dp_location_map(client)
+            if not dp_loc_map:
+                logger.error("Data Platform returned an empty location map. Cannot continue.")
+                return
+            location_uuid = next(iter(dp_loc_map.values()))
+            logger.info(f"Using location UUID: {location_uuid}")
+        except Exception:
+            logger.exception("Failed to connect to Data Platform while fetching location map.")
             return
-        location_uuid = next(iter(dp_loc_map.values()))
-        logger.info(f"Using location UUID: {location_uuid}")
-    except Exception:
-        logger.exception("Failed to connect to Data Platform while fetching location map.")
-        return
 
-    # ------------------------------------------------------------------ #
-    # 3. Load MAE scorecard                                                #
-    # ------------------------------------------------------------------ #
-    scorecard_path = os.path.join(
-        os.path.dirname(__file__), "data", "backtest_nmae_comparison.csv",
-    )
-    try:
-        df_mae = load_nl_mae_scorecard(scorecard_path)
-        logger.info(
-            f"Loaded MAE scorecard from '{scorecard_path}' "
-            f"with models: {list(df_mae.columns)}",
+        # -------------------------------------------------------------- #
+        # 3. Fetch location capacity                                      #
+        # -------------------------------------------------------------- #
+        try:
+            capacity_watts = await fetch_location_capacity_watts(
+                client=client,
+                location_uuid=location_uuid,
+            )
+            if capacity_watts <= 0:
+                logger.error(
+                    f"Location {location_uuid} has capacity_watts={capacity_watts}. "
+                    "Cannot convert MW values to fractions - aborting.",
+                )
+                return
+            logger.info(
+                f"Location capacity: {capacity_watts:,} W "
+                f"({capacity_watts / 1_000_000:.3f} MW)",
+            )
+        except Exception:
+            logger.exception("Failed to fetch location capacity from Data Platform.")
+            return
+
+        # -------------------------------------------------------------- #
+        # 4. Load MAE scorecard                                           #
+        # -------------------------------------------------------------- #
+        scorecard_path = os.path.join(
+            os.path.dirname(__file__), "data", "backtest_nmae_comparison.csv",
         )
-    except Exception:
-        logger.exception(f"Failed to load MAE scorecard from '{scorecard_path}'.")
-        return
+        try:
+            df_mae = load_nl_mae_scorecard(scorecard_path)
+            logger.info(
+                f"Loaded MAE scorecard from '{scorecard_path}' "
+                f"with models: {list(df_mae.columns)}",
+            )
+        except Exception:
+            logger.exception(f"Failed to load MAE scorecard from '{scorecard_path}'.")
+            return
 
-    max_horizon = df_mae.index.max()
+        max_horizon = df_mae.index.max()
 
-    # ------------------------------------------------------------------ #
-    # 4. Calculate delay-adjusted blend weights                            #
-    # ------------------------------------------------------------------ #
-    logger.info("Calculating delay-adjusted blend weights.")
-    try:
-        weights_df = await get_nl_blend_weights(
+        # -------------------------------------------------------------- #
+        # 5. Calculate delay-adjusted blend weights                       #
+        # -------------------------------------------------------------- #
+        logger.info("Calculating delay-adjusted blend weights.")
+        try:
+            weights_df = await get_nl_blend_weights(
+                t0=t0,
+                location_uuid=location_uuid,
+                df_mae=df_mae,
+                max_horizon=max_horizon,
+                client=client,
+            )
+            logger.info(f"Blend weights calculated:\n{weights_df.head(10)}")
+        except Exception:
+            logger.exception("Failed to calculate blend weights.")
+            return
+
+        # -------------------------------------------------------------- #
+        # 6. Fetch forecast timeseries and produce blended values         #
+        # -------------------------------------------------------------- #
+        logger.info("Fetching raw forecast values and blending.")
+        try:
+            blended_df = await get_blend_forecast_values_latest(
+                location_uuid=location_uuid,
+                weights_df=weights_df,
+                client=client,
+                start_datetime=t0,
+            )
+        except Exception:
+            logger.exception("Failed to fetch or blend forecast timeseries.")
+            return
+
+        if blended_df.empty:
+            logger.warning(
+                "Blended timeseries is empty. "
+                "This is expected in dev when no forecast megawatts are stored.",
+            )
+            return
+
+        logger.info(f"Blended timeseries (first 10 rows):\n{blended_df.head(10)}")
+
+        # -------------------------------------------------------------- #
+        # 7. Save results                                                 #
+        #    ForecastValueLatest: always written                          #
+        #    ForecastValue:       written only every 30 minutes          #
+        # -------------------------------------------------------------- #
+        await _save_forecasts(
+            client=client,
             t0=t0,
             location_uuid=location_uuid,
-            df_mae=df_mae,
-            max_horizon=max_horizon,
+            capacity_watts=capacity_watts,
+            blended_df=blended_df,
         )
-        logger.info(f"Blend weights calculated:\n{weights_df.head(10)}")
-    except Exception:
-        logger.exception("Failed to calculate blend weights.")
-        return
-
-    # ------------------------------------------------------------------ #
-    # 5. Fetch forecast timeseries and produce blended values              #
-    # ------------------------------------------------------------------ #
-    logger.info("Fetching raw forecast values and blending.")
-    try:
-        blended_df = await get_blend_forecast_values_latest(
-            location_uuid=location_uuid,
-            weights_df=weights_df,
-            start_datetime=t0,
-        )
-    except Exception:
-        logger.exception("Failed to fetch or blend forecast timeseries.")
-        return
-
-    if blended_df.empty:
-        logger.warning(
-            "Blended timeseries is empty. "
-            "This is expected in dev when no forecast megawatts are stored.",
-        )
-        return
-
-    logger.info(f"Blended timeseries (first 10 rows):\n{blended_df.head(10)}")
-
-    # ------------------------------------------------------------------ #
-    # 6. Save results            #
-    #    ForecastValueLatest: always written                               #
-    #    ForecastValue:       written only every 30 minutes               #
-    # ------------------------------------------------------------------ #
-    await _save_forecasts(t0=t0, blended_df=blended_df)
 
 
-async def _save_forecasts(t0: pd.Timestamp, blended_df: pd.DataFrame) -> None:
+async def _save_forecasts(
+    client: dp.DataPlatformDataServiceStub,
+    t0: pd.Timestamp,
+    location_uuid: str,
+    capacity_watts: int,
+    blended_df: pd.DataFrame,
+) -> None:
     """Persists the blended forecast following the dual-table write pattern.
 
-    - ForecastValueLatest is always updated so the API always has fresh data.
-    - ForecastValue is only written every 30 minutes to keep table growth manageable.
+    - ForecastValueLatest: always written (via CreateForecast with the
+      ``nl_blend`` forecaster) so the API always has fresh data.
+    - ForecastValue: written only every 30 minutes to keep table growth
+      manageable.
 
-    Data Platform write calls.
+    Args:
+        client:         Active Data Platform gRPC client stub.
+        t0:             Blend reference time (UTC); used as the forecast init_time.
+        location_uuid:  DP location UUID to write forecasts under.
+        capacity_watts: Location capacity in watts; used to convert MW -> fraction.
+        blended_df:     DataFrame with columns [target_time,
+                        expected_power_generation_megawatts, p10_mw (opt),
+                        p90_mw (opt)].
     """
-    # Always write to the latest-value store
+    n_rows = len(blended_df)
+    has_p10 = "p10_mw" in blended_df.columns
+    has_p90 = "p90_mw" in blended_df.columns
+    n_p10 = int(blended_df["p10_mw"].notna().sum()) if has_p10 else 0
+    n_p90 = int(blended_df["p90_mw"].notna().sum()) if has_p90 else 0
+
     logger.info(
-        f"Saving {len(blended_df)} rows to ForecastValueLatest "
-        f"(blend_name='nl_blend', t0={t0}).",
+        f"Blended forecast summary: {n_rows} rows | "
+        f"p50={n_rows} | p10={n_p10} | p90={n_p90} rows with valid values.",
     )
 
-    # Write to the historical store only on the 30-minute cadence
+    # ------------------------------------------------------------------ #
+    # Build the DP value objects (shared between both write paths)        #
+    # ------------------------------------------------------------------ #
+    try:
+        forecast_values = build_forecast_value_objects(
+            blended_df=blended_df,
+            init_time_utc=t0.to_pydatetime(),
+            capacity_watts=capacity_watts,
+        )
+    except Exception:
+        logger.exception("Failed to build DP forecast value objects - skipping save.")
+        return
+
+    if not forecast_values:
+        logger.warning("No forecast value objects produced - skipping save.")
+        return
+
+    # ------------------------------------------------------------------ #
+    # Resolve / create the forecaster record                              #
+    # ------------------------------------------------------------------ #
+    try:
+        forecaster = await create_forecaster_if_not_exists(
+            client=client,
+            model_tag=NL_BLEND_FORECASTER_NAME,
+        )
+        logger.info(
+            f"Forecaster resolved: {forecaster.forecaster_name!r} "
+            f"v{forecaster.forecaster_version}",
+        )
+    except Exception:
+        logger.exception("Failed to resolve/create nl_blend forecaster - skipping save.")
+        return
+
+    base_request = dp.CreateForecastRequest(
+        forecaster=forecaster,
+        location_uuid=location_uuid,
+        energy_source=dp.EnergySource.SOLAR,
+        init_time_utc=t0.to_pydatetime(),
+        values=forecast_values,
+    )
+
+    # ------------------------------------------------------------------ #
+    # Always write ForecastValueLatest                                    #
+    # ------------------------------------------------------------------ #
+    logger.info(
+        f"Saving {n_rows} rows to ForecastValueLatest "
+        f"(forecaster='nl_blend', t0={t0}, location={location_uuid}) - "
+        f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
+    )
+    try:
+        await client.create_forecast(base_request)
+        logger.info("ForecastValueLatest write succeeded.")
+    except Exception:
+        logger.exception("Failed to write ForecastValueLatest - continuing.")
+
+    # ------------------------------------------------------------------ #
+    # Write ForecastValue only on the 30-minute cadence                  #
+    # ------------------------------------------------------------------ #
     if t0.minute % FORECAST_VALUE_WRITE_INTERVAL_MINUTES == 0:
         logger.info(
-            f"Saving {len(blended_df)} rows to ForecastValue "
-            f"(blend_name='nl_blend', t0={t0}). to DATA PLATFORM",
+            f"Saving {n_rows} rows to ForecastValue "
+            f"(forecaster='nl_blend', t0={t0}, location={location_uuid}) - "
+            f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
         )
+        try:
+            await client.create_forecast(base_request)
+            logger.info("ForecastValue write succeeded.")
+        except Exception:
+            logger.exception("Failed to write ForecastValue - continuing.")
     else:
         logger.info(
             f"Skipping ForecastValue write at t0={t0} "

@@ -6,7 +6,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-# Minimum horizon we will ever emit a blended value for,
+# Minimum horizon we will ever emit a blended value for.
 MIN_FORECAST_HORIZON = pd.Timedelta("30min")
 
 
@@ -26,11 +26,11 @@ def load_nl_mae_scorecard(filepath: str) -> pd.DataFrame:
     Wide / legacy format (fallback):
         First column treated as the horizon label; remaining columns are models.
 
-    Returns:
+    Returns
     -------
     DataFrame indexed by pd.Timedelta (forecast horizon), one column per model.
 
-    Raises:
+    Raises
     ------
     Exception if the file cannot be read or parsed - caller is responsible for
     handling this (app.py logs and exits).
@@ -66,11 +66,11 @@ def calculate_model_delays(
 ) -> dict[str, pd.Timedelta]:
     """Calculates each model's effective delay relative to t0.
 
-    The delay is:  t0  -  floor(init_time, 30 min)
+    The delay is:  t0 - floor(init_time, 30 min)
 
-    approach: the initialisation time is rounded down to the
-    nearest half-hour before subtracting, so a model initialised at 09:47 is
-    treated as if it started at 09:30, giving a delay of 30 min when t0=10:00.
+    The initialisation time is rounded down to the nearest half-hour before
+    subtracting, so a model initialised at 09:47 is treated as if it started
+    at 09:30, giving a delay of 30 min when t0=10:00.
 
     A negative delay (init_time > t0) is clamped to zero.
 
@@ -125,7 +125,7 @@ def shift_mae_curves(
     Shifting the index left by the delay brings the curve into the same
     reference frame as the blend t0.
 
-    Only models present in *both* df_mae.columns and delays are included.
+    Only models present in both df_mae.columns and delays are included.
     Horizons below MIN_FORECAST_HORIZON are dropped after shifting.
     Rows where all models are NaN are dropped.
 
@@ -159,7 +159,7 @@ def shift_mae_curves(
 
     df_shifted = pd.concat(shifted_frames, axis=1).sort_index()
 
-    # Drop sub-minimum horizons and all-NaN rows
+    # Drop sub-minimum horizons and all-NaN rows.
     df_shifted = df_shifted.loc[df_shifted.index >= MIN_FORECAST_HORIZON]
     df_shifted = df_shifted.dropna(axis=0, how="all")
 
@@ -178,12 +178,12 @@ def extract_latest_init_times(
 ) -> dict[str, pd.Timestamp]:
     """Extracts the most-recent valid initialisation time for each requested model.
 
-    From a list of Data Platform forecast objects.
+    Operates on a list of Data Platform forecast objects.
 
     "Valid" means: init_time >= t0 - max_delay.
 
     This is a pure function (no I/O) so it can be unit-tested with mock objects
-    without a live Data Platform connection separation of
+    without a live Data Platform connection, maintaining a clean separation of
     concerns between I/O (data_platform.py) and logic (init_times.py).
 
     Args:
