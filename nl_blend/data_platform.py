@@ -136,8 +136,8 @@ async def get_all_forecast_values_as_dataframe(
         p50_mw = v.p50_value_fraction * capacity_mw
 
         # p10/p90 are optional fields - fall back to NaN when absent or zero.
-        p10_fraction = getattr(v, "p10_value_fraction", None)
-        p90_fraction = getattr(v, "p90_value_fraction", None)
+        p10_fraction = v.other_statistics_fractions.get("p10")
+        p90_fraction = v.other_statistics_fractions.get("p90")
         p10_mw = p10_fraction * capacity_mw if p10_fraction is not None else float("nan")
         p90_mw = p90_fraction * capacity_mw if p90_fraction is not None else float("nan")
 
