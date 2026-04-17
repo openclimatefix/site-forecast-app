@@ -22,10 +22,10 @@ from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
+from dp_sdk.ocf import dp
 
 from nl_blend.data_platform import fetch_latest_nl_init_times
 from nl_blend.init_times import calculate_model_delays, shift_mae_curves
-from dp_sdk.ocf import dp
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ def make_blend_weights_array(
 
     The complementary backup weights are (1 - this array).
 
-    Examples
+    Examples:
     --------
     >>> make_blend_weights_array(8, 1, [0.75, 0.5, 0.25])
     array([1.  , 0.75, 0.5 , 0.25, 0.  , 0.  , 0.  , 0.  ])
@@ -184,15 +184,19 @@ def calculate_optimal_blend_weights(
     if df_mae.empty:
         return pd.DataFrame(columns=df_mae.columns)
 
-    assert backup_model_name in df_mae.columns, (
-        f"backup_model_name='{backup_model_name}' not found in df_mae columns: "
-        f"{list(df_mae.columns)}"
-    )
+    if backup_model_name not in df_mae.columns:
+        raise ValueError(
+            f"backup_model_name='{backup_model_name}' not found in df_mae columns: "
+            f"{list(df_mae.columns)}",
+        )
 
     kernel_arr = np.array(kernel)
-    assert (kernel_arr > 0).all(), "All kernel values must be > 0"
-    assert (kernel_arr < 1).all(), "All kernel values must be < 1"
-    assert (np.diff(kernel_arr) <= 0).all(), "Kernel must be non-increasing"
+    if not (kernel_arr > 0).all():
+        raise ValueError("All kernel values must be > 0")
+    if not (kernel_arr < 1).all():
+        raise ValueError("All kernel values must be < 1")
+    if not (np.diff(kernel_arr) <= 0).all():
+        raise ValueError("Kernel must be non-increasing")
 
     n = len(df_mae)
 
@@ -267,7 +271,7 @@ def calculate_optimal_blend_weights(
         backup_weights[df_mae[backup_model_name].isna()] = np.nan
         logger.debug(
             f"No candidate beat baseline score {best_score:.5f}; "
-            f"'{backup_model_name}' takes full weight."
+            f"'{backup_model_name}' takes full weight.",
         )
         return pd.DataFrame(
             {backup_model_name: backup_weights},
@@ -282,7 +286,7 @@ def calculate_optimal_blend_weights(
 
     logger.debug(
         f"Selected '{best_model}' as best candidate "
-        f"(score {best_score:.5f} < baseline)."
+        f"(score {best_score:.5f} < baseline).",
     )
     return pd.DataFrame(
         {best_model: best_weights, backup_model_name: backup_weights},
@@ -370,7 +374,7 @@ async def get_nl_blend_weights(
     if df_delayed_mae.empty:
         logger.error(
             "Shifted MAE DataFrame is empty - no model delays overlap with the "
-            "scorecard. Cannot produce blend weights."
+            "scorecard. Cannot produce blend weights.",
         )
         return pd.DataFrame()
 
@@ -457,7 +461,7 @@ async def get_nl_blend_weights(
 
     logger.info(
         f"Blend weights computed for {len(df_all_weights)} target times, "
-        f"participating models: {list(df_all_weights.columns)}"
+        f"participating models: {list(df_all_weights.columns)}",
     )
 
     return df_all_weights

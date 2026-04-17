@@ -26,11 +26,11 @@ def load_nl_mae_scorecard(filepath: str) -> pd.DataFrame:
     Wide / legacy format (fallback):
         First column treated as the horizon label; remaining columns are models.
 
-    Returns
+    Returns:
     -------
     DataFrame indexed by pd.Timedelta (forecast horizon), one column per model.
 
-    Raises
+    Raises:
     ------
     Exception if the file cannot be read or parsed - caller is responsible for
     handling this (app.py logs and exits).

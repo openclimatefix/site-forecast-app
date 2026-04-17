@@ -4,6 +4,7 @@ import logging
 import os
 
 import pandas as pd
+from dp_sdk.ocf import dp
 
 from nl_blend.blend import get_blend_forecast_values_latest
 from nl_blend.data_platform import (
@@ -17,7 +18,6 @@ from site_forecast_app.save.data_platform import (
     fetch_dp_location_map,
     get_dataplatform_client,
 )
-from dp_sdk.ocf import dp
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nl_blend_app")

@@ -8,12 +8,12 @@ Data Platform connections. They confirm that:
   - Empty inputs return an empty DataFrame with the correct columns.
 """
 import math
+from typing import ClassVar
 
 import pandas as pd
 import pytest
 
 from nl_blend.blend import blend_forecasts_together
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -54,7 +54,7 @@ TARGET_TIMES = [T0 + pd.Timedelta(f"{h}h") for h in range(1, 5)]
 # ---------------------------------------------------------------------------
 
 class TestEmptyInputs:
-    EXPECTED_COLUMNS = {
+    EXPECTED_COLUMNS: ClassVar[set[str]] = {
         "target_time",
         "expected_power_generation_megawatts",
         "p10_mw",
@@ -109,7 +109,9 @@ class TestSingleModelBlend:
         assert len(result) == 4
         result_indexed = result.set_index("target_time")
         for i, t in enumerate(TARGET_TIMES):
-            assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(p50[i])
+            assert result_indexed.loc[
+                t, "expected_power_generation_megawatts",
+            ] == pytest.approx(p50[i])
 
     def test_p10_p90_passthrough_at_full_weight(self):
         """p10/p90 should also pass through unchanged when a single model has 100% weight."""
@@ -136,7 +138,7 @@ class TestTwoModelBlend:
         """50/50 weights produce the arithmetic mean of both models' p50."""
         p50_a = [10.0, 20.0, 30.0, 40.0]
         p50_b = [20.0, 40.0, 60.0, 80.0]
-        expected_blend = [(a + b) / 2 for a, b in zip(p50_a, p50_b)]
+        expected_blend = [(a + b) / 2 for a, b in zip(p50_a, p50_b, strict=True)]
 
         df_a = _make_model_df(TARGET_TIMES, "model_A", p50_a)
         df_b = _make_model_df(TARGET_TIMES, "model_B", p50_b)
@@ -153,7 +155,7 @@ class TestTwoModelBlend:
         result_indexed = result.set_index("target_time")
         for i, t in enumerate(TARGET_TIMES):
             assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(
-                expected_blend[i]
+                expected_blend[i],
             )
 
     def test_75_25_blend_p50(self):
@@ -174,7 +176,9 @@ class TestTwoModelBlend:
         result_indexed = result.set_index("target_time")
 
         for t in TARGET_TIMES:
-            assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(75.0)
+            assert result_indexed.loc[
+                t, "expected_power_generation_megawatts",
+            ] == pytest.approx(75.0)
 
     def test_50_50_blend_p10_p90(self):
         """50/50 weights should average p10 and p90 values correctly."""
@@ -226,7 +230,7 @@ class TestTwoModelBlend:
         for i, t in enumerate(TARGET_TIMES):
             expected = primary_weights[i] * 50.0 + backup_weights[i] * 100.0
             assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(
-                expected
+                expected,
             )
 
 
@@ -262,7 +266,9 @@ class TestMissingModelData:
         # p50 for model_A only: 0.5 * 100.0 = 50.0 (not normalised, as per design)
         result_indexed = result.set_index("target_time")
         for t in TARGET_TIMES:
-            assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(50.0)
+            assert result_indexed.loc[
+                t, "expected_power_generation_megawatts",
+            ] == pytest.approx(50.0)
 
     def test_all_models_missing_data_produces_no_rows(self):
         """If no model has data at a target time, that time step is skipped entirely."""
@@ -286,7 +292,8 @@ class TestMissingModelData:
         """NaN p10/p90 for one model should not contribute to the blended p10/p90."""
         # model_A has valid p10/p90; model_B has NaN p10/p90
         df_a = _make_model_df(TARGET_TIMES, "model_A", [50.0] * 4, [10.0] * 4, [90.0] * 4)
-        df_b = _make_model_df(TARGET_TIMES, "model_B", [50.0] * 4, [float("nan")] * 4, [float("nan")] * 4)
+        nan4 = [float("nan")] * 4
+        df_b = _make_model_df(TARGET_TIMES, "model_B", [50.0] * 4, nan4, nan4)
         models_df = pd.concat([df_a, df_b], ignore_index=True)
 
         weights = _make_weights_df(
@@ -357,5 +364,5 @@ class TestOutputFormat:
         result_indexed = result.set_index("target_time")
         for t in TARGET_TIMES:
             assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(
-                expected_p50
+                expected_p50,
             )
