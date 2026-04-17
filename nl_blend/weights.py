@@ -95,24 +95,7 @@ def make_blend_weights_array(
     blend_start_index: int,
     kernel: list[float],
 ) -> np.ndarray:
-    """Constructs a 1-D weight array for the primary (non-backup) model.
-
-    Layout
-    ------
-    Indices  0 ... blend_start_index-1          -> 1.0  (primary dominates)
-    Indices  blend_start_index ... +len(kernel)  -> kernel values (tapering)
-    Indices  beyond kernel                       -> 0.0  (backup dominates)
-
-    The complementary backup weights are (1 - this array).
-
-    Examples:
-    --------
-    >>> make_blend_weights_array(8, 1, [0.75, 0.5, 0.25])
-    array([1.  , 0.75, 0.5 , 0.25, 0.  , 0.  , 0.  , 0.  ])
-
-    >>> make_blend_weights_array(6, 1, [])
-    array([1., 0., 0., 0., 0., 0.])
-    """
+    """Constructs a 1-D weight array for the primary (non-backup) model."""
     weights = np.zeros(size)
     weights[:blend_start_index] = 1.0
     weights[blend_start_index : blend_start_index + len(kernel)] = kernel
@@ -341,6 +324,12 @@ async def get_nl_blend_weights(
     )
     logger.info(f"Fetched model initialisation times: {model_init_times}")
 
+    ####################REMOVE THIS####################
+    # TEMPORARY MOCK INIT TIMES TO FORCE BLENDING WITH KERNEL:
+    # model_init_times["nl_regional_pv_ecmwf_mo_sat"] = t0  # 0 delay so it dominates the short term
+    # model_init_times["nl_regional_48h_pv_ecmwf"] = t0     # 0 delay for backup
+    ####################REMOVE THIS####################
+
     # ---------------------------------------------------------------------- #
     # 2. Assign penalty delays to any model not found in Data Platform       #
     #    Backup  -> delay = 0          (always used as fallback)             #
@@ -362,6 +351,16 @@ async def get_nl_blend_weights(
     logger.info(f"Computed model delays relative to t0 ({t0}): {delays}")
 
     df_delayed_mae = shift_mae_curves(df_mae, delays)
+
+
+    ####################REMOVE THIS####################
+
+    # TEMPORARY MOCK TO FORCE TAPER BLEND:
+    # # Intraday wins on 0-delay but stops at 10 hours so we can see taper.
+    # if "nl_regional_pv_ecmwf_mo_sat" in df_delayed_mae.columns:
+    #     df_delayed_mae.loc[pd.Timedelta("10h"):, "nl_regional_pv_ecmwf_mo_sat"] = np.nan
+
+    ####################REMOVE THIS####################
 
     if df_delayed_mae.empty:
         logger.error(
@@ -446,5 +445,11 @@ async def get_nl_blend_weights(
         f"Blend weights computed for {len(df_all_weights)} target times, "
         f"participating models: {list(df_all_weights.columns)}",
     )
+
+    ####################REMOVE THIS####################
+    # Temporary modification to save weights
+    # import os
+    # df_all_weights.to_csv(os.path.join(os.path.dirname(__file__), "temp_weights.csv"))
+    ####################REMOVE THIS####################
 
     return df_all_weights
