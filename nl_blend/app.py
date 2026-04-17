@@ -25,9 +25,6 @@ logger = logging.getLogger("nl_blend_app")
 # Forecaster name written to the Data Platform
 NL_BLEND_FORECASTER_NAME = "nl_blend"
 
-# Controls how often ForecastValue (non-latest) table is written, 30-min cadence
-FORECAST_VALUE_WRITE_INTERVAL_MINUTES = 30
-
 
 async def run_blend_app() -> None:
     """Main execution point for the NL Blend app.
