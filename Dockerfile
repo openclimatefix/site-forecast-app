@@ -3,7 +3,7 @@ FROM quay.io/condaforge/miniforge3:latest AS build-venv
 
 RUN apt-get update && \
     echo "Creating virtualenv at /app/.venv" && \
-    conda create --quiet --yes -p /app/.venv python=3.11
+    conda create --quiet --yes -p /app/.venv python=3.11 "esmf=*=nompi_*" esmpy
 
 
 # --- Build dependencies --- #
