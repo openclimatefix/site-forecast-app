@@ -1,16 +1,13 @@
 """Logic for calculating optimal model weights for NL site blending.
 
-Mirrors the two-stage hierarchical approach used in the UK blend:
 
-  Stage 1 - Select the single best day-ahead model to blend against the backup
+  Stage 1 - Select the single best backup model to blend against the backup
             (NL_BACKUP_MODEL). Scored over the first 36 forecast hours.
-            Equivalent to the UK blend's National_xg / pvnet_day_ahead stage.
 
   Stage 2 - Select the single best intraday model to blend against the
-            stage-1 day-ahead blend. Scored over the first 8 forecast hours.
-            Equivalent to the UK blend's intraday stage.
+            stage-1 backup blend. Scored over the first 8 forecast hours.
 
-At any given horizon, at most two models are active (one day-ahead + one
+At any given horizon, at most two models are active (one backup + one
 intraday), and their weights always sum to 1.0.
 
 The final weight DataFrame has one column per participating model and the
@@ -35,36 +32,33 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 # The absolute fallback: always available, longest horizon, weakest accuracy.
-# Equivalent of National_xg in the UK blend.
 NL_BACKUP_MODEL = "nl_regional_2h_pv_ecmwf"
 
-# Day-ahead models: longer horizon, moderate near-term accuracy.
-# Equivalent of pvnet_day_ahead in the UK blend.
-NL_DAY_AHEAD_MODELS = [
+# Backup models: longer horizon, moderate near-term accuracy.
+NL_BACKUP_MODELS = [
     "nl_regional_48h_pv_ecmwf",
 ]
 
 # Intraday models: shorter horizon, highest near-term accuracy.
-# Equivalent of pvnet_v2 / pvnet_ecmwf / pvnet_cloud in the UK blend.
 NL_INTRADAY_MODELS = [
     "nl_regional_pv_ecmwf_mo_sat",
     "nl_regional_pv_ecmwf_sat",
     "nl_national_pv_ecmwf_sat_small",
 ]
 
-ALL_NL_MODELS = [NL_BACKUP_MODEL, *NL_DAY_AHEAD_MODELS, *NL_INTRADAY_MODELS]
+ALL_NL_MODELS = [NL_BACKUP_MODEL, *NL_BACKUP_MODELS, *NL_INTRADAY_MODELS]
 
 # Blend kernel: weights applied at the taper zone between two models.
-# [0.75, 0.5, 0.25] avoids abrupt model switches - identical to the UK blend.
+# [0.75, 0.5, 0.25] avoids abrupt model switches.
 BLEND_KERNEL: list[float] = [0.75, 0.5, 0.25]
 
 # Minimum horizon emitted in any blended forecast.
 MIN_FORECAST_HORIZON = pd.Timedelta("30min")
 
-# Score windows - mirror the UK blend score windows exactly:
-#   36 h  used when selecting the best day-ahead model vs backup
-#    8 h  used when selecting the best intraday model vs the da-blend
-DA_SCORE_HOURS = 36
+# Score windows:
+#   36 h  used when selecting the best backup model vs backup
+#    8 h  used when selecting the best intraday model vs the backup-blend
+BACKUP_SCORE_HOURS = 36
 INTRADAY_SCORE_HOURS = 8
 
 
@@ -76,7 +70,7 @@ def make_avg_mae_func(n_hours: int) -> Callable[[pd.Series], float]:
     """Returns a scoring function that averages MAE over the first n_hours.
 
     Computes the mean MAE over [MIN_FORECAST_HORIZON, n_hours], excluding the
-    final boundary point (half-open interval, matching the UK blend).
+    final boundary point (half-open interval).
 
     Args:
         n_hours: The number of hours to average over.
@@ -130,8 +124,7 @@ def index_of_last_non_nan_value(x: np.ndarray) -> int:
     """Returns the index of the last non-NaN element in x.
 
     Returns -1 if x is entirely NaN, which causes the calling loop to produce
-    an empty range and silently skip the model - matching the UK blend
-    behaviour when a model has no valid horizon coverage.
+    an empty range and silently skip the model.
     """
     non_nan_indices = np.where(~np.isnan(x))[0]
     if len(non_nan_indices) == 0:
@@ -151,9 +144,9 @@ def calculate_optimal_blend_weights(
 ) -> pd.DataFrame:
     """Selects the single best model to blend against the backup and returns weights.
 
-    Mirrors the UK blend algorithm exactly - only the ONE best candidate is
-    selected, not all candidates that beat the baseline. At any horizon, at
-    most two models are active (the best candidate + the backup).
+    Only the ONE best candidate is selected, not all candidates that beat the
+    baseline. At any horizon, at most two models are active (the best candidate
+    + the backup).
 
     Algorithm
     ---------
@@ -307,16 +300,16 @@ async def get_nl_blend_weights(
 ) -> pd.DataFrame:
     """Produces the final blend weight DataFrame for t0.
 
-    Runs the same two-stage hierarchical optimisation as the UK blend:
+    Runs the same two-stage hierarchical optimisation:
 
-      Stage 1 - Find the best day-ahead model to blend against NL_BACKUP_MODEL.
-                Uses DA_SCORE_HOURS (36 h) as the optimisation window.
-                Constructs a 'da_blend' MAE curve from the result.
+      Stage 1 - Find the best backup model to blend against NL_BACKUP_MODEL.
+                Uses BACKUP_SCORE_HOURS (36 h) as the optimisation window.
+                Constructs a 'backup_blend' MAE curve from the result.
 
-      Stage 2 - Find the best intraday model to blend against the da_blend.
+      Stage 2 - Find the best intraday model to blend against the backup_blend.
                 Uses INTRADAY_SCORE_HOURS (8 h) as the optimisation window.
 
-    The day-ahead model weights are then scaled by how much the da_blend
+    The backup model weights are then scaled by how much the backup_blend
     contributes at each horizon (from stage 2), so the final weights across
     all models always sum to 1.0.
 
@@ -379,77 +372,68 @@ async def get_nl_blend_weights(
         return pd.DataFrame()
 
     # ---------------------------------------------------------------------- #
-    # 4. Stage 1 - select best day-ahead model vs backup                     #
-    #    Mirrors: UK calculate_optimal_blend_weights(                        #
-    #                 backup_model_name="National_xg",                       #
-    #                 score_func=make_avg_mae_func(36))                      #
+    # 4. Stage 1 - select best backup model vs backup                     #
     # ---------------------------------------------------------------------- #
-    da_candidate_cols = [
-        c for c in [NL_BACKUP_MODEL, *NL_DAY_AHEAD_MODELS]
+    backup_candidate_cols = [
+        c for c in [NL_BACKUP_MODEL, *NL_BACKUP_MODELS]
         if c in df_delayed_mae.columns
     ]
-    logger.info(f"Stage 1 - day-ahead candidates: {da_candidate_cols}")
+    logger.info(f"Stage 1 - backup candidates: {backup_candidate_cols}")
 
-    df_da_weights = calculate_optimal_blend_weights(
-        df_mae=df_delayed_mae[da_candidate_cols],
+    df_backup_weights = calculate_optimal_blend_weights(
+        df_mae=df_delayed_mae[backup_candidate_cols],
         backup_model_name=NL_BACKUP_MODEL,
         kernel=BLEND_KERNEL,
-        score_func=make_avg_mae_func(DA_SCORE_HOURS),
+        score_func=make_avg_mae_func(BACKUP_SCORE_HOURS),
     )
-    logger.info(f"Stage 1 weights (head):\n{df_da_weights.head()}")
+    logger.info(f"Stage 1 weights (head):\n{df_backup_weights.head()}")
 
     # ---------------------------------------------------------------------- #
-    # 5. Compute the expected MAE of the stage-1 day-ahead blend             #
-    #    This becomes the 'da_blend' column used as stage-2 backup.          #
-    #    Mirrors: UK blend's df_delayed_mae["da_blend"] construction.        #
+    # 5. Compute the expected MAE of the stage-1 backup blend             #
+    #    This becomes the 'backup_blend' column used as stage-2 backup.          #
     # ---------------------------------------------------------------------- #
-    # Rows where at least one DA column has a valid (non-NaN) weight.
-    valid_mask = ~df_delayed_mae[da_candidate_cols].isnull().all(axis=1)
+    # Rows where at least one backup column has a valid (non-NaN) weight.
+    valid_mask = ~df_delayed_mae[backup_candidate_cols].isnull().all(axis=1)
 
-    df_delayed_mae["da_blend"] = (
-        df_da_weights.fillna(0) * df_delayed_mae[da_candidate_cols]
+    df_delayed_mae["backup_blend"] = (
+        df_backup_weights.fillna(0) * df_delayed_mae[backup_candidate_cols]
     ).sum(skipna=True, axis=1).where(valid_mask)
 
     # ---------------------------------------------------------------------- #
-    # 6. Stage 2 - select best intraday model vs the da_blend                #
-    #    Mirrors: UK calculate_optimal_blend_weights(                        #
-    #                 backup_model_name="da_blend",                          #
-    #                 score_func=make_avg_mae_func(8))                       #
+    # 6. Stage 2 - select best intraday model vs the backup_blend                #
     # ---------------------------------------------------------------------- #
     intraday_candidate_cols = [
-        c for c in [*NL_INTRADAY_MODELS, "da_blend"]
+        c for c in [*NL_INTRADAY_MODELS, "backup_blend"]
         if c in df_delayed_mae.columns
     ]
     logger.info(f"Stage 2 - intraday candidates: {intraday_candidate_cols}")
 
     df_intraday_weights = calculate_optimal_blend_weights(
         df_mae=df_delayed_mae[intraday_candidate_cols],
-        backup_model_name="da_blend",
+        backup_model_name="backup_blend",
         kernel=BLEND_KERNEL,
         score_func=make_avg_mae_func(INTRADAY_SCORE_HOURS),
     )
     logger.info(f"Stage 2 weights (head):\n{df_intraday_weights.head()}")
 
     # ---------------------------------------------------------------------- #
-    # 7. Scale day-ahead weights by the da_blend contribution from stage 2  #
-    #    Mirrors: UK blend's                                                 #
-    #        df_da_model_weights[col] *= intraday_weights["da_blend"]        #
-    #                                                                         #
-    #    If the intraday model takes 70% at a horizon, the da_blend takes    #
-    #    30%. The individual DA model weights must be scaled by that 30% so  #
+    # 7. Scale backup weights by the backup_blend contribution from stage 2  #
+    #                                                                      #
+    #    If the intraday model takes 70% at a horizon, the backup_blend takes    #
+    #    30%. The individual backup model weights must be scaled by that 30% so  #
     #    the total across all real models sums to 1.0.                       #
     # ---------------------------------------------------------------------- #
-    if "da_blend" in df_intraday_weights.columns:
-        for col in df_da_weights.columns:
-            df_da_weights[col] = df_da_weights[col] * df_intraday_weights["da_blend"]
+    if "backup_blend" in df_intraday_weights.columns:
+        for col in df_backup_weights.columns:
+            df_backup_weights[col] = df_backup_weights[col] * df_intraday_weights["backup_blend"]
 
-    # Drop the virtual 'da_blend' column - it is not a real model.
-    df_intraday_weights = df_intraday_weights.drop(columns=["da_blend"], errors="ignore")
+    # Drop the virtual 'backup_blend' column - it is not a real model.
+    df_intraday_weights = df_intraday_weights.drop(columns=["backup_blend"], errors="ignore")
 
     # ---------------------------------------------------------------------- #
-    # 8. Combine day-ahead and intraday weights into a single DataFrame      #
+    # 8. Combine backup and intraday weights into a single DataFrame      #
     # ---------------------------------------------------------------------- #
-    df_all_weights = pd.concat([df_da_weights, df_intraday_weights], axis=1)
+    df_all_weights = pd.concat([df_backup_weights, df_intraday_weights], axis=1)
 
     # Drop any model that contributes zero weight across all horizons.
     df_all_weights = df_all_weights.loc[:, df_all_weights.sum(axis=0) > 0]
