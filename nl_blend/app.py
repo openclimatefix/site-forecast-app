@@ -155,7 +155,6 @@ async def run_blend_app() -> None:
             client=client,
             t0=t0,
             location_uuid=location_uuid,
-            capacity_watts=capacity_watts,
             blended_df=blended_df,
         )
 
@@ -164,7 +163,6 @@ async def _save_forecasts(
     client: dp.DataPlatformDataServiceStub,
     t0: pd.Timestamp,
     location_uuid: str,
-    capacity_watts: int,
     blended_df: pd.DataFrame,
 ) -> None:
     """Persists the blended forecast to the Data Platform.
@@ -173,7 +171,6 @@ async def _save_forecasts(
         client:         Active Data Platform gRPC client stub.
         t0:             Blend reference time (UTC); used as the forecast init_time.
         location_uuid:  DP location UUID to write forecasts under.
-        capacity_watts: Location capacity in watts; used to convert MW -> fraction.
         blended_df:     DataFrame with columns [target_time,
                         expected_power_generation_megawatts, p10_mw (opt),
                         p90_mw (opt)].
@@ -196,7 +193,6 @@ async def _save_forecasts(
         forecast_values = build_forecast_value_objects(
             blended_df=blended_df,
             init_time_utc=t0.to_pydatetime(),
-            capacity_watts=capacity_watts,
         )
     except Exception:
         logger.exception("Failed to build DP forecast value objects - skipping save.")

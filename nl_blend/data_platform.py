@@ -1,6 +1,7 @@
 """Data Platform I/O helpers for the NL site blending service."""
 import logging
 from datetime import UTC, datetime, timedelta
+import math
 
 import pandas as pd
 from dp_sdk.ocf import dp
@@ -132,14 +133,13 @@ async def get_all_forecast_values_as_dataframe(
     now = datetime.now(UTC)
     rows = []
     for v in dp_values:
-        capacity_mw = v.effective_capacity_watts / 1_000_000
-        p50_mw = v.p50_value_fraction * capacity_mw
+        p50_mw = v.p50_value_fraction
 
         # p10/p90 are optional fields - fall back to NaN when absent or zero.
         p10_fraction = v.other_statistics_fractions.get("p10")
         p90_fraction = v.other_statistics_fractions.get("p90")
-        p10_mw = p10_fraction * capacity_mw if p10_fraction is not None else float("nan")
-        p90_mw = p90_fraction * capacity_mw if p90_fraction is not None else float("nan")
+        p10_mw = p10_fraction if p10_fraction is not None else float("nan")
+        p90_mw = p90_fraction if p90_fraction is not None else float("nan")
 
         target_time = _to_aware_datetime(v.target_timestamp_utc).replace(microsecond=0)
 
@@ -253,12 +253,11 @@ async def fetch_location_capacity_watts(
 def build_forecast_value_objects(
     blended_df: pd.DataFrame,
     init_time_utc: datetime,
-    capacity_watts: int,
 ) -> list[dp.CreateForecastRequestForecastValue]:
     """Converts a blended forecast DataFrame into DP CreateForecastRequestForecastValue objects.
 
     horizon_mins  = (target_time - init_time_utc) in whole minutes.
-    p50_fraction  = expected_power_generation_megawatts / capacity_mw, clamped [0, 1].
+    p50_fraction  = expected_power_generation_megawatts (passed without scaling).
     p10 / p90 are placed in other_statistics_fractions under keys "p10" / "p90"
     only when their MW column is present and not NaN.
 
@@ -267,22 +266,11 @@ def build_forecast_value_objects(
                         expected_power_generation_megawatts, p10_mw (opt),
                         p90_mw (opt)].
         init_time_utc:  Forecast init time (UTC); used to compute horizon_mins.
-        capacity_watts: Location capacity in watts; used to convert MW -> fraction.
 
     Returns:
         List of DP forecast value objects, one per row in blended_df.
-
-    Raises:
-        ValueError: if capacity_watts is zero or negative.
     """
-    import math
-
-    capacity_mw = capacity_watts / 1_000_000.0
-    if capacity_mw <= 0:
-        raise ValueError(
-            f"capacity_watts={capacity_watts} is zero or negative; "
-            "cannot compute p50/p10/p90 fractions.",
-        )
+    
 
     if init_time_utc.tzinfo is None:
         init_time_utc = init_time_utc.replace(tzinfo=UTC)
@@ -300,19 +288,17 @@ def build_forecast_value_objects(
 
         horizon_mins = int((target_time - init_time_utc).total_seconds() / 60)
 
-        p50_fraction = max(
-            0.0, min(1.0, row.expected_power_generation_megawatts / capacity_mw),
-        )
+        p50_fraction = float(row.expected_power_generation_megawatts)
 
         other_stats: dict[str, float] = {}
         if has_p10:
             p10_mw = row.p10_mw
             if not math.isnan(p10_mw):
-                other_stats["p10"] = max(0.0, min(1.0, p10_mw / capacity_mw))
+                other_stats["p10"] = float(p10_mw)
         if has_p90:
             p90_mw = row.p90_mw
             if not math.isnan(p90_mw):
-                other_stats["p90"] = max(0.0, min(1.0, p90_mw / capacity_mw))
+                other_stats["p90"] = float(p90_mw)
 
         values.append(
             dp.CreateForecastRequestForecastValue(
