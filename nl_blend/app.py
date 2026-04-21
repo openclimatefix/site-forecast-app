@@ -41,9 +41,9 @@ async def run_blend_app() -> None:
     logger.info("Starting NL Blend execution.")
 
     # ------------------------------------------------------------------ #
-    # Determine blend reference time - floor to 30-min boundary        #
+    # Determine blend reference time - floor to 15-min boundary        #
     # ------------------------------------------------------------------ #
-    t0 = pd.Timestamp.utcnow().floor("30min")
+    t0 = pd.Timestamp.utcnow().floor("15min")
     logger.info(f"Blend t0: {t0}")
 
     # ------------------------------------------------------------------ #
