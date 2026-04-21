@@ -1,8 +1,6 @@
-import os
-import uuid
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import pytest
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
 
@@ -36,15 +34,14 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch):
         geometry_wkt="POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))",
         location_type=dp.LocationType.NATION,
         effective_capacity_watts=1_000_000,
-        valid_from_utc=datetime(2020, 1, 1, tzinfo=timezone.utc),
+        valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
     )
-    
+
+    import contextlib
+
     # Safely create location
-    try:
+    with contextlib.suppress(Exception):
         await client.create_location(create_location_request)
-    except Exception as e:
-        # Ignore already exists errors if the container had prior state
-        pass
 
     channel.close()
 

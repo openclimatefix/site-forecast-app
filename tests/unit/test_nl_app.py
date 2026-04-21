@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
@@ -13,14 +13,20 @@ from nl_blend.app import run_blend_app
 @pytest.fixture
 def mock_dependencies():
     """Mock out all Data Platform and heavy compute dependencies."""
-    with patch("nl_blend.app.get_dataplatform_client") as mock_client_ctx, \
-         patch("nl_blend.app.fetch_dp_location_map", new_callable=AsyncMock) as mock_loc_map, \
-         patch("nl_blend.app.fetch_location_capacity_watts", new_callable=AsyncMock) as mock_capacity, \
-         patch("nl_blend.app.load_nl_mae_scorecard") as mock_load_mae, \
-         patch("nl_blend.app.get_nl_blend_weights", new_callable=AsyncMock) as mock_weights, \
-         patch("nl_blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock) as mock_blend, \
-         patch("nl_blend.app._save_forecasts", new_callable=AsyncMock) as mock_save:
-             
+    with (
+        patch("nl_blend.app.get_dataplatform_client") as mock_client_ctx,
+        patch("nl_blend.app.fetch_dp_location_map", new_callable=AsyncMock) as mock_loc_map,
+        patch(
+            "nl_blend.app.fetch_location_capacity_watts", new_callable=AsyncMock,
+        ) as mock_capacity,
+        patch("nl_blend.app.load_nl_mae_scorecard") as mock_load_mae,
+        patch("nl_blend.app.get_nl_blend_weights", new_callable=AsyncMock) as mock_weights,
+        patch(
+            "nl_blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
+        ) as mock_blend,
+        patch("nl_blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
+    ):
+
         mock_client = AsyncMock()
         mock_client_ctx.return_value.__aenter__.return_value = mock_client
         mock_client_ctx.return_value.__aexit__.return_value = None
@@ -33,7 +39,7 @@ def mock_dependencies():
             "load_nl_mae_scorecard": mock_load_mae,
             "get_nl_blend_weights": mock_weights,
             "get_blend_forecast_values_latest": mock_blend,
-            "_save_forecasts": mock_save
+            "_save_forecasts": mock_save,
         }
 
 @pytest.mark.asyncio
@@ -42,10 +48,10 @@ async def test_run_blend_app_success(mock_dependencies):
     deps = mock_dependencies
 
     deps["fetch_dp_location_map"].return_value = {"site_id": "test-uuid"}
-    deps["fetch_location_capacity_watts"].return_value = 1000000 
+    deps["fetch_location_capacity_watts"].return_value = 1000000
     deps["load_nl_mae_scorecard"].return_value = pd.DataFrame()
     deps["get_nl_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
-    
+
     # Mocking non-empty result to trigger saving
     mock_blend_df = pd.DataFrame({"target_time": [], "expected_power_generation_megawatts": []})
     mock_blend_df.loc[0] = [pd.Timestamp("2024-01-01 12:00", tz="UTC"), 10.0]
@@ -55,7 +61,7 @@ async def test_run_blend_app_success(mock_dependencies):
 
     deps["fetch_dp_location_map"].assert_called_once()
     deps["fetch_location_capacity_watts"].assert_called_once_with(
-        client=deps["client"], location_uuid="test-uuid"
+        client=deps["client"], location_uuid="test-uuid",
     )
     deps["load_nl_mae_scorecard"].assert_called_once()
     deps["get_nl_blend_weights"].assert_called_once()
@@ -81,10 +87,10 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
     deps = mock_dependencies
 
     deps["fetch_dp_location_map"].return_value = {"site_id": "test-uuid"}
-    deps["fetch_location_capacity_watts"].return_value = 1000000 
+    deps["fetch_location_capacity_watts"].return_value = 1000000
     deps["load_nl_mae_scorecard"].return_value = pd.DataFrame()
     deps["get_nl_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
-    
+
     # Return empty blended DF
     deps["get_blend_forecast_values_latest"].return_value = pd.DataFrame()
 

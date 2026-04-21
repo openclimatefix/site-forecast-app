@@ -1,7 +1,7 @@
 """Data Platform I/O helpers for the NL site blending service."""
 import logging
-from datetime import UTC, datetime, timedelta
 import math
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 from dp_sdk.ocf import dp
@@ -270,8 +270,6 @@ def build_forecast_value_objects(
     Returns:
         List of DP forecast value objects, one per row in blended_df.
     """
-    
-
     if init_time_utc.tzinfo is None:
         init_time_utc = init_time_utc.replace(tzinfo=UTC)
 
