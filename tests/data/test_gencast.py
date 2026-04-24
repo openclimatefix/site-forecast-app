@@ -40,11 +40,11 @@ class TestGetLatestInitTime:
         result = get_latest_6hr_init_time(now=current_time)
         assert result == expected_string
 
-    @freeze_time("2023-10-10 15:00:00")
+    @freeze_time("2023-10-10 16:00:00")
     def test_default_argument_none(self):
         """Test that passing None uses the current UTC time (mocked)."""
-        # freeze_time makes datetime.now() return 15:00 UTC
-        # 15:00 - 9h = 07:00 -> 06:00
+        # freeze_time makes datetime.now() return 16:00 UTC
+        # 16:00 - 9h = 07:00 -> 06:00
         expected = "20231010_06hr"
         assert get_latest_6hr_init_time() == expected
 
