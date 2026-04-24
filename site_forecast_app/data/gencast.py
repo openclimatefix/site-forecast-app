@@ -51,7 +51,7 @@ def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
         now = dt.datetime.now(tz=dt.UTC)  # use UTC by default
 
     # Account for data availability delay
-    expected_delay_hours = 8
+    expected_delay_hours = 9
     t = now - dt.timedelta(hours=expected_delay_hours)
 
     # Find the most recent 6-hour boundary
