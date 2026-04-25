@@ -47,6 +47,14 @@ NL_INTRADAY_MODELS = [
 
 ALL_NL_MODELS = [NL_BACKUP_MODEL, *NL_BACKUP_MODELS, *NL_INTRADAY_MODELS]
 
+# Regional models: subset used for per-region blending.
+# Mirrors UK blend's get_regional_blend_weights which uses a narrower model set.
+NL_REGIONAL_INTRADAY_MODELS = [
+    "nl_regional_pv_ecmwf_mo_sat",
+    "nl_regional_pv_ecmwf_sat",
+]
+ALL_NL_REGIONAL_MODELS = [NL_BACKUP_MODEL, *NL_BACKUP_MODELS, *NL_REGIONAL_INTRADAY_MODELS]
+
 # Blend kernel: weights applied at the taper zone between two models.
 # [0.75, 0.5, 0.25] avoids abrupt model switches.
 BLEND_KERNEL: list[float] = [0.75, 0.5, 0.25]
@@ -324,12 +332,6 @@ async def get_nl_blend_weights(
     )
     logger.info(f"Fetched model initialisation times: {model_init_times}")
 
-    ####################REMOVE THIS####################
-    # TEMPORARY MOCK INIT TIMES TO FORCE BLENDING WITH KERNEL:
-    # model_init_times["nl_regional_pv_ecmwf_mo_sat"] = t0  # 0 delay so it dominates the short term
-    # model_init_times["nl_regional_48h_pv_ecmwf"] = t0     # 0 delay for backup
-    ####################REMOVE THIS####################
-
     # ---------------------------------------------------------------------- #
     # 2. Assign penalty delays to any model not found in Data Platform       #
     #    Backup  -> delay = 0          (always used as fallback)             #
@@ -352,15 +354,6 @@ async def get_nl_blend_weights(
 
     df_delayed_mae = shift_mae_curves(df_mae, delays)
 
-
-    ####################REMOVE THIS####################
-
-    # TEMPORARY MOCK TO FORCE TAPER BLEND:
-    # # Intraday wins on 0-delay but stops at 10 hours so we can see taper.
-    # if "nl_regional_pv_ecmwf_mo_sat" in df_delayed_mae.columns:
-    #     df_delayed_mae.loc[pd.Timedelta("10h"):, "nl_regional_pv_ecmwf_mo_sat"] = np.nan
-
-    ####################REMOVE THIS####################
 
     if df_delayed_mae.empty:
         logger.error(
@@ -446,10 +439,113 @@ async def get_nl_blend_weights(
         f"participating models: {list(df_all_weights.columns)}",
     )
 
-    ####################REMOVE THIS####################
-    # Temporary modification to save weights
-    # import os
-    # df_all_weights.to_csv(os.path.join(os.path.dirname(__file__), "temp_weights.csv"))
-    ####################REMOVE THIS####################
+    return df_all_weights
+
+
+async def get_nl_regional_blend_weights(
+    t0: pd.Timestamp,
+    location_uuid: str,
+    df_mae: pd.DataFrame,
+    max_horizon: pd.Timedelta,
+    client: dp.DataPlatformDataServiceStub,
+) -> pd.DataFrame:
+    """Produces the blend weight DataFrame for regional (non-national) locations.
+
+    Identical flow to get_nl_blend_weights but uses ALL_NL_REGIONAL_MODELS
+    and NL_REGIONAL_INTRADAY_MODELS, mirroring the UK blend's separation of
+    get_national_blend_weights and get_regional_blend_weights.
+
+    Args:
+        t0:            Blend reference time (UTC, floored to 15 min).
+        location_uuid: Data Platform location UUID (national used for init times).
+        df_mae:        (horizon x model) MAE scorecard from load_nl_mae_scorecard.
+        max_horizon:   Maximum horizon in the scorecard.
+        client:        Authenticated Data Platform gRPC client stub.
+
+    Returns:
+        Wide DataFrame indexed by absolute UTC target time, one column per
+        participating model. Weights sum to 1.0 at every horizon.
+        Returns an empty DataFrame if the shifted MAE frame is empty.
+    """
+    # Fetch model initialisation times
+    model_init_times = await fetch_latest_nl_init_times(
+        client=client,
+        location_uuid=location_uuid,
+        model_names=ALL_NL_REGIONAL_MODELS,
+        t0=t0,
+        max_delay=max_horizon,
+    )
+    logger.info(f"[Regional] Fetched model initialisation times: {model_init_times}")
+
+    # Assign penalty delays to missing models
+    missing = [m for m in ALL_NL_REGIONAL_MODELS if m not in model_init_times]
+    if missing:
+        logger.info(f"[Regional] No init time found for {missing}; assigning penalty delays.")
+    for m in missing:
+        if m == NL_BACKUP_MODEL:
+            model_init_times[m] = t0
+        else:
+            model_init_times[m] = t0 - max_horizon
+
+    # Compute delays and shift MAE scorecard
+    delays = calculate_model_delays(model_init_times, t0)
+    logger.info(f"[Regional] Computed model delays relative to t0 ({t0}): {delays}")
+
+    df_delayed_mae = shift_mae_curves(df_mae, delays)
+
+    if df_delayed_mae.empty:
+        logger.error(
+            "[Regional] Shifted MAE DataFrame is empty - cannot produce blend weights.",
+        )
+        return pd.DataFrame()
+
+    # Stage 1: best backup model vs backup
+    backup_candidate_cols = [
+        c for c in [NL_BACKUP_MODEL, *NL_BACKUP_MODELS]
+        if c in df_delayed_mae.columns
+    ]
+    df_backup_weights = calculate_optimal_blend_weights(
+        df_mae=df_delayed_mae[backup_candidate_cols],
+        backup_model_name=NL_BACKUP_MODEL,
+        kernel=BLEND_KERNEL,
+        score_func=make_avg_mae_func(BACKUP_SCORE_HOURS),
+    )
+
+    # Compute backup_blend MAE curve for stage 2
+    valid_mask = ~df_delayed_mae[backup_candidate_cols].isnull().all(axis=1)
+    df_delayed_mae["backup_blend"] = (
+        df_backup_weights.fillna(0) * df_delayed_mae[backup_candidate_cols]
+    ).sum(skipna=True, axis=1).where(valid_mask)
+
+    # Stage 2: best regional intraday model vs backup_blend
+    intraday_candidate_cols = [
+        c for c in [*NL_REGIONAL_INTRADAY_MODELS, "backup_blend"]
+        if c in df_delayed_mae.columns
+    ]
+    df_intraday_weights = calculate_optimal_blend_weights(
+        df_mae=df_delayed_mae[intraday_candidate_cols],
+        backup_model_name="backup_blend",
+        kernel=BLEND_KERNEL,
+        score_func=make_avg_mae_func(INTRADAY_SCORE_HOURS),
+    )
+
+    # Scale backup weights by backup_blend contribution from stage 2
+    if "backup_blend" in df_intraday_weights.columns:
+        for col in df_backup_weights.columns:
+            df_backup_weights[col] = df_backup_weights[col] * df_intraday_weights["backup_blend"]
+
+    df_intraday_weights = df_intraday_weights.drop(columns=["backup_blend"], errors="ignore")
+
+    # Combine and clean
+    df_all_weights = pd.concat([df_backup_weights, df_intraday_weights], axis=1)
+    df_all_weights = df_all_weights.loc[:, df_all_weights.sum(axis=0) > 0]
+
+    # Convert to absolute UTC target times
+    df_all_weights.index = df_all_weights.index + t0
+
+    logger.info(
+        f"[Regional] Blend weights computed for {len(df_all_weights)} target times, "
+        f"participating models: {list(df_all_weights.columns)}",
+    )
 
     return df_all_weights
