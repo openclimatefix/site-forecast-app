@@ -130,10 +130,11 @@ def calculate_optimal_blend_weights(
     if df_mae.empty:
         return pd.DataFrame(columns=df_mae.columns)
 
-    assert backup_model_name in df_mae.columns, (
-        f"backup_model_name='{backup_model_name}' not found in df_mae columns: "
-        f"{list(df_mae.columns)}"
-    )
+    if backup_model_name not in df_mae.columns:
+        raise ValueError(
+            f"backup_model_name='{backup_model_name}' not found in df_mae columns: "
+            f"{list(df_mae.columns)}",
+        )
 
     kernel_arr = np.array(kernel)
     n = len(df_mae)
