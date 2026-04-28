@@ -13,7 +13,7 @@ def test_calculate_model_delays():
 
     model_init_times = {
         "model_A": pd.Timestamp("2024-01-01 11:30", tz="UTC"),
-        "model_B": pd.Timestamp("2024-01-01 11:45", tz="UTC"), # floor("15min") stays 11:45 => 15min delay
+        "model_B": pd.Timestamp("2024-01-01 11:45", tz="UTC"),  # 11:45 floored to 11:45 => 15min
         "model_C": pd.Timestamp("2024-01-01 10:00", tz="UTC"),
         "model_D": None,
     }
@@ -21,7 +21,7 @@ def test_calculate_model_delays():
     delays = calculate_model_delays(model_init_times, t0)
 
     assert delays["model_A"] == pd.Timedelta("30min")
-    assert delays["model_B"] == pd.Timedelta("15min") # floor("15min"): 11:45 -> 11:45 => 15min delay
+    assert delays["model_B"] == pd.Timedelta("15min")  # 11:45 floored to 11:45 => 15min delay
     assert delays["model_C"] == pd.Timedelta("120min")
     assert "model_D" not in delays
 
