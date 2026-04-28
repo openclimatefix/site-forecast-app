@@ -1,0 +1,48 @@
+# NL Blend configuration
+# Values here drive nl_blend/weights.py and nl_blend/app.py.
+nl_blend:
+  # ------------------------------------------------------------------ #
+  # Model registry                                                       #
+  # ------------------------------------------------------------------ #
+
+  # The absolute fallback model: always available, used as the backup.
+  backup_model: nl_regional_2h_pv_ecmwf
+
+  # Candidate models for the national blend.
+  # The optimiser will pick the single best one to blend against backup_model.
+  national_candidate_models:
+    - nl_regional_48h_pv_ecmwf
+    - nl_regional_pv_ecmwf_mo_sat
+    - nl_regional_pv_ecmwf_sat
+    - nl_national_pv_ecmwf_sat_small
+
+  # Candidate models for regional blends (subset of national candidates).
+  # These values are not currently being used 
+  regional_candidate_models:
+    - nl_regional_48h_pv_ecmwf
+    - nl_regional_pv_ecmwf_mo_sat
+    - nl_regional_pv_ecmwf_sat
+
+  # ------------------------------------------------------------------ #
+  # Blending parameters                                                  #
+  # ------------------------------------------------------------------ #
+
+  # Taper kernel: weights at the transition zone between two models.
+  # Values must be strictly between 0 and 1 and non-increasing.
+  blend_kernel:
+    - 0.75
+    - 0.5
+    - 0.25
+
+  # Minimum forecast horizon (minutes) emitted in any blended forecast.
+  min_forecast_horizon_minutes: 15
+
+  # ------------------------------------------------------------------ #
+  # Infrastructure / naming                                              #
+  # ------------------------------------------------------------------ #
+
+  # Path to the MAE scorecard, relative to the nl_blend package directory.
+  scorecard_path: data/backtest_nmae_comparison.csv
+
+  # Forecaster name written to the Data Platform.
+  forecaster_name: nl_blend
