@@ -132,7 +132,7 @@ def sites(db_session):
         client_location_id=1,
         client_location_name="test_site_ruvnl",
         latitude=26.5,
-        longitude=72.5,
+        longitude=72.65,
         capacity_kw=20000,
         ml_id=1,
         asset_type="wind",
