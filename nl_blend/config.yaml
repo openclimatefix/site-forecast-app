@@ -1,5 +1,4 @@
 # NL Blend configuration
-# Mirrors the pattern of site_forecast_app/models/all_models.yaml.
 # Values here drive nl_blend/weights.py and nl_blend/app.py.
 nl_blend:
   # ------------------------------------------------------------------ #

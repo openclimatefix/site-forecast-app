@@ -25,10 +25,7 @@ def insert_forecast_values(
     ml_model_name: str | None,
     ml_model_version: str | None,
 ) -> None:
-    """Insert a forecast + its values into the DB.
-
-    This mirrors how fixtures insert data in tests and is intentionally minimal.
-    """
+    """Insert a forecast + its values into the DB."""
     model_name = ml_model_name or "default"
     model_version = ml_model_version or "0.0.0"
     ml_model = get_or_create_model(db_session, model_name, model_version)

@@ -69,7 +69,7 @@ async def run_blend_app() -> None:
             logger.exception("Failed to connect to Data Platform while fetching location map.")
             return
 
-        # Identify the national location UUID - mirrors UK's gsp_id == 0 check.
+        # Identify the national location UUID
         national_location_uuid = dp_loc_map.get(NL_NATIONAL_LOCATION_KEY)
         if national_location_uuid is None:
             # Fallback: treat the first entry as national (original behaviour).

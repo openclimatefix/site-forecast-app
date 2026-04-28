@@ -1,9 +1,8 @@
 """Pydantic config model for the NL Blend application.
 
-Mirrors the pattern used in site_forecast_app/models/pydantic_models.py:
-  - YAML is loaded via fsspec + pyaml_env (supports !ENV tags).
-  - A Pydantic BaseModel validates every field.
-  - A single loader function is the public API.
+- YAML is loaded via fsspec + pyaml_env (supports !ENV tags).
+- A Pydantic BaseModel validates every field.
+- A single loader function is the public API.
 """
 import os
 
@@ -82,7 +81,7 @@ class NlBlendConfig(BaseModel):
 
 
 class NlBlendConfigWrapper(BaseModel):
-    """Top-level wrapper that mirrors the YAML root key ``nl_blend``."""
+    """Wrapper for the NL Blend configuration."""
 
     nl_blend: NlBlendConfig
 

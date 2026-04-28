@@ -16,6 +16,7 @@ from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
 from sqlalchemy.orm import Session
 
 import site_forecast_app
+from nl_blend.app import run_blend_app
 from site_forecast_app import __version__
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
@@ -349,6 +350,10 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
+        # Run the NL blend pipeline automatically after site forecasts complete
+        log.info("Starting NL blend pipeline...")
+        asyncio.run(run_blend_app())
+        log.info("NL blend pipeline completed.")
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs < runs:
