@@ -322,6 +322,10 @@ def nwp_data(tmp_path_factory, time_before_present):
 
     ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
 
+    # lets restrict the data to 45 to 65 and 3 to 10
+    ds = ds.sel(latitude=slice(65, 45))
+    ds = ds.sel(longitude=slice(3, 10))
+
      # change variables values
     variables = [
         "temperature_sl",
