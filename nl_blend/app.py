@@ -28,7 +28,7 @@ _cfg = load_nl_blend_config()
 NL_BLEND_FORECASTER_NAME = _cfg.forecaster_name
 
 # location_type key that identifies the national location in the DP location map.
-NL_NATIONAL_LOCATION_KEY = "national"
+NL_NATIONAL_LOCATION_KEY = "nl_national"
 
 
 async def run_blend_app() -> None:
