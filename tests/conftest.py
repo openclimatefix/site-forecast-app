@@ -131,8 +131,8 @@ def sites(db_session):
     site = LocationSQL(
         client_location_id=1,
         client_location_name="test_site_ruvnl",
-        latitude=26.5,
-        longitude=72.65,
+        latitude=55, # note normally this would be 26.5, but for test data we adjust it
+        longitude=7, # note normally this would be 72.5, but for test data we adjust it
         capacity_kw=20000,
         ml_id=1,
         asset_type="wind",
