@@ -307,7 +307,7 @@ def nwp_data(tmp_path_factory, time_before_present):
 
 @pytest.fixture(scope="session")
 def nwp_data_india(tmp_path_factory, time_before_present):
-    return make_nwp_data(tmp_path_factory, time_before_present, 30.0, 70.0)
+    return make_nwp_data(tmp_path_factory, time_before_present, 30.0, 65.0)
 
 
 def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centroid):
