@@ -6,7 +6,6 @@ import datetime as dt
 import logging
 import os
 import random
-import shutil
 from uuid import uuid4
 
 import numpy as np
@@ -28,7 +27,6 @@ from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
 from site_forecast_app.data.gencast import get_latest_6hr_init_time
-from site_forecast_app.models.pvnet.consts import nwp_ecmwf_path
 
 log = logging.getLogger(__name__)
 
@@ -381,12 +379,6 @@ def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centr
     temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
     os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
-
-    yield ds
-
-    # clean up
-    if os.path.exists(nwp_ecmwf_path):
-        shutil.rmtree(nwp_ecmwf_path)
 
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
