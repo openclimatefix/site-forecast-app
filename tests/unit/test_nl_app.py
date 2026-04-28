@@ -16,9 +16,6 @@ def mock_dependencies():
     with (
         patch("nl_blend.app.get_dataplatform_client") as mock_client_ctx,
         patch("nl_blend.app.fetch_dp_location_map", new_callable=AsyncMock) as mock_loc_map,
-        patch(
-            "nl_blend.app.fetch_location_capacity_watts", new_callable=AsyncMock,
-        ) as mock_capacity,
         patch("nl_blend.app.load_nl_mae_scorecard") as mock_load_mae,
         patch("nl_blend.app.get_nl_blend_weights", new_callable=AsyncMock) as mock_weights,
         patch(
@@ -35,12 +32,18 @@ def mock_dependencies():
             "client_ctx": mock_client_ctx,
             "client": mock_client,
             "fetch_dp_location_map": mock_loc_map,
-            "fetch_location_capacity_watts": mock_capacity,
             "load_nl_mae_scorecard": mock_load_mae,
             "get_nl_blend_weights": mock_weights,
             "get_blend_forecast_values_latest": mock_blend,
             "_save_forecasts": mock_save,
         }
+
+def _mock_scorecard() -> pd.DataFrame:
+    """Returns a minimal scorecard DataFrame with a valid Timedelta index."""
+    return pd.DataFrame(
+        {"model_A": [0.1]},
+        index=pd.to_timedelta(["24h"]),
+    )
 
 @pytest.mark.asyncio
 async def test_run_blend_app_success(mock_dependencies):
@@ -48,8 +51,7 @@ async def test_run_blend_app_success(mock_dependencies):
     deps = mock_dependencies
 
     deps["fetch_dp_location_map"].return_value = {"site_id": "test-uuid"}
-    deps["fetch_location_capacity_watts"].return_value = 1000000
-    deps["load_nl_mae_scorecard"].return_value = pd.DataFrame()
+    deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_nl_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
 
     # Mocking non-empty result to trigger saving
@@ -60,9 +62,6 @@ async def test_run_blend_app_success(mock_dependencies):
     await run_blend_app()
 
     deps["fetch_dp_location_map"].assert_called_once()
-    deps["fetch_location_capacity_watts"].assert_called_once_with(
-        client=deps["client"], location_uuid="test-uuid",
-    )
     deps["load_nl_mae_scorecard"].assert_called_once()
     deps["get_nl_blend_weights"].assert_called_once()
     deps["get_blend_forecast_values_latest"].assert_called_once()
@@ -79,7 +78,6 @@ async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies)
         await run_blend_app()
 
     assert "empty location map" in caplog.text
-    deps["fetch_location_capacity_watts"].assert_not_called()
 
 @pytest.mark.asyncio
 async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
@@ -87,8 +85,7 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
     deps = mock_dependencies
 
     deps["fetch_dp_location_map"].return_value = {"site_id": "test-uuid"}
-    deps["fetch_location_capacity_watts"].return_value = 1000000
-    deps["load_nl_mae_scorecard"].return_value = pd.DataFrame()
+    deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_nl_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
 
     # Return empty blended DF
