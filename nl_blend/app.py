@@ -7,6 +7,7 @@ import pandas as pd
 from dp_sdk.ocf import dp
 
 from nl_blend.blend import get_blend_forecast_values_latest
+from nl_blend.config import load_nl_blend_config
 from nl_blend.data_platform import (
     build_forecast_value_objects,
     fetch_location_capacity_watts,
@@ -22,8 +23,10 @@ from site_forecast_app.save.data_platform import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nl_blend_app")
 
+_cfg = load_nl_blend_config()
+
 # Forecaster name written to the Data Platform
-NL_BLEND_FORECASTER_NAME = "nl_blend"
+NL_BLEND_FORECASTER_NAME = _cfg.forecaster_name
 
 
 async def run_blend_app() -> None:
@@ -92,7 +95,7 @@ async def run_blend_app() -> None:
         # Load MAE scorecard                                           #
         # -------------------------------------------------------------- #
         scorecard_path = os.path.join(
-            os.path.dirname(__file__), "data", "backtest_nmae_comparison.csv",
+            os.path.dirname(__file__), _cfg.scorecard_path,
         )
         try:
             df_mae = load_nl_mae_scorecard(scorecard_path)

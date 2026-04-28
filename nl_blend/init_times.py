@@ -7,7 +7,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 # Minimum horizon we will ever emit a blended value for.
-MIN_FORECAST_HORIZON = pd.Timedelta("30min")
+MIN_FORECAST_HORIZON = pd.Timedelta("15min")
 
 
 # ---------------------------------------------------------------------------
