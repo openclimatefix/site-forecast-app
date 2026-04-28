@@ -1,4 +1,4 @@
-"""Site Forecast App."""
+"""Site Forecast App."""  # noqa: D104
 
 from importlib.metadata import version, PackageNotFoundError
 
