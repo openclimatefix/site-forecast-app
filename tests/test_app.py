@@ -248,7 +248,7 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
 
 @freeze_time(now)
 def test_app_ruvnl(
-    db_session, sites, nwp_data, nwp_data_gencast, generation_db_values,  # noqa: ARG001
+    db_session, sites, nwp_data_india, nwp_data_gencast, generation_db_values,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 

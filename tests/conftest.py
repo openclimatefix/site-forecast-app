@@ -6,6 +6,7 @@ import datetime as dt
 import logging
 import os
 import random
+import shutil
 from uuid import uuid4
 
 import numpy as np
@@ -27,6 +28,7 @@ from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
 from site_forecast_app.data.gencast import get_latest_6hr_init_time
+from site_forecast_app.models.pvnet.consts import nwp_ecmwf_path
 
 log = logging.getLogger(__name__)
 
@@ -302,6 +304,15 @@ def nwp_data_with_nans(tmp_path_factory, nwp_data): # noqa: ARG001
 
 @pytest.fixture(scope="session")
 def nwp_data(tmp_path_factory, time_before_present):
+    return make_nwp_data(tmp_path_factory, time_before_present, 65.0, 3.0)
+
+
+@pytest.fixture(scope="session")
+def nwp_data_india(tmp_path_factory, time_before_present):
+    return make_nwp_data(tmp_path_factory, time_before_present, 30.0, 70.0)
+
+
+def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centroid):
     """Dummy NWP data"""
 
     # Load dataset which only contains coordinates, but no data
@@ -317,14 +328,14 @@ def nwp_data(tmp_path_factory, time_before_present):
     )
 
      # force lat and lon to be in 0.1 steps, and cover Europe/India
-    latitudes = [65.0 - i * 0.1 for i in range(610)]
-    longitudes = [3.0 + i * 0.1 for i in range(940)]
+    latitudes = [lat_centroid - i * 0.1 for i in range(610)]
+    longitudes = [lon_centroid + i * 0.1 for i in range(940)]
 
     ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
 
-    # lets restrict the data to 45 to 65 and 3 to 10
-    ds = ds.sel(latitude=slice(65, 45))
-    ds = ds.sel(longitude=slice(3, 10))
+    # lets just select the first 200 by 70 points
+    ds = ds.isel(latitude=slice(0, 200))
+    ds = ds.sel(longitude=slice(0, 70))
 
      # change variables values
     variables = [
@@ -371,6 +382,11 @@ def nwp_data(tmp_path_factory, time_before_present):
     os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
 
+    yield ds
+
+    # clean up
+    if os.path.exists(nwp_ecmwf_path):
+        shutil.rmtree(nwp_ecmwf_path)
 
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
