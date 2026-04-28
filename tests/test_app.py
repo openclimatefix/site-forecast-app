@@ -26,7 +26,7 @@ from site_forecast_app.models.pydantic_models import get_all_models
 from ._utils import run_click_script
 
 mp.set_start_method("spawn", force=True)
-now = pd.Timestamp.now().round("15min")
+now = pd.Timestamp.now().round("15min") + pd.Timedelta(minutes=1) 
 
 
 def test_get_sites(db_session, sites):
