@@ -98,7 +98,7 @@ async def run_blend_app() -> None:
         max_horizon = df_mae.index.max()
 
         # -------------------------------------------------------------- #
-        # Calculate national and regional blend weights once, reuse per  #
+        # Calculate national blend weights for the national location  #
         # -------------------------------------------------------------- #
         logger.info("Calculating national blend weights.")
         try:
