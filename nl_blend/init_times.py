@@ -66,11 +66,11 @@ def calculate_model_delays(
 ) -> dict[str, pd.Timedelta]:
     """Calculates each model's effective delay relative to t0.
 
-    The delay is:  t0 - floor(init_time, 30 min)
+    The delay is:  t0 - floor(init_time, 15 min)
 
-    The initialisation time is rounded down to the nearest half-hour before
+    The initialisation time is rounded down to the nearest 15 minutes before
     subtracting, so a model initialised at 09:47 is treated as if it started
-    at 09:30, giving a delay of 30 min when t0=10:00.
+    at 09:45, giving a delay of 15 minutes when t0=10:00.
 
     A negative delay (init_time > t0) is clamped to zero.
 
@@ -93,7 +93,7 @@ def calculate_model_delays(
         if init_time.tz is None:
             init_time = init_time.tz_localize("UTC")
 
-        approx_init = init_time.floor("30min")
+        approx_init = init_time.floor("15min")
         delay = t0 - approx_init
 
         logger.debug(
@@ -120,8 +120,8 @@ def shift_mae_curves(
 ) -> pd.DataFrame:
     """Shifts each model's MAE curve rightward by its delay.
 
-    If a model is delayed by 60 min, its scorecard row at horizon=30 min
-    actually represents performance at an effective horizon of 90 min.
+    If a model is delayed by 60 minutes, its scorecard row at horizon=60 minutes
+    actually represents performance at an effective horizon of 120 minutes.
     Shifting the index left by the delay brings the curve into the same
     reference frame as the blend t0.
 
