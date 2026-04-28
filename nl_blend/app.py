@@ -12,7 +12,7 @@ from nl_blend.data_platform import (
     build_forecast_value_objects,
 )
 from nl_blend.init_times import load_nl_mae_scorecard
-from nl_blend.weights import get_nl_blend_weights, get_nl_regional_blend_weights
+from nl_blend.weights import get_nl_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
     fetch_dp_location_map,
@@ -114,19 +114,6 @@ async def run_blend_app() -> None:
             logger.exception("Failed to calculate national blend weights.")
             return
 
-        logger.info("Calculating regional blend weights.")
-        try:
-            regional_weights_df = await get_nl_regional_blend_weights(
-                t0=t0,
-                location_uuid=national_location_uuid,
-                df_mae=df_mae,
-                max_horizon=max_horizon,
-                client=client,
-            )
-            logger.info(f"Regional blend weights calculated:\n{regional_weights_df.head(10)}")
-        except Exception:
-            logger.exception("Failed to calculate regional blend weights.")
-            return
 
         # -------------------------------------------------------------- #
         # Loop over all locations - blend and save                        #
@@ -134,18 +121,15 @@ async def run_blend_app() -> None:
         # abort the remaining locations.                                  #
         # -------------------------------------------------------------- #
         for location_key, location_uuid in dp_loc_map.items():
-            is_national = (location_uuid == national_location_uuid)
-            weights_df = national_weights_df if is_national else regional_weights_df
-
             logger.info(
                 f"Blending forecasts for location '{location_key}' "
-                f"(uuid={location_uuid}, national={is_national})",
+                f"(uuid={location_uuid})",
             )
 
             try:
                 blended_df = await get_blend_forecast_values_latest(
                     location_uuid=location_uuid,
-                    weights_df=weights_df,
+                    weights_df=national_weights_df,
                     client=client,
                     start_datetime=t0,
                 )

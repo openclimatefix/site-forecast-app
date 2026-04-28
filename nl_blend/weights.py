@@ -235,8 +235,7 @@ async def _compute_weights(
 ) -> pd.DataFrame:
     """Fetches init times, shifts MAE curves, and runs the single-stage optimiser.
 
-    Shared by get_nl_blend_weights (national) and get_nl_regional_blend_weights
-    (regional) — only the candidate model list differs between the two.
+    Shared by get_nl_blend_weights
 
     Args:
         t0:               Blend reference time (UTC).
@@ -346,36 +345,4 @@ async def get_nl_blend_weights(
     )
 
 
-async def get_nl_regional_blend_weights(
-    t0: pd.Timestamp,
-    location_uuid: str,
-    df_mae: pd.DataFrame,
-    max_horizon: pd.Timedelta,
-    client: dp.DataPlatformDataServiceStub,
-) -> pd.DataFrame:
-    """Produces the regional blend weight DataFrame for t0.
 
-    Identical flow to get_nl_blend_weights but uses
-    NL_REGIONAL_CANDIDATE_MODELS (typically a subset of the national list).
-
-    Args:
-        t0:            Blend reference time (UTC, floored to 15 min).
-        location_uuid: Data Platform location UUID.
-        df_mae:        (horizon x model) MAE scorecard.
-        max_horizon:   Maximum horizon in the scorecard.
-        client:        Authenticated Data Platform gRPC client stub.
-
-    Returns:
-        Wide DataFrame indexed by absolute UTC target time.
-        Weights sum to 1.0 at every horizon.
-        Returns an empty DataFrame if the shifted MAE frame is empty.
-    """
-    return await _compute_weights(
-        t0=t0,
-        location_uuid=location_uuid,
-        df_mae=df_mae,
-        max_horizon=max_horizon,
-        client=client,
-        candidate_models=NL_REGIONAL_CANDIDATE_MODELS,
-        label="Regional",
-    )
