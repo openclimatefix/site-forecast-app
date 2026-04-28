@@ -128,3 +128,5 @@ This repo makes use of PyTorch (`torch` and `torchvision` packages) CPU-only ver
 
 **Problem**: Out of memory errors when loading models
 **Solution**: Ensure your system has sufficient RAM, or consider using a smaller model variant.
+
+<!-- ci check -->
