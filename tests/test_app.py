@@ -28,6 +28,8 @@ mp.set_start_method("spawn", force=True)
 
 def test_get_sites(db_session, sites):
     """Test for correct site ids"""
+    os.environ["CLIENT_NAME"] = "nl"
+    os.environ["COUNTRY"] = "nl"
 
     sites = get_sites(db_session)
     sites = sorted(sites, key=lambda s: s.client_location_id)
@@ -160,6 +162,8 @@ def test_app(
     satellite_data,  # noqa: ARG001
 ):
     """Test for running app from command line"""
+    os.environ["CLIENT_NAME"] = "nl"
+    os.environ["COUNTRY"] = "nl"
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()

@@ -18,21 +18,21 @@ class TestGetLatestInitTime:
         "current_time, expected_string",
         [
             # --- Basic Intraday Tests ---
-            # 15:00 - 8h = 07:00 -> Floor to 06
+            # 15:00 - 9h = 06:00 -> Floor to 06
             (dt.datetime(2023, 10, 10, 15, 0, tzinfo=dt.UTC), "20231010_06hr"),
             # --- Exact Boundary Tests (The Edge Cases) ---
-            # 14:00 - 8h = 06:00 -> Exactly on 06 boundary
-            (dt.datetime(2023, 10, 10, 14, 0, tzinfo=dt.UTC), "20231010_06hr"),
-            # 13:59 - 8h = 05:59 -> Should drop back to previous block (00)
+            # 14:00 - 9h = 05:00 -> Exactly on 06 boundary
+            (dt.datetime(2023, 10, 10, 14, 0, tzinfo=dt.UTC), "20231010_00hr"),
+            # 13:59 - 9h = 04:59 -> Should drop back to previous block (00)
             (dt.datetime(2023, 10, 10, 13, 59, tzinfo=dt.UTC), "20231010_00hr"),
             # --- Date Rollover Tests (Midnight) ---
-            # 05:00 - 8h = 21:00 (previous day) -> Floor to 18
+            # 05:00 - 9h = 20:00 (previous day) -> Floor to 18
             (dt.datetime(2023, 10, 10, 5, 0, tzinfo=dt.UTC), "20231009_18hr"),
-            # 08:00 - 8h = 00:00 (today) -> Exactly on 00 boundary
-            (dt.datetime(2023, 10, 10, 8, 0, tzinfo=dt.UTC), "20231010_00hr"),
+            # 08:00 - 9h = 23:00 (yesterday) -> Floor to 18 yesterday
+            (dt.datetime(2023, 10, 10, 8, 0, tzinfo=dt.UTC), "20231009_18hr"),
             # --- Year/Month Rollover Tests ---
-            # Jan 1st, 02:00 - 8h = Dec 31st, 18:00 (previous year)
-            (dt.datetime(2024, 1, 1, 2, 0, tzinfo=dt.UTC), "20231231_18hr"),
+            # Jan 1st, 02:00 - 9h = Dec 31st, 17:00 (previous year)
+            (dt.datetime(2024, 1, 1, 2, 0, tzinfo=dt.UTC), "20231231_12hr"),
         ],
     )
     def test_explicit_input_times(self, current_time, expected_string):
@@ -40,11 +40,11 @@ class TestGetLatestInitTime:
         result = get_latest_6hr_init_time(now=current_time)
         assert result == expected_string
 
-    @freeze_time("2023-10-10 15:00:00")
+    @freeze_time("2023-10-10 16:00:00")
     def test_default_argument_none(self):
         """Test that passing None uses the current UTC time (mocked)."""
-        # freeze_time makes datetime.now() return 15:00 UTC
-        # 15:00 - 8h = 07:00 -> 06:00
+        # freeze_time makes datetime.now() return 16:00 UTC
+        # 16:00 - 9h = 07:00 -> 06:00
         expected = "20231010_06hr"
         assert get_latest_6hr_init_time() == expected
 

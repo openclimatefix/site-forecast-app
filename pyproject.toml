@@ -41,6 +41,7 @@ dependencies = [
     "grpclib>=0.4.7",
     "dp-sdk",
     "gcsfs==2025.10.0",
+    "xesmf==0.9.2", # Requires ESMF to be installed
 ]
 
 [dependency-groups]
@@ -67,7 +68,7 @@ where = ["."]
 exclude = ["test*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.csv", "*.yaml"]
+"*" = ["*.csv", "*.yaml", "*.nc"]
 
 [tool.setuptools-git-versioning]
 enabled = true
