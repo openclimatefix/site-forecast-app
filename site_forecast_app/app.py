@@ -350,10 +350,12 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
-        # Run the NL blend pipeline automatically after site forecasts complete
-        log.info("Starting NL blend pipeline...")
-        asyncio.run(run_blend_app())
-        log.info("NL blend pipeline completed.")
+        client_name = os.getenv("CLIENT_NAME", "nl")
+        if client_name == "nl":
+            # Run the NL blend pipeline automatically after site forecasts complete
+            log.info("Starting NL blend pipeline...")
+            asyncio.run(run_blend_app())
+            log.info("NL blend pipeline completed.")
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs < runs:
