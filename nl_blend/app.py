@@ -116,49 +116,48 @@ async def run_blend_app() -> None:
 
 
         # -------------------------------------------------------------- #
-        # Loop over all locations - blend and save                        #
-        # Exceptions per location are caught so one failure does not      #
-        # abort the remaining locations.                                  #
+        # Blend and save for the national location only                   #
         # -------------------------------------------------------------- #
-        for location_key, location_uuid in dp_loc_map.items():
-            logger.info(
-                f"Blending forecasts for location '{location_key}' "
-                f"(uuid={location_uuid})",
+        location_key = NL_NATIONAL_LOCATION_KEY
+        location_uuid = national_location_uuid
+        logger.info(
+            f"Blending forecasts for national location '{location_key}' "
+            f"(uuid={location_uuid})",
+        )
+
+        try:
+            blended_df = await get_blend_forecast_values_latest(
+                location_uuid=location_uuid,
+                weights_df=national_weights_df,
+                client=client,
+                start_datetime=t0,
             )
 
-            try:
-                blended_df = await get_blend_forecast_values_latest(
-                    location_uuid=location_uuid,
-                    weights_df=national_weights_df,
-                    client=client,
-                    start_datetime=t0,
+            if blended_df.empty:
+                logger.warning(
+                    f"Blended timeseries is empty for location '{location_key}'. "
+                    "This is expected in dev when no forecast megawatts are stored.",
                 )
+                return
 
-                if blended_df.empty:
-                    logger.warning(
-                        f"Blended timeseries is empty for location '{location_key}'. "
-                        "This is expected in dev when no forecast megawatts are stored.",
-                    )
-                    continue
+            logger.info(
+                f"Blended timeseries for '{location_key}' "
+                f"(first 5 rows):\n{blended_df.head(5)}",
+            )
 
-                logger.info(
-                    f"Blended timeseries for '{location_key}' "
-                    f"(first 5 rows):\n{blended_df.head(5)}",
-                )
+            await _save_forecasts(
+                client=client,
+                t0=t0,
+                location_uuid=location_uuid,
+                location_key=location_key,
+                blended_df=blended_df,
+            )
 
-                await _save_forecasts(
-                    client=client,
-                    t0=t0,
-                    location_uuid=location_uuid,
-                    location_key=location_key,
-                    blended_df=blended_df,
-                )
-
-            except Exception:
-                logger.exception(
-                    f"Failed to blend or save forecasts for location '{location_key}' "
-                    f"(uuid={location_uuid}) - continuing with remaining locations.",
-                )
+        except Exception:
+            logger.exception(
+                f"Failed to blend or save forecasts for national location '{location_key}' "
+                f"(uuid={location_uuid}).",
+            )
 
 
 async def _save_forecasts(
