@@ -40,6 +40,8 @@ point. If no candidate beats the backup, the backup is used alone with full weig
 
 The pipeline runs automatically at the end of every NL site forecast run (when `CLIENT_NAME=nl`)
 
+For full technical details see [`blend/README.md`](blend/README.md).
+
 ## Environment variables
 
 The following environment variables are required to run the app:
