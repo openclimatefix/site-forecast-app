@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 # we need to keep this static so that the adjust and api works,
 # even if we change version
 # we will put the app version in the metadata
-VERSION = "1.4.0"
+dp_forecaster_version = "1.4.0"
 
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
@@ -305,21 +305,21 @@ async def create_forecaster_if_not_exists(
         filtered_forecasters = [
             f
             for f in existing_forecasters
-            if f.forecaster_version == VERSION
+            if f.forecaster_version == dp_forecaster_version
         ]
         if len(filtered_forecasters) == 1:
             return filtered_forecasters[0]
         else:
             update_forecaster_request = dp.UpdateForecasterRequest(
                 name=forecaster_name,
-                new_version=VERSION,
+                new_version=dp_forecaster_version,
             )
             update_forecaster_response = await client.update_forecaster(update_forecaster_request)
             return update_forecaster_response.forecaster
     else:
         create_forecaster_request = dp.CreateForecasterRequest(
             name=forecaster_name,
-            version=VERSION,
+            version=dp_forecaster_version,
         )
         create_forecaster_response = await client.create_forecaster(create_forecaster_request)
         return create_forecaster_response.forecaster
