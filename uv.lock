@@ -199,6 +199,18 @@ wheels = [
 ]
 
 [[package]]
+name = "cf-xarray"
+version = "0.10.11"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "xarray" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e3/78/f4f38e7ea6221773ea48d85c00d529b1fdc7378a1a1b77c2b77661446a0b/cf_xarray-0.10.11.tar.gz", hash = "sha256:e10ee37b0ed3ba36f42346360f2bc070c690ddc73bb9dcdd9463b3a221453be3", size = 686693, upload-time = "2026-02-03T19:17:42.211Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/65/ce/5c4f4660da5521d90bea62cdf8396d7e4ce4a00513e218d267b97f9ea453/cf_xarray-0.10.11-py3-none-any.whl", hash = "sha256:c47fff625766c69a66fedef368d9787acb0819b32d8bd022f8b045089b42109a", size = 78421, upload-time = "2026-02-03T19:17:40.431Z" },
+]
+
+[[package]]
 name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -966,6 +978,18 @@ wheels = [
 ]
 
 [[package]]
+name = "llvmlite"
+version = "0.47.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/88/a8952b6d5c21e74cbf158515b779666f692846502623e9e3c39d8e8ba25f/llvmlite-0.47.0.tar.gz", hash = "sha256:62031ce968ec74e95092184d4b0e857e444f8fdff0b8f9213707699570c33ccc", size = 193614, upload-time = "2026-03-31T18:29:53.497Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/0b/b9d1911cfefa61399821dfb37f486d83e0f42630a8d12f7194270c417002/llvmlite-0.47.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:74090f0dcfd6f24ebbef3f21f11e38111c4d7e6919b54c4416e1e357c3446b07", size = 37232770, upload-time = "2026-03-31T18:28:26.765Z" },
+    { url = "https://files.pythonhosted.org/packages/46/27/5799b020e4cdfb25a7c951c06a96397c135efcdc21b78d853bbd9c814c7d/llvmlite-0.47.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ca14f02e29134e837982497959a8e2193d6035235de1cb41a9cb2bd6da4eedbb", size = 56275177, upload-time = "2026-03-31T18:28:31.01Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/51/48a53fedf01cb1f3f43ef200be17ebf83c8d9a04018d3783c1a226c342c2/llvmlite-0.47.0-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:12a69d4bb05f402f30477e21eeabe81911e7c251cecb192bed82cd83c9db10d8", size = 55128631, upload-time = "2026-03-31T18:28:36.046Z" },
+    { url = "https://files.pythonhosted.org/packages/a2/50/59227d06bdc96e23322713c381af4e77420949d8cd8a042c79e0043096cc/llvmlite-0.47.0-cp311-cp311-win_amd64.whl", hash = "sha256:c37d6eb7aaabfa83ab9c2ff5b5cdb95a5e6830403937b2c588b7490724e05327", size = 38138400, upload-time = "2026-03-31T18:28:40.076Z" },
+]
+
+[[package]]
 name = "locket"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1124,6 +1148,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/6a/51/63fe664f3908c97be9d2e4f1158eb633317598cfa6e1fc14af5383f17512/networkx-3.6.1.tar.gz", hash = "sha256:26b7c357accc0c8cde558ad486283728b65b6a95d85ee1cd66bafab4c8168509", size = 2517025, upload-time = "2025-12-08T17:02:39.908Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl", hash = "sha256:d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762", size = 2068504, upload-time = "2025-12-08T17:02:38.159Z" },
+]
+
+[[package]]
+name = "numba"
+version = "0.65.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "llvmlite" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f6/c5/db2ac3685833d626c0dcae6bd2330cd68433e1fd248d15f70998160d3ad7/numba-0.65.1.tar.gz", hash = "sha256:19357146c32fe9ed25059ab915e8465fb13951cf6b0aace3826b76886373ab23", size = 2765600, upload-time = "2026-04-24T02:02:56.551Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/b3/650500c2eab4534d98e9166f4298e0f3c69c742afdf24e6eabccd1f16ad8/numba-0.65.1-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:7020d74b19cdb8cff16506542fdd510756e28c5e7f3bd0b7f574f0f42272fcd9", size = 2680563, upload-time = "2026-04-24T02:02:18.414Z" },
+    { url = "https://files.pythonhosted.org/packages/44/0b/0615dbedb98f5b32a35a53290fbdc6e22306968109278d7e58df82d7a9f6/numba-0.65.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:f80ed83774b5173abd6581cd8d2165d1d38e13d2e5c8155c0c0b421784745420", size = 3745018, upload-time = "2026-04-24T02:02:20.252Z" },
+    { url = "https://files.pythonhosted.org/packages/49/aa/4361698f35bf63bff67dfe6c90493731177f48ede954f77b0588731537bc/numba-0.65.1-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7ed425a43b0a5f9772f2f4e2dd0bbd12eabecae1af0b24efcfd4e053f012aac6", size = 3450962, upload-time = "2026-04-24T02:02:22.449Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/9a/af61ec03b3116c161fd7a06b9e8a265729a8718458333e8ffbb06d9a3978/numba-0.65.1-cp311-cp311-win_amd64.whl", hash = "sha256:df40a5028a975b9ea66f6a2a3f7abbdbd541a863070e34ed367aff21141248e4", size = 2747417, upload-time = "2026-04-24T02:02:24.43Z" },
 ]
 
 [[package]]
@@ -2041,6 +2081,7 @@ dependencies = [
     { name = "torch", version = "2.2.2+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "torchvision", version = "0.17.2", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or sys_platform == 'darwin'" },
     { name = "torchvision", version = "0.17.2+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (platform_python_implementation != 'CPython' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "xesmf" },
 ]
 
 [package.dev-dependencies]
@@ -2077,6 +2118,7 @@ requires-dist = [
     { name = "torchvision", specifier = "==0.17.2", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "xesmf", specifier = "==0.9.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -2106,6 +2148,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/44/cd/a040c4b3119bbe532e5b0732286f805445375489fceaec1f48306068ee3b/smmap-5.0.2.tar.gz", hash = "sha256:26ea65a03958fa0c8a1c7e8c7a58fdc77221b8910f6be2131affade476898ad5", size = 22329, upload-time = "2025-01-02T07:14:40.909Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/04/be/d09147ad1ec7934636ad912901c5fd7667e1c858e19d355237db0d0cd5e4/smmap-5.0.2-py3-none-any.whl", hash = "sha256:b30115f0def7d7531d22a0fb6502488d879e75b260a9db4d0819cfb25403af5e", size = 24303, upload-time = "2025-01-02T07:14:38.724Z" },
+]
+
+[[package]]
+name = "sparse"
+version = "0.18.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numba" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/56/64/46da3957f8f9af03179eca946d786c56f22b9458cedf472850e02948a8c1/sparse-0.18.0.tar.gz", hash = "sha256:57f92661eb0ec0c764b450c72f3c0d869ea7f32e5e4ca0a335f9d6a7d79bbff4", size = 791987, upload-time = "2026-02-19T06:17:55.376Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/a9/804ac7423f5dda316d3a982f3ab071c971fb877f8961dad9f6a97d12d2ee/sparse-0.18.0-py2.py3-none-any.whl", hash = "sha256:6f4a127d5aae88eca41ea8106bbd5a7830f83d068b37291df597a43511212069", size = 151931, upload-time = "2026-02-19T06:17:53.11Z" },
 ]
 
 [[package]]
@@ -2198,7 +2253,7 @@ dependencies = [
     { name = "typing-extensions", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.2.2-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:822a589675cba8acf0457d6a4e5b6ca441ad3b4c3a44a1cbc8f8b31ae796445e" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.2.2-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:822a589675cba8acf0457d6a4e5b6ca441ad3b4c3a44a1cbc8f8b31ae796445e", upload-time = "2024-03-28T15:20:47Z" },
 ]
 
 [[package]]
@@ -2243,7 +2298,7 @@ dependencies = [
     { name = "typing-extensions", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.2.2%2Bcpu-cp311-cp311-linux_x86_64.whl", hash = "sha256:90089cae572672fb449c8ff1dc1b29daaffa117bf97ede7463dcd2fd1b991e4c" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.2.2%2Bcpu-cp311-cp311-linux_x86_64.whl", hash = "sha256:90089cae572672fb449c8ff1dc1b29daaffa117bf97ede7463dcd2fd1b991e4c", upload-time = "2024-03-28T15:19:18Z" },
 ]
 
 [[package]]
@@ -2279,9 +2334,9 @@ dependencies = [
     { name = "torch", version = "2.2.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine == 'aarch64' and platform_python_implementation == 'CPython' and sys_platform == 'linux') or (platform_machine != 'arm64' and sys_platform == 'darwin')" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.17.2-cp311-cp311-linux_aarch64.whl", hash = "sha256:833fd2e4216ced924c8aca0525733fe727f9a1af66dfad7c5be7257e97c39678" },
-    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.17.2-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:9b83e55ee7d0a1704f52b9c0ac87388e7a6d1d98a6bde7b0b35f9ab54d7bda54" },
-    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.17.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e031004a1bc432c980a7bd642f6c189a3efc316e423fc30b5569837166a4e28d" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torchvision-0.17.2-cp311-cp311-linux_aarch64.whl", hash = "sha256:833fd2e4216ced924c8aca0525733fe727f9a1af66dfad7c5be7257e97c39678", upload-time = "2024-03-28T15:22:01Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torchvision-0.17.2-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:9b83e55ee7d0a1704f52b9c0ac87388e7a6d1d98a6bde7b0b35f9ab54d7bda54", upload-time = "2024-03-28T15:22:02Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torchvision-0.17.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e031004a1bc432c980a7bd642f6c189a3efc316e423fc30b5569837166a4e28d", upload-time = "2024-03-28T15:22:02Z" },
 ]
 
 [[package]]
@@ -2300,8 +2355,8 @@ dependencies = [
     { name = "torch", version = "2.2.2+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.17.2%2Bcpu-cp311-cp311-linux_x86_64.whl", hash = "sha256:5f39e3bee1eba1b66e48753f85faa8d3698ec401ce90b09c7b36efd885129617" },
-    { url = "https://download.pytorch.org/whl/cpu/torchvision-0.17.2%2Bcpu-cp311-cp311-win_amd64.whl", hash = "sha256:54ae4b89038065e7393c65bc8ff141d1bf3c2f70f88badc834247666608ba9f4" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torchvision-0.17.2%2Bcpu-cp311-cp311-linux_x86_64.whl", hash = "sha256:5f39e3bee1eba1b66e48753f85faa8d3698ec401ce90b09c7b36efd885129617", upload-time = "2024-03-28T15:21:56Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torchvision-0.17.2%2Bcpu-cp311-cp311-win_amd64.whl", hash = "sha256:54ae4b89038065e7393c65bc8ff141d1bf3c2f70f88badc834247666608ba9f4", upload-time = "2024-03-28T15:21:56Z" },
 ]
 
 [[package]]
@@ -2470,6 +2525,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/62/a2/6c1dbf9562b59ee5520118d56e169e58a1130685006baf573dfda01d2ae3/xarray-tensorstore-0.1.5.tar.gz", hash = "sha256:a8e17c08df6b32875e50f7b9278a64bbd9156b660d2245153abba4b2a9b30e9c", size = 9258, upload-time = "2024-11-08T23:12:45.023Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3e/79/76a418041aed181dc950ac9c2d8843763f8ae6fcbe13f9eb1d09e36be749/xarray_tensorstore-0.1.5-py3-none-any.whl", hash = "sha256:e641714cb05a4540da04b5f1c259e9617a17e7855c29aeb7d72af5de57ab648d", size = 9375, upload-time = "2024-11-08T23:12:43.27Z" },
+]
+
+[[package]]
+name = "xesmf"
+version = "0.9.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cf-xarray" },
+    { name = "numba" },
+    { name = "numpy" },
+    { name = "shapely" },
+    { name = "sparse" },
+    { name = "xarray" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d8/ee/3a2a80ac7e454b8630fec422a8fb87799fe869686a7b90962e4e23361aa9/xesmf-0.9.2.tar.gz", hash = "sha256:c9d597a234a0c4874022cfe6394dcbf7eda10f3401b1a4cfb57ce3e22e76d720", size = 54363, upload-time = "2025-11-27T23:40:11.79Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/97/f2/b5c67bed6c31cc9ed2e46d34e7ed18fc103e560bfd03b3ef443800ac39b1/xesmf-0.9.2-py3-none-any.whl", hash = "sha256:13a8e64fb1861de91d9595ac47f5d0db9232f912e34a3bff4a11a5e7f53c18ba", size = 53698, upload-time = "2025-11-27T23:40:10.856Z" },
 ]
 
 [[package]]
