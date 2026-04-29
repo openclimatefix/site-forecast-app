@@ -72,7 +72,7 @@ def download_satellite_data(satellite_source_file_path: str,
 
         temporary_satellite_data = f"{tmpdir}/temporary_satellite_data.zarr"
         # we need this to download from s3 and save locally.
-        temp_zarr_zip = f"{tmpdir}/temporary_satellite_data.zarr.zip"
+        temp_zarr_zip = f"{temporary_satellite_data}.zip"
 
         ds = download_and_unzip(file_zip=satellite_source_file_path,
                                 file=temporary_satellite_data,
