@@ -28,8 +28,6 @@ from site_forecast_app.save import (
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
-client_name = os.getenv("CLIENT_NAME", "nl")
-save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
 
 sentry_sdk.init(
@@ -42,7 +40,7 @@ sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(
-    db_session: Session, model_config: Model | None = None, country: str = "nl",
+    db_session: Session, model_config: Model | None = None, country: str = "nl", client_name: str = "nl",
 ) -> list[LocationSQL]:
     """Gets all available sites.
 
@@ -167,6 +165,8 @@ def app_run(
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
     log.info(f"Running site forecast app:{version}")
+    client_name = os.getenv("CLIENT_NAME", "nl")
+    save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
     if timestamp is None:
         # get the timestamp now rounded down the nearest 15 minutes
@@ -204,7 +204,7 @@ def app_run(
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
-            sites = get_sites(db_session=session, country=country, model_config=model_config)
+            sites = get_sites(db_session=session, country=country, model_config=model_config, client_name=client_name)
             log.info(f"Found {len(sites)} sites")
 
             # reduce to only pv or wind, depending on the model
