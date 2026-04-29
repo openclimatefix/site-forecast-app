@@ -28,6 +28,7 @@ from site_forecast_app.save import (
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
+CLIENT_NAME = os.getenv("CLIENT_NAME", "nl")
 
 
 sentry_sdk.init(
@@ -66,7 +67,7 @@ def get_sites(
         sites = site_group.locations
     else:
         # get sites and filter by client
-        client = os.getenv("CLIENT_NAME", "nl")
+        client = CLIENT_NAME
         log.info(f"Getting sites for client: {client}")
         sites = get_sites_by_country(
             db_session,
@@ -350,8 +351,7 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
-        client_name = os.getenv("CLIENT_NAME", "nl")
-        if client_name == "nl":
+        if CLIENT_NAME == "nl":
             # Run the NL blend pipeline automatically after site forecasts complete
             log.info("Starting NL blend pipeline...")
             asyncio.run(run_blend_app())
