@@ -19,8 +19,28 @@ We are also running an India sites solar model.
 
 ## Adjuster
 
-A post-processing adjustment method is used to correct systemic biases in the forecast see the [adjuster](site_forecast_app/adjuster.py) for more detail. 
+A post-processing adjustment method is used to correct systemic biases in the forecast see the [adjuster](site_forecast_app/adjuster.py) for more detail.
 
+## NL Blend
+
+After site forecasts are generated for the Netherlands, a blending pipeline (`blend/`) combines multiple source models into a single national forecast.
+
+The main application (`blend/app.py`):
+1. Loads the latest forecasts for each source model from the Data Platform
+2. Blends them together using MAE-based weights
+3. Saves the blended forecast to the Data Platform ready to be used by the API
+4. This is done for the national location
+
+### Details
+
+The blend is created by selecting the candidate model with the lowest expected MAE (whilst also
+considering the initialisation delay of each model run). This candidate model is blended with the
+2-hour backup model (`nl_regional_2h_pv_ecmwf`) using a smooth taper kernel at the crossover
+point. If no candidate beats the backup, the backup is used alone with full weight.
+
+The pipeline runs automatically at the end of every NL site forecast run (when `CLIENT_NAME=nl`)
+
+For full technical details see [`blend/README.md`](blend/README.md).
 
 ## Environment variables
 

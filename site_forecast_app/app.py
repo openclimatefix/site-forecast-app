@@ -16,6 +16,7 @@ from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
 from sqlalchemy.orm import Session
 
 import site_forecast_app
+from blend.app import run_blend_app
 from site_forecast_app import __version__
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
@@ -39,7 +40,10 @@ sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(
-    db_session: Session, model_config: Model | None = None, country: str = "nl",
+    db_session: Session,
+    model_config: Model | None = None,
+    country: str = "nl",
+    client_name: str = "nl",
 ) -> list[LocationSQL]:
     """Gets all available sites.
 
@@ -47,6 +51,7 @@ def get_sites(
             db_session: A SQLAlchemy session
             model_config: The model configuration to use
             country: The country to get sites for
+            client_name: The client name to get sites for
 
     Returns:
             A list of LocationSQL objects
@@ -65,12 +70,11 @@ def get_sites(
         sites = site_group.locations
     else:
         # get sites and filter by client
-        client = os.getenv("CLIENT_NAME", "nl")
-        log.info(f"Getting sites for client: {client}")
+        log.info(f"Getting sites for client: {client_name}")
         sites = get_sites_by_country(
             db_session,
             country=country,
-            client_name=client,
+            client_name=client_name,
         )
 
     log.info(f"Found {len(sites)} sites in {country}")
@@ -165,6 +169,8 @@ def app_run(
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
     log.info(f"Running site forecast app:{version}")
+    client_name = os.getenv("CLIENT_NAME", "nl")
+    save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
     if timestamp is None:
         # get the timestamp now rounded down the nearest 15 minutes
@@ -190,7 +196,7 @@ def app_run(
         # Pre-fetch the DP location map once so _resolve_target_uuid doesn't call
         # list_locations on every individual forecast save.
         dp_location_map: dict[str, str] | None = None
-        if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
+        if save_to_data_platform:
             try:
                 dp_location_map = asyncio.run(build_dp_location_map())
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
@@ -202,7 +208,10 @@ def app_run(
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
-            sites = get_sites(db_session=session, country=country, model_config=model_config)
+            sites = get_sites(db_session=session,
+                              country=country,
+                              model_config=model_config,
+                              client_name=client_name)
             log.info(f"Found {len(sites)} sites")
 
             # reduce to only pv or wind, depending on the model
@@ -349,6 +358,12 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
+        if client_name == "nl" and save_to_data_platform:
+            # Run the NL blend pipeline automatically after site forecasts complete.
+            # Blend writes to the Data Platform, so only run when DP saves are enabled.
+            log.info("Starting NL blend pipeline...")
+            asyncio.run(run_blend_app())
+            log.info("NL blend pipeline completed.")
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs < runs:
