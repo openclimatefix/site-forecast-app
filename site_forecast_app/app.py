@@ -40,7 +40,10 @@ sentry_sdk.set_tag("version", __version__)
 
 
 def get_sites(
-    db_session: Session, model_config: Model | None = None, country: str = "nl", client_name: str = "nl",
+    db_session: Session,
+    model_config: Model | None = None,
+    country: str = "nl",
+    client_name: str = "nl",
 ) -> list[LocationSQL]:
     """Gets all available sites.
 
@@ -48,6 +51,7 @@ def get_sites(
             db_session: A SQLAlchemy session
             model_config: The model configuration to use
             country: The country to get sites for
+            client_name: The client name to get sites for
 
     Returns:
             A list of LocationSQL objects
