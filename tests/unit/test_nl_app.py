@@ -14,14 +14,18 @@ from site_forecast_app.blend.app import run_blend_app
 def mock_dependencies():
     """Mock out all Data Platform and heavy compute dependencies."""
     with (
-        patch("blend.app.get_dataplatform_client") as mock_client_ctx,
-        patch("blend.app.fetch_dp_location_map", new_callable=AsyncMock) as mock_loc_map,
-        patch("blend.app.load_nl_mae_scorecard") as mock_load_mae,
-        patch("blend.app.get_blend_weights", new_callable=AsyncMock) as mock_weights,
+        patch("site_forecast_app.blend.app.get_dataplatform_client") as mock_client_ctx,
         patch(
-            "blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
+            "site_forecast_app.blend.app.fetch_dp_location_map", new_callable=AsyncMock,
+        ) as mock_loc_map,
+        patch("site_forecast_app.blend.app.load_nl_mae_scorecard") as mock_load_mae,
+        patch(
+            "site_forecast_app.blend.app.get_blend_weights", new_callable=AsyncMock,
+        ) as mock_weights,
+        patch(
+            "site_forecast_app.blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
         ) as mock_blend,
-        patch("blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
+        patch("site_forecast_app.blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
     ):
 
         mock_client = AsyncMock()
@@ -91,7 +95,7 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
     # Return empty blended DF
     deps["get_blend_forecast_values_latest"].return_value = pd.DataFrame()
 
-    with caplog.at_level(logging.WARNING, logger="blend.blend"):
+    with caplog.at_level(logging.WARNING, logger="site_forecast_app.blend.blend"):
         await run_blend_app()
 
     deps["_save_forecasts"].assert_not_called()

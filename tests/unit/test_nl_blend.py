@@ -252,7 +252,7 @@ class TestMissingModelData:
             {"model_A": [0.5] * 4, "model_B": [0.5] * 4},
         )
 
-        with caplog.at_level(logging.WARNING, logger="blend.blend"):
+        with caplog.at_level(logging.WARNING, logger="site_forecast_app.blend.blend"):
             result = blend_forecasts_together(df_a, weights)
 
         # All 4 target times should still produce rows (using model_A's data only)
