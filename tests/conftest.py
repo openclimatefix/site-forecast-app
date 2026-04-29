@@ -302,6 +302,15 @@ def nwp_data_with_nans(tmp_path_factory, nwp_data): # noqa: ARG001
 
 @pytest.fixture(scope="session")
 def nwp_data(tmp_path_factory, time_before_present):
+    return make_nwp_data(tmp_path_factory, time_before_present, 65.0, 3.0)
+
+
+@pytest.fixture(scope="session")
+def nwp_data_india(tmp_path_factory, time_before_present):
+    return make_nwp_data(tmp_path_factory, time_before_present, 30.0, 65.0)
+
+
+def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centroid):
     """Dummy NWP data"""
 
     # Load dataset which only contains coordinates, but no data
@@ -317,10 +326,13 @@ def nwp_data(tmp_path_factory, time_before_present):
     )
 
      # force lat and lon to be in 0.1 steps, and cover Europe/India
-    latitudes = [65.0 - i * 0.1 for i in range(610)]
-    longitudes = [3.0 + i * 0.1 for i in range(940)]
+    latitudes = [lat_centroid - i * 0.1 for i in range(610)]
+    longitudes = [lon_centroid + i * 0.1 for i in range(940)]
 
     ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
+
+    # lets just select the first 200 by 200 points
+    ds = ds.isel(latitude=slice(0, 200), longitude=slice(0, 200))
 
      # change variables values
     variables = [
@@ -366,7 +378,6 @@ def nwp_data(tmp_path_factory, time_before_present):
     temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
     os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
-
 
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
