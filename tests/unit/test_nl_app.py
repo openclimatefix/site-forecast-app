@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from blend.app import run_blend_app
+from site_forecast_app.blend.app import run_blend_app
 
 # ---------------------------------------------------------------------------
 # Unit tests for the NL blend application orchestration

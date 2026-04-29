@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pandas as pd
 import pytest
 
-from blend.data_platform import (
+from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
     get_all_forecast_values_as_dataframe,
 )

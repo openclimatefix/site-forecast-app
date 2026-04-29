@@ -13,7 +13,7 @@ from typing import ClassVar
 import pandas as pd
 import pytest
 
-from blend.blend import blend_forecasts_together
+from site_forecast_app.blend.blend import blend_forecasts_together
 
 # ---------------------------------------------------------------------------
 # Helpers

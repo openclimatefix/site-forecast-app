@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from blend.weights import get_blend_weights
+from site_forecast_app.blend.weights import get_blend_weights
 
 # ---------------------------------------------------------------------------
 # Tests for get_blend_weights

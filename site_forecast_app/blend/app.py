@@ -6,13 +6,13 @@ import os
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from blend.blend import get_blend_forecast_values_latest
-from blend.config import load_blend_config
-from blend.data_platform import (
+from site_forecast_app.blend.blend import get_blend_forecast_values_latest
+from site_forecast_app.blend.config import load_blend_config
+from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
 )
-from blend.init_times import load_nl_mae_scorecard
-from blend.weights import get_blend_weights
+from site_forecast_app.blend.init_times import load_nl_mae_scorecard
+from site_forecast_app.blend.weights import get_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
     fetch_dp_location_map,

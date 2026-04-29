@@ -4,7 +4,7 @@ import pytest
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
 
-from blend.app import run_blend_app
+from site_forecast_app.blend.app import run_blend_app
 
 
 @pytest.mark.asyncio
