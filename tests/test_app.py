@@ -8,7 +8,9 @@ import multiprocessing as mp
 import os
 import uuid
 
+import pandas as pd
 import pytest
+from freezegun import freeze_time
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGroupSQL, MLModelSQL
 
 from site_forecast_app.app import (
@@ -24,6 +26,7 @@ from site_forecast_app.models.pydantic_models import get_all_models
 from ._utils import run_click_script
 
 mp.set_start_method("spawn", force=True)
+now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
 
 
 def test_get_sites(db_session, sites):
@@ -64,6 +67,7 @@ def test_get_sites_with_model_config(db_session, sites):
         assert sites[0].asset_type.name == "pv"
 
 
+@freeze_time(now)
 def test_get_model(
     db_session,
     sites,
@@ -92,6 +96,7 @@ def test_get_model(
     assert hasattr(model, "predict")
 
 
+@freeze_time(now)
 def test_run_model(
     db_session,
     sites,
@@ -151,6 +156,7 @@ def test_save_forecast(db_session, sites, forecast_values):
     assert db_session.query(MLModelSQL).count() == 2
 
 
+@freeze_time(now)
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
     write_to_db,
@@ -196,6 +202,7 @@ def test_app(
         assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values
 
 
+@freeze_time(now)
 def test_app_ad(
     db_session, sites, nwp_data, nwp_mo_global_data_india, generation_db_values, satellite_data,  # noqa: ARG001
 ):
@@ -220,6 +227,7 @@ def test_app_ad(
     assert len(forecast_values) == init_n_forecast_values + (n * 2 * 16)
 
 
+@freeze_time(now)
 def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: ARG001
     """Test for running app from command line"""
 
@@ -238,8 +246,9 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 16)
 
 
+@freeze_time(now)
 def test_app_ruvnl(
-    db_session, sites, nwp_data, nwp_data_gencast, generation_db_values,  # noqa: ARG001
+    db_session, sites, nwp_data_india, nwp_data_gencast, generation_db_values,  # noqa: ARG001
 ):
     """Test for running app from command line"""
 

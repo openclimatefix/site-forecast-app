@@ -4,6 +4,7 @@ import asyncio
 import datetime as dt
 import logging
 import os
+import shutil
 import sys
 
 import click
@@ -20,6 +21,7 @@ from site_forecast_app import __version__
 from site_forecast_app.blend.app import run_blend_app
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
+from site_forecast_app.models.pvnet.consts import root_data_path
 from site_forecast_app.models.pydantic_models import Model
 from site_forecast_app.save import (
     build_dp_location_map,
@@ -370,6 +372,12 @@ def app_run(
             raise Exception("Some forecasts failed")
         else:
             raise Exception("All forecasts failed")
+
+
+        # lets remove any temporary files created during forecasting
+        if os.path.exists(root_data_path):
+            log.info("Removing temporary files...")
+            shutil.rmtree(root_data_path)
 
         log.info("Forecast finished")
 
