@@ -29,6 +29,7 @@ from site_forecast_app.save import (
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
 CLIENT_NAME = os.getenv("CLIENT_NAME", "nl")
+SAVE_TO_DATA_PLATFORM = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
 
 sentry_sdk.init(
@@ -192,7 +193,7 @@ def app_run(
         # Pre-fetch the DP location map once so _resolve_target_uuid doesn't call
         # list_locations on every individual forecast save.
         dp_location_map: dict[str, str] | None = None
-        if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
+        if SAVE_TO_DATA_PLATFORM:
             try:
                 dp_location_map = asyncio.run(build_dp_location_map())
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
@@ -351,8 +352,9 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
-        if CLIENT_NAME == "nl":
-            # Run the NL blend pipeline automatically after site forecasts complete
+        if CLIENT_NAME == "nl" and SAVE_TO_DATA_PLATFORM:
+            # Run the NL blend pipeline automatically after site forecasts complete.
+            # Blend writes to the Data Platform, so only run when DP saves are enabled.
             log.info("Starting NL blend pipeline...")
             asyncio.run(run_blend_app())
             log.info("NL blend pipeline completed.")
