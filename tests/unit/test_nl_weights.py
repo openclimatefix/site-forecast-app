@@ -3,14 +3,14 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from nl_blend.weights import get_nl_blend_weights
+from blend.weights import get_blend_weights
 
 # ---------------------------------------------------------------------------
-# Tests for get_nl_blend_weights
+# Tests for get_blend_weights
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_get_nl_blend_weights_missing_init_times():
+async def test_get_blend_weights_missing_init_times():
     """Verify weights fallback to penalty logic when models missing."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     location_uuid = "test-uuid"
@@ -30,13 +30,13 @@ async def test_get_nl_blend_weights_missing_init_times():
     # Mock extract_latest_nl_init_times to return an incomplete dict
     mock_client = AsyncMock()
 
-    with patch("nl_blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock) as mock_fetch:
+    with patch("blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock) as mock_fetch:
         # only nl_regional_2h_pv_ecmwf has a recent init_time
         mock_fetch.return_value = {
             "nl_regional_2h_pv_ecmwf": pd.Timestamp("2024-06-01 11:30", tz="UTC"),
         }
 
-        weights_df = await get_nl_blend_weights(
+        weights_df = await get_blend_weights(
             t0=t0,
             location_uuid=location_uuid,
             df_mae=df_mae,
@@ -55,16 +55,16 @@ async def test_get_nl_blend_weights_missing_init_times():
     assert (weight_sum > 0.99).all() and (weight_sum < 1.01).all()
 
 @pytest.mark.asyncio
-async def test_get_nl_blend_weights_all_fail():
+async def test_get_blend_weights_all_fail():
     """Verify fallback when no initialisation times exist (everything falls back)."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     df_mae = pd.DataFrame({"nl_regional_2h_pv_ecmwf": [1.0]}, index=[pd.Timedelta("30min")])
 
-    with patch("nl_blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock) as mock_fetch:
+    with patch("blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock) as mock_fetch:
         # No init times found -> delays are 1000 days
         mock_fetch.return_value = {}
 
-        weights_df = await get_nl_blend_weights(
+        weights_df = await get_blend_weights(
             t0=t0,
             location_uuid="u",
             df_mae=df_mae,

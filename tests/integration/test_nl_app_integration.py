@@ -6,7 +6,7 @@ from grpclib.client import Channel
 from grpclib.const import Status
 from grpclib.exceptions import GRPCError
 
-from nl_blend.app import run_blend_app
+from blend.app import run_blend_app
 
 
 @pytest.mark.asyncio
@@ -19,15 +19,15 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch):
     2. Seed fake source-model forecasts (backup + one candidate) so the
        blender has real data to work with.
     3. Run run_blend_app().
-    4. Verify that nl_blend wrote forecast values to the Data Platform.
+    4. Verify that blend wrote forecast values to the Data Platform.
     """
     host, port = dp_address
     monkeypatch.setenv("DATA_PLATFORM_HOST", host)
     monkeypatch.setenv("DATA_PLATFORM_PORT", str(port))
     monkeypatch.setenv("COUNTRY", "nl")
     monkeypatch.setenv("LOCATION_TYPE", "nation")
-    monkeypatch.setenv("NL_BLEND_LOCATION_TYPE", "nation")
-    monkeypatch.setenv("NL_BLEND_COUNTRY", "nl")
+    monkeypatch.setenv("blend_LOCATION_TYPE", "nation")
+    monkeypatch.setenv("blend_COUNTRY", "nl")
 
     channel = Channel(host=host, port=port)
     try:
@@ -81,12 +81,12 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch):
     try:
         verify_client = dp.DataPlatformDataServiceStub(verify_channel)
 
-        # Resolve the nl_blend forecaster.
+        # Resolve the blend forecaster.
         list_forecasters_resp = await verify_client.list_forecasters(
-            dp.ListForecastersRequest(forecaster_names_filter=["nl_blend"]),
+            dp.ListForecastersRequest(forecaster_names_filter=["blend"]),
         )
         assert list_forecasters_resp.forecasters, (
-            "nl_blend forecaster was not created in the Data Platform."
+            "blend forecaster was not created in the Data Platform."
         )
         forecaster = list_forecasters_resp.forecasters[0]
 
@@ -118,7 +118,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch):
             ),
         )
         assert len(forecast_resp.values) > 0, (
-            "nl_blend wrote no forecast values to the Data Platform."
+            "blend wrote no forecast values to the Data Platform."
         )
     finally:
         verify_channel.close()

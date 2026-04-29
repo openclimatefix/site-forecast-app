@@ -63,10 +63,10 @@ class NlBlendConfig(BaseModel):
     scorecard_path: str = Field(
         "data/nl_backtest_nmae_comparison.csv",
         title="Scorecard Path",
-        description="Path to the MAE scorecard, relative to the nl_blend package directory.",
+        description="Path to the MAE scorecard, relative to the blend package directory.",
     )
     forecaster_name: str = Field(
-        "nl_blend",
+        "blend",
         title="Forecaster Name",
         description="Forecaster name written to the Data Platform.",
     )
@@ -83,10 +83,10 @@ class NlBlendConfig(BaseModel):
 class NlBlendConfigWrapper(BaseModel):
     """Wrapper for the NL Blend configuration."""
 
-    nl_blend: NlBlendConfig
+    blend: NlBlendConfig
 
 
-def load_nl_blend_config() -> NlBlendConfig:
+def load_blend_config() -> NlBlendConfig:
     """Load and validate the NL Blend configuration from ``config.yaml``.
 
     The file is resolved relative to this module so it is always found
@@ -102,4 +102,4 @@ def load_nl_blend_config() -> NlBlendConfig:
         raw = parse_config(data=stream)
         wrapper = NlBlendConfigWrapper(**raw)
 
-    return wrapper.nl_blend
+    return wrapper.blend

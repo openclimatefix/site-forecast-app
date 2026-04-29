@@ -1,6 +1,6 @@
 # NL Blend configuration
-# Values here drive nl_blend/weights.py and nl_blend/app.py.
-nl_blend:
+# Values here drive blend/weights.py and blend/app.py.
+blend:
   # ------------------------------------------------------------------ #
   # Model registry                                                       #
   # ------------------------------------------------------------------ #
@@ -41,8 +41,8 @@ nl_blend:
   # Infrastructure / naming                                              #
   # ------------------------------------------------------------------ #
 
-  # Path to the MAE scorecard, relative to the nl_blend package directory.
+  # Path to the MAE scorecard, relative to the blend package directory.
   scorecard_path: data/nl_backtest_nmae_comparison.csv
 
   # Forecaster name written to the Data Platform.
-  forecaster_name: nl_blend
+  forecaster_name: blend

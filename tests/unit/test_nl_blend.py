@@ -1,4 +1,4 @@
-"""Unit tests for nl_blend.blend.blend_forecasts_together.
+"""Unit tests for blend.blend.blend_forecasts_together.
 
 These tests verify the core blending algorithm in isolation, without any
 Data Platform connections. They confirm that:
@@ -13,7 +13,7 @@ from typing import ClassVar
 import pandas as pd
 import pytest
 
-from nl_blend.blend import blend_forecasts_together
+from blend.blend import blend_forecasts_together
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -252,7 +252,7 @@ class TestMissingModelData:
             {"model_A": [0.5] * 4, "model_B": [0.5] * 4},
         )
 
-        with caplog.at_level(logging.WARNING, logger="nl_blend.blend"):
+        with caplog.at_level(logging.WARNING, logger="blend.blend"):
             result = blend_forecasts_together(df_a, weights)
 
         # All 4 target times should still produce rows (using model_A's data only)

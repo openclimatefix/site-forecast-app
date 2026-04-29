@@ -23,16 +23,16 @@ import numpy as np
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from nl_blend.config import load_nl_blend_config
-from nl_blend.data_platform import fetch_latest_nl_init_times
-from nl_blend.init_times import calculate_model_delays, shift_mae_curves
+from blend.config import load_blend_config
+from blend.data_platform import fetch_latest_nl_init_times
+from blend.init_times import calculate_model_delays, shift_mae_curves
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Load config - all tuning parameters live in nl_blend/config.yaml
+# Load config - all tuning parameters live in blend/config.yaml
 # ---------------------------------------------------------------------------
-_cfg = load_nl_blend_config()
+_cfg = load_blend_config()
 
 NL_BACKUP_MODEL: str = _cfg.backup_model
 NL_NATIONAL_CANDIDATE_MODELS: list[str] = _cfg.national_candidate_models
@@ -235,7 +235,7 @@ async def _compute_weights(
 ) -> pd.DataFrame:
     """Fetches init times, shifts MAE curves, and runs the single-stage optimiser.
 
-    Shared by get_nl_blend_weights
+    Shared by get_blend_weights
 
     Args:
         t0:               Blend reference time (UTC).
@@ -310,7 +310,7 @@ async def _compute_weights(
 # Public entry points
 # ---------------------------------------------------------------------------
 
-async def get_nl_blend_weights(
+async def get_blend_weights(
     t0: pd.Timestamp,
     location_uuid: str,
     df_mae: pd.DataFrame,

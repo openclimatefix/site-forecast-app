@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from nl_blend.init_times import extract_latest_init_times
+from blend.init_times import extract_latest_init_times
 
 logger = logging.getLogger(__name__)
 

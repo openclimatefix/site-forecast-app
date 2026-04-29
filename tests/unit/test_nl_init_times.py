@@ -1,7 +1,7 @@
 
 import pandas as pd
 
-from nl_blend.init_times import (
+from blend.init_times import (
     calculate_model_delays,
     extract_latest_init_times,
     shift_mae_curves,

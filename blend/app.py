@@ -6,13 +6,13 @@ import os
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from nl_blend.blend import get_blend_forecast_values_latest
-from nl_blend.config import load_nl_blend_config
-from nl_blend.data_platform import (
+from blend.blend import get_blend_forecast_values_latest
+from blend.config import load_blend_config
+from blend.data_platform import (
     build_forecast_value_objects,
 )
-from nl_blend.init_times import load_nl_mae_scorecard
-from nl_blend.weights import get_nl_blend_weights
+from blend.init_times import load_nl_mae_scorecard
+from blend.weights import get_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
     fetch_dp_location_map,
@@ -20,7 +20,7 @@ from site_forecast_app.save.data_platform import (
 )
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("nl_blend_app")
+logger = logging.getLogger("blend_app")
 
 # location_type key that identifies the national location in the DP location map.
 NL_NATIONAL_LOCATION_KEY = "nl_national"
@@ -37,7 +37,7 @@ async def run_blend_app() -> None:
     5. Calculate regional blend weights (used for all regional locations)
     6. For each location: fetch + blend + save
     """
-    _cfg = load_nl_blend_config()
+    _cfg = load_blend_config()
     logger.info("Starting NL Blend execution.")
 
     # ------------------------------------------------------------------ #
@@ -98,7 +98,7 @@ async def run_blend_app() -> None:
         # -------------------------------------------------------------- #
         logger.info("Calculating national blend weights.")
         try:
-            national_weights_df = await get_nl_blend_weights(
+            national_weights_df = await get_blend_weights(
                 t0=t0,
                 location_uuid=national_location_uuid,
                 df_mae=df_mae,
@@ -222,7 +222,7 @@ async def _save_forecasts(
         )
     except Exception:
         logger.exception(
-            f"Failed to resolve/create nl_blend forecaster for '{location_key}' - skipping save.",
+            f"Failed to resolve/create blend forecaster for '{location_key}' - skipping save.",
         )
         return
 
@@ -239,7 +239,7 @@ async def _save_forecasts(
     # ------------------------------------------------------------------ #
     logger.info(
         f"Saving {n_rows} rows to Data Platform "
-        f"(forecaster='nl_blend', t0={t0}, location='{location_key}') - "
+        f"(forecaster='blend', t0={t0}, location='{location_key}') - "
         f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
     )
     try:
