@@ -3,8 +3,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
-from grpclib.exceptions import GRPCError
 from grpclib.const import Status
+from grpclib.exceptions import GRPCError
 
 from nl_blend.app import run_blend_app
 
@@ -157,7 +157,7 @@ async def _seed_source_model_forecast(
         forecaster = list_resp.forecasters[0]
 
     # Build fake forecast values at 15-min intervals.
-    # p50_fraction is a unitless fraction of capacity (0–1), not MW.
+    # p50_fraction is a unitless fraction of capacity (0 - 1), not MW.
     p50_fraction = 0.5  # 50 % of the location's capacity
 
     values = [
