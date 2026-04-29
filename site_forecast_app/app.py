@@ -28,8 +28,8 @@ from site_forecast_app.save import (
 
 log = logging.getLogger(__name__)
 version = site_forecast_app.__version__
-CLIENT_NAME = os.getenv("CLIENT_NAME", "nl")
-SAVE_TO_DATA_PLATFORM = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
+client_name = os.getenv("CLIENT_NAME", "nl")
+save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
 
 sentry_sdk.init(
@@ -68,12 +68,11 @@ def get_sites(
         sites = site_group.locations
     else:
         # get sites and filter by client
-        client = CLIENT_NAME
-        log.info(f"Getting sites for client: {client}")
+        log.info(f"Getting sites for client: {client_name}")
         sites = get_sites_by_country(
             db_session,
             country=country,
-            client_name=client,
+            client_name=client_name,
         )
 
     log.info(f"Found {len(sites)} sites in {country}")
@@ -193,7 +192,7 @@ def app_run(
         # Pre-fetch the DP location map once so _resolve_target_uuid doesn't call
         # list_locations on every individual forecast save.
         dp_location_map: dict[str, str] | None = None
-        if SAVE_TO_DATA_PLATFORM:
+        if save_to_data_platform:
             try:
                 dp_location_map = asyncio.run(build_dp_location_map())
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
@@ -352,7 +351,7 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
-        if CLIENT_NAME == "nl" and SAVE_TO_DATA_PLATFORM:
+        if client_name == "nl" and save_to_data_platform:
             # Run the NL blend pipeline automatically after site forecasts complete.
             # Blend writes to the Data Platform, so only run when DP saves are enabled.
             log.info("Starting NL blend pipeline...")
