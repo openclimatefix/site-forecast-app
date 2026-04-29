@@ -204,7 +204,10 @@ def app_run(
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
-            sites = get_sites(db_session=session, country=country, model_config=model_config, client_name=client_name)
+            sites = get_sites(db_session=session,
+                              country=country,
+                              model_config=model_config,
+                              client_name=client_name)
             log.info(f"Found {len(sites)} sites")
 
             # reduce to only pv or wind, depending on the model
