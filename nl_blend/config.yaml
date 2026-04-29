@@ -42,7 +42,7 @@ nl_blend:
   # ------------------------------------------------------------------ #
 
   # Path to the MAE scorecard, relative to the nl_blend package directory.
-  scorecard_path: data/backtest_nmae_comparison.csv
+  scorecard_path: data/nl_backtest_nmae_comparison.csv
 
   # Forecaster name written to the Data Platform.
   forecaster_name: nl_blend

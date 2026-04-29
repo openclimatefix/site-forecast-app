@@ -22,11 +22,6 @@ from site_forecast_app.save.data_platform import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nl_blend_app")
 
-_cfg = load_nl_blend_config()
-
-# Forecaster name written to the Data Platform
-NL_BLEND_FORECASTER_NAME = _cfg.forecaster_name
-
 # location_type key that identifies the national location in the DP location map.
 NL_NATIONAL_LOCATION_KEY = "nl_national"
 
@@ -42,6 +37,7 @@ async def run_blend_app() -> None:
     5. Calculate regional blend weights (used for all regional locations)
     6. For each location: fetch + blend + save
     """
+    _cfg = load_nl_blend_config()
     logger.info("Starting NL Blend execution.")
 
     # ------------------------------------------------------------------ #
@@ -151,6 +147,7 @@ async def run_blend_app() -> None:
                 location_uuid=location_uuid,
                 location_key=location_key,
                 blended_df=blended_df,
+                forecaster_name=_cfg.forecaster_name,
             )
 
         except Exception:
@@ -166,17 +163,19 @@ async def _save_forecasts(
     location_uuid: str,
     location_key: str,
     blended_df: pd.DataFrame,
+    forecaster_name: str,
 ) -> None:
     """Persists the blended forecast to the Data Platform.
 
     Args:
-        client:         Active Data Platform gRPC client stub.
-        t0:             Blend reference time (UTC); used as the forecast init_time.
-        location_uuid:  DP location UUID to write forecasts under.
-        location_key:   Human-readable location identifier.
-        blended_df:     DataFrame with columns [target_time,
-                        expected_power_generation_megawatts, p10_mw (opt),
-                        p90_mw (opt)].
+        client:           Active Data Platform gRPC client stub.
+        t0:               Blend reference time (UTC); used as the forecast init_time.
+        location_uuid:    DP location UUID to write forecasts under.
+        location_key:     Human-readable location identifier.
+        blended_df:       DataFrame with columns [target_time,
+                          expected_power_generation_megawatts, p10_mw (opt),
+                          p90_mw (opt)].
+        forecaster_name:  Forecaster tag written to the Data Platform.
     """
     n_rows = len(blended_df)
     has_p10 = "p10_mw" in blended_df.columns
@@ -215,7 +214,7 @@ async def _save_forecasts(
     try:
         forecaster = await create_forecaster_if_not_exists(
             client=client,
-            model_tag=NL_BLEND_FORECASTER_NAME,
+            model_tag=forecaster_name,
         )
         logger.info(
             f"Forecaster resolved: {forecaster.forecaster_name!r} "

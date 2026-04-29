@@ -61,7 +61,7 @@ class NlBlendConfig(BaseModel):
     # Infrastructure / naming
     # ------------------------------------------------------------------
     scorecard_path: str = Field(
-        "data/backtest_nmae_comparison.csv",
+        "data/nl_backtest_nmae_comparison.csv",
         title="Scorecard Path",
         description="Path to the MAE scorecard, relative to the nl_blend package directory.",
     )
