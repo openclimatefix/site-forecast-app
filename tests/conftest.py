@@ -332,8 +332,7 @@ def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centr
     ds = ds.assign_coords(latitude=latitudes, longitude=longitudes)
 
     # lets just select the first 200 by 200 points
-    ds = ds.isel(latitude=slice(0, 200))
-    ds = ds.isel(longitude=slice(0, 200))
+    ds = ds.isel(latitude=slice(0, 200), longitude=slice(0, 200))
 
      # change variables values
     variables = [
