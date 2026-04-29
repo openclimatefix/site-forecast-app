@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pandas as pd
 import pytest
 
-from blend.data_platform import (
+from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
     get_all_forecast_values_as_dataframe,
 )
@@ -20,7 +20,7 @@ async def test_get_all_forecast_values_as_dataframe_empty():
     mock_client = AsyncMock()
 
     with patch(
-        "blend.data_platform.fetch_dp_forecast_values_as_timeseries",
+        "site_forecast_app.blend.data_platform.fetch_dp_forecast_values_as_timeseries",
         new_callable=AsyncMock,
     ) as fetch_mock:
         fetch_mock.return_value = []
@@ -56,7 +56,7 @@ async def test_get_all_forecast_values_as_dataframe_success():
     mock_val2.target_timestamp_utc = datetime(2024, 6, 1, 10, 30, tzinfo=UTC)
 
     with patch(
-        "blend.data_platform.fetch_dp_forecast_values_as_timeseries",
+        "site_forecast_app.blend.data_platform.fetch_dp_forecast_values_as_timeseries",
         new_callable=AsyncMock,
     ) as fetch_mock:
         fetch_mock.return_value = [mock_val1, mock_val2]

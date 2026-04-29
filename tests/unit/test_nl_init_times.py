@@ -1,7 +1,7 @@
 
 import pandas as pd
 
-from blend.init_times import (
+from site_forecast_app.blend.init_times import (
     calculate_model_delays,
     extract_latest_init_times,
     shift_mae_curves,

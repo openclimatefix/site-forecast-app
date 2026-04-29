@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from blend.data_platform import get_all_forecast_values_as_dataframe
+from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
 
 logger = logging.getLogger(__name__)
 

@@ -16,8 +16,8 @@ from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL
 from sqlalchemy.orm import Session
 
 import site_forecast_app
-from blend.app import run_blend_app
 from site_forecast_app import __version__
+from site_forecast_app.blend.app import run_blend_app
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pydantic_models import Model
