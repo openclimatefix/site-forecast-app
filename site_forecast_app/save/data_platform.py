@@ -13,6 +13,7 @@ from datetime import UTC, datetime, timedelta
 from importlib.metadata import version
 
 import pandas as pd
+from betterproto.lib.google.protobuf import Struct, Value
 from dp_sdk.ocf import dp
 from grpclib.client import Channel
 
@@ -23,6 +24,12 @@ from site_forecast_app.save.utils import (
 )
 
 log = logging.getLogger(__name__)
+
+# -- Version --
+# we need to keep this static so that the adjust and api works,
+# even if we change version
+# we will put the app version in the metadata
+dp_forecaster_version = "1.4.0"
 
 # Type alias for the Data Platform client stub
 DataPlatformClient = dp.DataPlatformDataServiceStub
@@ -281,13 +288,6 @@ async def create_forecaster_if_not_exists(
 ) -> dp.Forecaster:
     """Create the current forecaster if it does not exist."""
     forecaster_name = model_tag.replace("-", "_").lower()
-    raw_version = version("site-forecast-app")
-    # DP validates version with a restricted charset; normalize local package versions
-    # (which may contain e.g. '+' build metadata) to a compatible value.
-    app_version = "".join(
-        ch if (ch.isalnum() or ch in "._-") else "."
-        for ch in raw_version.lower()
-    )
 
     list_forecasters_request = dp.ListForecastersRequest(
         forecaster_names_filter=[forecaster_name],
@@ -305,21 +305,21 @@ async def create_forecaster_if_not_exists(
         filtered_forecasters = [
             f
             for f in existing_forecasters
-            if f.forecaster_version == app_version
+            if f.forecaster_version == dp_forecaster_version
         ]
         if len(filtered_forecasters) == 1:
             return filtered_forecasters[0]
         else:
             update_forecaster_request = dp.UpdateForecasterRequest(
                 name=forecaster_name,
-                new_version=app_version,
+                new_version=dp_forecaster_version,
             )
             update_forecaster_response = await client.update_forecaster(update_forecaster_request)
             return update_forecaster_response.forecaster
     else:
         create_forecaster_request = dp.CreateForecasterRequest(
             name=forecaster_name,
-            version=app_version,
+            version=dp_forecaster_version,
         )
         create_forecaster_response = await client.create_forecaster(create_forecaster_request)
         return create_forecaster_response.forecaster
@@ -385,6 +385,7 @@ async def save_forecast_to_dataplatform(
     use_adjuster: bool = True,
 ) -> None:
     """Save forecast to the Data Platform."""
+    app_version = version("site-forecast-app")
     if forecast_df.empty:
         log.warning("forecast dataframe is empty")
         return
@@ -464,6 +465,7 @@ async def save_forecast_to_dataplatform(
         energy_source=dp.EnergySource.SOLAR,
         init_time_utc=init_time_utc,
         values=forecast_values,
+        metadata=Struct(fields={"app_version": Value(string_value=app_version)}),
     )
     log.info(
         f"submitting forecast  "
