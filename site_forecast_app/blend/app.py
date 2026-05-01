@@ -250,7 +250,6 @@ async def _save_forecasts(
                          expected_power_generation_megawatts, p10_mw (opt),
                          p90_mw (opt)].
         forecaster_name: Forecaster tag written to the Data Platform.
-        use_adjuster:    True when saving the adjuster blend (used for logging).
     """
     n_rows = len(blended_df)
     has_p10 = "p10_mw" in blended_df.columns
