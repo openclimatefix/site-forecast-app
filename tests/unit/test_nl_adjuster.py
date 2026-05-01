@@ -6,7 +6,6 @@ Covers:
   - _run_blend_pass: weight columns are renamed with '_adjust' suffix
     when use_adjuster=True.
 """
-import logging
 from typing import ClassVar
 from unittest.mock import AsyncMock, patch
 
@@ -15,7 +14,6 @@ import pytest
 
 from site_forecast_app.blend.app import _run_blend_pass
 from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
-
 
 # ---------------------------------------------------------------------------
 # Helpers
