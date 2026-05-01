@@ -228,7 +228,6 @@ async def _run_blend_pass(
         location_key=location_key,
         blended_df=blended_df,
         forecaster_name=forecaster_name,
-        use_adjuster=use_adjuster,
     )
 
 
@@ -239,7 +238,6 @@ async def _save_forecasts(
     location_key: str,
     blended_df: pd.DataFrame,
     forecaster_name: str,
-    use_adjuster: bool = False,
 ) -> None:
     """Persists the blended forecast to the Data Platform.
 
@@ -254,7 +252,6 @@ async def _save_forecasts(
         forecaster_name: Forecaster tag written to the Data Platform.
         use_adjuster:    True when saving the adjuster blend (used for logging).
     """
-    log_prefix = "adjuster" if use_adjuster else "blend"
     n_rows = len(blended_df)
     has_p10 = "p10_mw" in blended_df.columns
     has_p90 = "p90_mw" in blended_df.columns
@@ -262,7 +259,7 @@ async def _save_forecasts(
     n_p90 = int(blended_df["p90_mw"].notna().sum()) if has_p90 else 0
 
     logger.info(
-        f"[{log_prefix}] Blended forecast summary for '{location_key}': {n_rows} rows | "
+        f"Blended forecast summary for '{location_key}': {n_rows} rows | "
         f"p50={n_rows} | p10={n_p10} | p90={n_p90} rows with valid values.",
     )
 
@@ -274,14 +271,14 @@ async def _save_forecasts(
         )
     except Exception:
         logger.exception(
-            f"[{log_prefix}] Failed to build DP forecast value objects for "
+            f"Failed to build DP forecast value objects for "
             f"'{location_key}' - skipping save.",
         )
         return
 
     if not forecast_values:
         logger.warning(
-            f"[{log_prefix}] No forecast value objects produced for "
+            f"No forecast value objects produced for "
             f"'{location_key}' - skipping save.",
         )
         return
@@ -293,19 +290,19 @@ async def _save_forecasts(
             model_tag=forecaster_name,
         )
         logger.info(
-            f"[{log_prefix}] Forecaster resolved: {forecaster.forecaster_name!r} "
+            f"Forecaster resolved: {forecaster.forecaster_name!r} "
             f"v{forecaster.forecaster_version}",
         )
     except Exception:
         logger.exception(
-            f"[{log_prefix}] Failed to resolve/create forecaster '{forecaster_name}' "
+            f"Failed to resolve/create forecaster '{forecaster_name}' "
             f"for '{location_key}' - skipping save.",
         )
         return
 
     # Write to Data Platform
     logger.info(
-        f"[{log_prefix}] Saving {n_rows} rows to Data Platform "
+        f"Saving {n_rows} rows to Data Platform "
         f"(forecaster='{forecaster_name}', t0={t0}, location='{location_key}') - "
         f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
     )
@@ -319,9 +316,9 @@ async def _save_forecasts(
                 values=forecast_values,
             ),
         )
-        logger.info(f"[{log_prefix}] Forecast write succeeded for '{location_key}'.")
+        logger.info(f"Forecast write succeeded for '{location_key}'.")
     except Exception:
-        logger.exception(f"[{log_prefix}] Failed to write forecast for '{location_key}'.")
+        logger.exception(f"Failed to write forecast for '{location_key}'.")
 
 
 if __name__ == "__main__":
