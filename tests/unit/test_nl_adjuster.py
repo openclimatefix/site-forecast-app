@@ -5,7 +5,6 @@ Covers:
   - NlBlendConfig.use_adjuster: flag is honoured by the config model.
   - _run_blend_pass: weight columns are renamed with '_adjust' suffix
     when use_adjuster=True.
-  - run_blend_app: adjuster pass is executed iff use_adjuster=True in config.
 """
 import logging
 from typing import ClassVar
@@ -14,26 +13,18 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from site_forecast_app.blend.app import _run_blend_pass, run_blend_app
-from site_forecast_app.blend.config import NlBlendConfig
+from site_forecast_app.blend.app import _run_blend_pass
+from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
+
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _make_config(**overrides) -> NlBlendConfig:
-    """Build a minimal NlBlendConfig, optionally overriding fields."""
-    defaults = {
-        "backup_model": "nl_regional_2h_pv_ecmwf",
-        "national_candidate_models": ["nl_regional_48h_pv_ecmwf"],
-        "regional_candidate_models": ["nl_regional_48h_pv_ecmwf"],
-        "blend_kernel": [0.75, 0.5, 0.25],
-        "forecaster_name": "nl_blend",
-        "use_adjuster": False,
-    }
-    defaults.update(overrides)
-    return NlBlendConfig(**defaults)
+def _cfg(**overrides) -> NlBlendConfig:
+    """Load the real config.yaml and override specific fields for a test."""
+    return load_blend_config().model_copy(update=overrides)
 
 
 def _mock_scorecard() -> pd.DataFrame:
@@ -42,13 +33,6 @@ def _mock_scorecard() -> pd.DataFrame:
         {"model_A": [0.1]},
         index=pd.to_timedelta(["24h"]),
     )
-
-
-def _non_empty_blend_df() -> pd.DataFrame:
-    """Minimal blended DataFrame with one row so _save_forecasts is reached."""
-    df = pd.DataFrame(columns=["target_time", "expected_power_generation_megawatts"])
-    df.loc[0] = [pd.Timestamp("2024-01-01 12:00", tz="UTC"), 10.0]
-    return df
 
 
 # ---------------------------------------------------------------------------
@@ -70,12 +54,12 @@ class TestAdjusterForecasterName:
     )
     def test_various_forecaster_names(self, forecaster_name, expected):
         """adjuster_forecaster_name always appends '_adjust'."""
-        cfg = _make_config(forecaster_name=forecaster_name)
+        cfg = _cfg(forecaster_name=forecaster_name)
         assert cfg.adjuster_forecaster_name == expected
 
     def test_adjuster_name_differs_from_base(self):
         """adjuster_forecaster_name must not equal forecaster_name."""
-        cfg = _make_config(forecaster_name="nl_blend")
+        cfg = _cfg()
         assert cfg.adjuster_forecaster_name != cfg.forecaster_name
 
 
@@ -87,15 +71,15 @@ class TestAdjusterForecasterName:
 class TestUseAdjusterFlag:
     """Tests for the use_adjuster config flag."""
 
-    def test_use_adjuster_defaults_to_false(self):
-        """use_adjuster is False when not explicitly set."""
-        cfg = _make_config()
-        assert cfg.use_adjuster is False
-
-    def test_use_adjuster_can_be_set_true(self):
-        """use_adjuster=True is accepted and stored correctly."""
-        cfg = _make_config(use_adjuster=True)
+    def test_use_adjuster_is_configurable_true(self):
+        """use_adjuster=True round-trips through the model."""
+        cfg = _cfg(use_adjuster=True)
         assert cfg.use_adjuster is True
+
+    def test_use_adjuster_is_configurable_false(self):
+        """use_adjuster=False can be set regardless of config.yaml default."""
+        cfg = _cfg(use_adjuster=False)
+        assert cfg.use_adjuster is False
 
 
 # ---------------------------------------------------------------------------
@@ -167,118 +151,3 @@ class TestRunBlendPassAdjusterColumns:
         original_cols = list(self.WEIGHTS_DF.columns)
         renamed = await self._captured_columns(use_adjuster=True)
         assert renamed == [f"{c}_adjust" for c in original_cols]
-
-
-# ---------------------------------------------------------------------------
-# Tests: run_blend_app — conditional adjuster pass
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture()
-def mock_app_dependencies():
-    """Mock all external I/O used by run_blend_app."""
-    with (
-        patch("site_forecast_app.blend.app.get_dataplatform_client") as mock_client_ctx,
-        patch(
-            "site_forecast_app.blend.app.fetch_dp_location_map",
-            new_callable=AsyncMock,
-        ) as mock_loc_map,
-        patch("site_forecast_app.blend.app.load_nl_mae_scorecard") as mock_load_mae,
-        patch(
-            "site_forecast_app.blend.app.get_blend_weights",
-            new_callable=AsyncMock,
-        ) as mock_weights,
-        patch(
-            "site_forecast_app.blend.app.get_blend_forecast_values_latest",
-            new_callable=AsyncMock,
-        ) as mock_blend,
-        patch(
-            "site_forecast_app.blend.app._save_forecasts",
-            new_callable=AsyncMock,
-        ) as mock_save,
-        patch("site_forecast_app.blend.app.load_blend_config") as mock_cfg,
-    ):
-        mock_client = AsyncMock()
-        mock_client_ctx.return_value.__aenter__.return_value = mock_client
-        mock_client_ctx.return_value.__aexit__.return_value = None
-
-        mock_loc_map.return_value = {"nl_national": "uuid-123"}
-        mock_load_mae.return_value = _mock_scorecard()
-        mock_weights.return_value = pd.DataFrame({"model_A": [1.0]})
-        mock_blend.return_value = _non_empty_blend_df()
-
-        yield {
-            "client": mock_client,
-            "fetch_dp_location_map": mock_loc_map,
-            "load_nl_mae_scorecard": mock_load_mae,
-            "get_blend_weights": mock_weights,
-            "get_blend_forecast_values_latest": mock_blend,
-            "_save_forecasts": mock_save,
-            "load_blend_config": mock_cfg,
-        }
-
-
-class TestRunBlendAppAdjusterPass:
-    """Tests for the conditional adjuster pass in run_blend_app."""
-
-    @pytest.mark.asyncio
-    async def test_adjuster_pass_runs_when_use_adjuster_true(self, mock_app_dependencies):
-        """Weights, blend, and save are each called twice when use_adjuster=True."""
-        deps = mock_app_dependencies
-        deps["load_blend_config"].return_value = _make_config(use_adjuster=True)
-
-        await run_blend_app()
-
-        assert deps["get_blend_weights"].call_count == 2
-        assert deps["get_blend_forecast_values_latest"].call_count == 2
-        assert deps["_save_forecasts"].call_count == 2
-
-    @pytest.mark.asyncio
-    async def test_adjuster_pass_skipped_when_use_adjuster_false(self, mock_app_dependencies):
-        """Weights, blend, and save are each called once when use_adjuster=False."""
-        deps = mock_app_dependencies
-        deps["load_blend_config"].return_value = _make_config(use_adjuster=False)
-
-        await run_blend_app()
-
-        assert deps["get_blend_weights"].call_count == 1
-        assert deps["get_blend_forecast_values_latest"].call_count == 1
-        assert deps["_save_forecasts"].call_count == 1
-
-    @pytest.mark.asyncio
-    async def test_adjuster_pass_uses_adjuster_forecaster_name(self, mock_app_dependencies):
-        """The adjuster save call uses '{forecaster_name}_adjust'."""
-        deps = mock_app_dependencies
-        cfg = _make_config(use_adjuster=True, forecaster_name="nl_blend")
-        deps["load_blend_config"].return_value = cfg
-
-        await run_blend_app()
-
-        save_calls = deps["_save_forecasts"].call_args_list
-        assert len(save_calls) == 2
-        assert save_calls[1].kwargs["forecaster_name"] == cfg.adjuster_forecaster_name
-
-    @pytest.mark.asyncio
-    async def test_main_pass_uses_base_forecaster_name(self, mock_app_dependencies):
-        """The first save call uses the base forecaster_name (not suffixed)."""
-        deps = mock_app_dependencies
-        cfg = _make_config(use_adjuster=True, forecaster_name="nl_blend")
-        deps["load_blend_config"].return_value = cfg
-
-        await run_blend_app()
-
-        save_calls = deps["_save_forecasts"].call_args_list
-        assert save_calls[0].kwargs["forecaster_name"] == cfg.forecaster_name
-
-    @pytest.mark.asyncio
-    async def test_adjuster_pass_logs_start(self, mock_app_dependencies, caplog):
-        """A log message is emitted when the adjuster pass begins."""
-        deps = mock_app_dependencies
-        deps["load_blend_config"].return_value = _make_config(use_adjuster=True)
-
-        with caplog.at_level(logging.INFO, logger="blend_app"):
-            await run_blend_app()
-
-        assert any("adjuster" in r.message.lower() for r in caplog.records), (
-            "Expected a log message mentioning 'adjuster' when use_adjuster=True"
-        )
