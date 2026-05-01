@@ -134,6 +134,13 @@ async def run_blend_app() -> None:
             )
 
 
+def rename_columns_with_adjuster(weights_df: pd.DataFrame) -> pd.DataFrame:
+    """Appends the '_adjust' suffix to all column names in the DataFrame."""
+    return weights_df.rename(
+        columns={col: f"{col}_adjust" for col in weights_df.columns},
+    )
+
+
 async def _run_blend_pass(
     client: dp.DataPlatformDataServiceStub,
     t0: pd.Timestamp,
@@ -189,9 +196,7 @@ async def _run_blend_pass(
 
     # For the adjuster pass: rename columns so DP fetches {model}_adjust.
     if use_adjuster:
-        weights_df = weights_df.rename(
-            columns={col: f"{col}_adjust" for col in weights_df.columns},
-        )
+        weights_df = rename_columns_with_adjuster(weights_df)
         logger.info(
             f"[{log_prefix}] Weight columns renamed with '_adjust' suffix: "
             f"{list(weights_df.columns)}",

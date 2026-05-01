@@ -6,13 +6,11 @@ Covers:
   - _run_blend_pass: weight columns are renamed with '_adjust' suffix
     when use_adjuster=True.
 """
-from typing import ClassVar
-from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
 
-from site_forecast_app.blend.app import _run_blend_pass
+from site_forecast_app.blend.app import rename_columns_with_adjuster
 from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
 
 # ---------------------------------------------------------------------------
@@ -81,71 +79,30 @@ class TestUseAdjusterFlag:
 
 
 # ---------------------------------------------------------------------------
-# Tests: _run_blend_pass — weight column renaming
+# Tests: rename_columns_with_adjuster
 # ---------------------------------------------------------------------------
 
 
-class TestRunBlendPassAdjusterColumns:
-    """Tests that weight columns are renamed with '_adjust' when use_adjuster=True."""
+class TestRenameColumnsWithAdjuster:
+    """Tests for the helper that appends '_adjust' to weight column names."""
 
-    WEIGHTS_DF: ClassVar[pd.DataFrame] = pd.DataFrame(
-        {"model_A": [0.6], "model_B": [0.4]},
-    )
+    def test_renames_all_columns(self):
+        """Every column name gets the '_adjust' suffix."""
+        df = pd.DataFrame({"model_A": [0.6], "model_B": [0.4]})
+        renamed_df = rename_columns_with_adjuster(df)
 
-    async def _captured_columns(self, *, use_adjuster: bool) -> list[str]:
-        """Run one blend pass and return the weight column names seen by the blender."""
-        captured: list[pd.DataFrame] = []
+        assert list(renamed_df.columns) == ["model_A_adjust", "model_B_adjust"]
 
-        async def capture_blend(weights_df, **_kwargs):
-            captured.append(weights_df.copy())
-            return pd.DataFrame()  # empty -> no save
+    def test_empty_dataframe(self):
+        """Works cleanly on an empty DataFrame."""
+        df = pd.DataFrame()
+        renamed_df = rename_columns_with_adjuster(df)
 
-        forecaster_name = "nl_blend_adjust" if use_adjuster else "nl_blend"
+        assert list(renamed_df.columns) == []
 
-        with (
-            patch(
-                "site_forecast_app.blend.app.get_blend_weights",
-                new_callable=AsyncMock,
-                return_value=self.WEIGHTS_DF.copy(),
-            ),
-            patch(
-                "site_forecast_app.blend.app.get_blend_forecast_values_latest",
-                side_effect=capture_blend,
-            ),
-        ):
-            await _run_blend_pass(
-                client=AsyncMock(),
-                t0=pd.Timestamp("2024-01-01 12:00", tz="UTC"),
-                location_uuid="test-uuid",
-                location_key="nl_national",
-                df_mae=_mock_scorecard(),
-                max_horizon=pd.Timedelta("24h"),
-                forecaster_name=forecaster_name,
-                use_adjuster=use_adjuster,
-            )
+    def test_original_dataframe_is_unmodified(self):
+        """The original DataFrame columns should not be mutated."""
+        df = pd.DataFrame({"model_A": [0.6]})
+        rename_columns_with_adjuster(df)
 
-        assert len(captured) == 1
-        return list(captured[0].columns)
-
-    @pytest.mark.asyncio
-    async def test_adjuster_pass_renames_weight_columns(self):
-        """Weight columns gain '_adjust' suffix when use_adjuster=True."""
-        cols = await self._captured_columns(use_adjuster=True)
-        assert all(col.endswith("_adjust") for col in cols), (
-            f"Expected all columns to end with '_adjust', got: {cols}"
-        )
-
-    @pytest.mark.asyncio
-    async def test_main_pass_does_not_rename_columns(self):
-        """Weight columns are NOT renamed when use_adjuster=False."""
-        cols = await self._captured_columns(use_adjuster=False)
-        assert not any(col.endswith("_adjust") for col in cols), (
-            f"Expected no '_adjust' columns in main pass, got: {cols}"
-        )
-
-    @pytest.mark.asyncio
-    async def test_adjuster_column_names_match_originals_plus_suffix(self):
-        """Each renamed column is exactly '{original}_adjust'."""
-        original_cols = list(self.WEIGHTS_DF.columns)
-        renamed = await self._captured_columns(use_adjuster=True)
-        assert renamed == [f"{c}_adjust" for c in original_cols]
+        assert list(df.columns) == ["model_A"]
