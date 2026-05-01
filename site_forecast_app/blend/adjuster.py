@@ -1,4 +1,4 @@
-"""Adjuster helpers for the NL blend pipeline.
+"""Adjuster helpers for the blend pipeline.
 
 The adjuster blend is identical to the main blend, except it operates on
 adjuster model forecasts ({model_name}_adjust) instead of the main model
