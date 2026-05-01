@@ -2,9 +2,7 @@
 
 The adjuster blend is identical to the main blend, except it operates on
 adjuster model forecasts ({model_name}_adjust) instead of the main model
-forecasts. No subtraction or custom calculation is needed - the full blend
-pipeline (weight calculation, blending, saving) runs unchanged on the
-adjuster model names.
+forecasts.
 
 This module provides a single helper to derive adjuster model names from
 the standard candidate and backup model names.
