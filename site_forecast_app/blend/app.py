@@ -31,14 +31,21 @@ async def run_blend_app() -> None:
 
     Steps:
     1. Determine blend reference time (t0)
-    2. Fetch full location map from Data Platform (national + regional)
+    2. Fetch full location map from Data Platform
     3. Load the MAE scorecard
-    4. Calculate national blend weights (used for national location)
-    5. Calculate regional blend weights (used for all regional locations)
-    6. For each location: fetch + blend + save
+    4. Calculate blend weights and run blend for main models
+    5. Save main forecast under {forecaster_name}
+    6. If use_adjuster=True:
+       - Calculate blend weights and run blend for adjuster models
+         ({model_name}_adjust) — full pipeline runs unchanged
+       - Save adjuster blend under {forecaster_name}_adjust
     """
     _cfg = load_blend_config()
-    logger.info("Starting NL Blend execution.")
+    logger.info(
+        f"Starting NL Blend execution. "
+        f"use_adjuster={_cfg.use_adjuster}, "
+        f"forecaster='{_cfg.forecaster_name}'",
+    )
 
     # ------------------------------------------------------------------ #
     # Determine blend reference time - floor to 15-min boundary          #
@@ -94,67 +101,135 @@ async def run_blend_app() -> None:
         max_horizon = df_mae.index.max()
 
         # -------------------------------------------------------------- #
-        # Calculate national blend weights for the national location  #
+        # Main blend                                                      #
         # -------------------------------------------------------------- #
-        logger.info("Calculating national blend weights.")
-        try:
-            national_weights_df = await get_blend_weights(
-                t0=t0,
-                location_uuid=national_location_uuid,
-                df_mae=df_mae,
-                max_horizon=max_horizon,
-                client=client,
-            )
-            logger.info(f"National blend weights calculated:\n{national_weights_df.head(10)}")
-        except Exception:
-            logger.exception("Failed to calculate national blend weights.")
-            return
-
-
-        # -------------------------------------------------------------- #
-        # Blend and save for the national location only                   #
-        # -------------------------------------------------------------- #
-        location_key = NL_NATIONAL_LOCATION_KEY
-        location_uuid = national_location_uuid
-        logger.info(
-            f"Blending forecasts for national location '{location_key}' "
-            f"(uuid={location_uuid})",
+        await _run_blend_pass(
+            client=client,
+            t0=t0,
+            location_uuid=national_location_uuid,
+            location_key=NL_NATIONAL_LOCATION_KEY,
+            df_mae=df_mae,
+            max_horizon=max_horizon,
+            forecaster_name=_cfg.forecaster_name,
         )
 
-        try:
-            blended_df = await get_blend_forecast_values_latest(
-                location_uuid=location_uuid,
-                weights_df=national_weights_df,
-                client=client,
-                start_datetime=t0,
-            )
-
-            if blended_df.empty:
-                logger.warning(
-                    f"Blended timeseries is empty for location '{location_key}'. "
-                    "This is expected in dev when no forecast megawatts are stored.",
-                )
-                return
-
-            logger.info(
-                f"Blended timeseries for '{location_key}' "
-                f"(first 5 rows):\n{blended_df.head(5)}",
-            )
-
-            await _save_forecasts(
+        # -------------------------------------------------------------- #
+        # Adjuster blend (only if use_adjuster=True in config)           #
+        # Weights are computed from the same module-level constants.     #
+        # Weight column names are suffixed with '_adjust' so that        #
+        # get_blend_forecast_values_latest fetches {model}_adjust from   #
+        # the Data Platform instead of the base model forecasters.       #
+        # -------------------------------------------------------------- #
+        if _cfg.use_adjuster:
+            logger.info("use_adjuster=True: running adjuster blend pass.")
+            await _run_blend_pass(
                 client=client,
                 t0=t0,
-                location_uuid=location_uuid,
-                location_key=location_key,
-                blended_df=blended_df,
-                forecaster_name=_cfg.forecaster_name,
+                location_uuid=national_location_uuid,
+                location_key=NL_NATIONAL_LOCATION_KEY,
+                df_mae=df_mae,
+                max_horizon=max_horizon,
+                forecaster_name=_cfg.adjuster_forecaster_name,
+                use_adjuster=True,
             )
 
-        except Exception:
-            logger.exception(
-                f"Failed to blend or save forecasts for national location '{location_key}' "
-                f"(uuid={location_uuid}).",
-            )
+
+async def _run_blend_pass(
+    client: dp.DataPlatformDataServiceStub,
+    t0: pd.Timestamp,
+    location_uuid: str,
+    location_key: str,
+    df_mae: pd.DataFrame,
+    max_horizon: pd.Timedelta,
+    forecaster_name: str,
+    use_adjuster: bool = False,
+) -> None:
+    """Runs the full blend pipeline for one set of models and saves the result.
+
+    Shared by the main blend pass and the adjuster blend pass.
+
+    Blend weights are always computed from the module-level constants in
+    ``weights.py`` (NL_BACKUP_MODEL / NL_NATIONAL_CANDIDATE_MODELS).
+    When *use_adjuster* is True, the weight column names are renamed with an
+    ``_adjust`` suffix before fetching, so that
+    :func:`get_blend_forecast_values_latest` fetches ``{model}_adjust``
+    forecasters from the Data Platform instead of the base model forecasters.
+
+    Args:
+        client:          Active Data Platform gRPC client stub.
+        t0:              Blend reference time (UTC).
+        location_uuid:   DP location UUID to blend and save for.
+        location_key:    Human-readable location identifier (for logging).
+        df_mae:          (horizon x model) MAE scorecard.
+        max_horizon:     Maximum scorecard horizon.
+        forecaster_name: Forecaster tag to save under.
+        use_adjuster:    When True, fetches {model}_adjust forecasters and
+                         saves under {forecaster_name} (caller sets the
+                         correct adjuster forecaster name).
+    """
+    log_prefix = "adjuster" if use_adjuster else "blend"
+    logger.info(
+        f"[{log_prefix}] Starting blend pass for '{location_key}' "
+        f"(forecaster='{forecaster_name}', use_adjuster={use_adjuster})",
+    )
+
+    # Weights are always computed from the module-level constants.
+    try:
+        weights_df = await get_blend_weights(
+            t0=t0,
+            location_uuid=location_uuid,
+            df_mae=df_mae,
+            max_horizon=max_horizon,
+            client=client,
+        )
+        logger.info(f"[{log_prefix}] Blend weights calculated:\n{weights_df.head(10)}")
+    except Exception:
+        logger.exception(f"[{log_prefix}] Failed to calculate blend weights.")
+        return
+
+    # For the adjuster pass: rename columns so DP fetches {model}_adjust.
+    if use_adjuster:
+        weights_df = weights_df.rename(
+            columns={col: f"{col}_adjust" for col in weights_df.columns},
+        )
+        logger.info(
+            f"[{log_prefix}] Weight columns renamed with '_adjust' suffix: "
+            f"{list(weights_df.columns)}",
+        )
+
+    # Fetch and blend
+    try:
+        blended_df = await get_blend_forecast_values_latest(
+            location_uuid=location_uuid,
+            weights_df=weights_df,
+            client=client,
+            start_datetime=t0,
+        )
+    except Exception:
+        logger.exception(f"[{log_prefix}] Failed to fetch or blend forecast timeseries.")
+        return
+
+    if blended_df.empty:
+        logger.warning(
+            f"[{log_prefix}] Blended timeseries is empty for '{location_key}'. "
+            "This is expected in dev when no forecast megawatts are stored.",
+        )
+        return
+
+    logger.info(
+        f"[{log_prefix}] Blended timeseries for '{location_key}' "
+        f"(first 5 rows):\n{blended_df.head(5)}",
+    )
+
+    await _save_forecasts(
+        client=client,
+        t0=t0,
+        location_uuid=location_uuid,
+        location_key=location_key,
+        blended_df=blended_df,
+        forecaster_name=forecaster_name,
+        use_adjuster=use_adjuster,
+    )
 
 
 async def _save_forecasts(
@@ -164,19 +239,22 @@ async def _save_forecasts(
     location_key: str,
     blended_df: pd.DataFrame,
     forecaster_name: str,
+    use_adjuster: bool = False,
 ) -> None:
     """Persists the blended forecast to the Data Platform.
 
     Args:
-        client:           Active Data Platform gRPC client stub.
-        t0:               Blend reference time (UTC); used as the forecast init_time.
-        location_uuid:    DP location UUID to write forecasts under.
-        location_key:     Human-readable location identifier.
-        blended_df:       DataFrame with columns [target_time,
-                          expected_power_generation_megawatts, p10_mw (opt),
-                          p90_mw (opt)].
-        forecaster_name:  Forecaster tag written to the Data Platform.
+        client:          Active Data Platform gRPC client stub.
+        t0:              Blend reference time (UTC).
+        location_uuid:   DP location UUID to write forecasts under.
+        location_key:    Human-readable location identifier (for logging only).
+        blended_df:      DataFrame with columns [target_time,
+                         expected_power_generation_megawatts, p10_mw (opt),
+                         p90_mw (opt)].
+        forecaster_name: Forecaster tag written to the Data Platform.
+        use_adjuster:    True when saving the adjuster blend (used for logging).
     """
+    log_prefix = "adjuster" if use_adjuster else "blend"
     n_rows = len(blended_df)
     has_p10 = "p10_mw" in blended_df.columns
     has_p90 = "p90_mw" in blended_df.columns
@@ -184,13 +262,11 @@ async def _save_forecasts(
     n_p90 = int(blended_df["p90_mw"].notna().sum()) if has_p90 else 0
 
     logger.info(
-        f"Blended forecast summary for '{location_key}': {n_rows} rows | "
+        f"[{log_prefix}] Blended forecast summary for '{location_key}': {n_rows} rows | "
         f"p50={n_rows} | p10={n_p10} | p90={n_p90} rows with valid values.",
     )
 
-    # ------------------------------------------------------------------ #
-    # Build the DP value objects                                          #
-    # ------------------------------------------------------------------ #
+    # Build DP value objects
     try:
         forecast_values = build_forecast_value_objects(
             blended_df=blended_df,
@@ -198,55 +274,53 @@ async def _save_forecasts(
         )
     except Exception:
         logger.exception(
-            f"Failed to build DP forecast value objects for '{location_key}' - skipping save.",
+            f"[{log_prefix}] Failed to build DP forecast value objects for "
+            f"'{location_key}' - skipping save.",
         )
         return
 
     if not forecast_values:
         logger.warning(
-            f"No forecast value objects produced for '{location_key}' - skipping save.",
+            f"[{log_prefix}] No forecast value objects produced for '{location_key}' - skipping save.",
         )
         return
 
-    # ------------------------------------------------------------------ #
-    # Resolve / create the forecaster record                              #
-    # ------------------------------------------------------------------ #
+    # Resolve / create forecaster record
     try:
         forecaster = await create_forecaster_if_not_exists(
             client=client,
             model_tag=forecaster_name,
         )
         logger.info(
-            f"Forecaster resolved: {forecaster.forecaster_name!r} "
+            f"[{log_prefix}] Forecaster resolved: {forecaster.forecaster_name!r} "
             f"v{forecaster.forecaster_version}",
         )
     except Exception:
         logger.exception(
-            f"Failed to resolve/create blend forecaster for '{location_key}' - skipping save.",
+            f"[{log_prefix}] Failed to resolve/create forecaster '{forecaster_name}' "
+            f"for '{location_key}' - skipping save.",
         )
         return
 
-    base_request = dp.CreateForecastRequest(
-        forecaster=forecaster,
-        location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
-        init_time_utc=t0.to_pydatetime(),
-        values=forecast_values,
-    )
-
-    # ------------------------------------------------------------------ #
-    # Write to Data Platform                                              #
-    # ------------------------------------------------------------------ #
+    # Write to Data Platform
     logger.info(
-        f"Saving {n_rows} rows to Data Platform "
-        f"(forecaster='nl_blend', t0={t0}, location='{location_key}') - "
+        f"[{log_prefix}] Saving {n_rows} rows to Data Platform "
+        f"(forecaster='{forecaster_name}', t0={t0}, location='{location_key}') - "
         f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
     )
     try:
-        await client.create_forecast(base_request)
-        logger.info(f"Forecast write succeeded for '{location_key}'.")
+        await client.create_forecast(
+            dp.CreateForecastRequest(
+                forecaster=forecaster,
+                location_uuid=location_uuid,
+                energy_source=dp.EnergySource.SOLAR,
+                init_time_utc=t0.to_pydatetime(),
+                values=forecast_values,
+            ),
+        )
+        logger.info(f"[{log_prefix}] Forecast write succeeded for '{location_key}'.")
     except Exception:
-        logger.exception(f"Failed to write forecast for '{location_key}'.")
+        logger.exception(f"[{log_prefix}] Failed to write forecast for '{location_key}'.")
 
 
 if __name__ == "__main__":
