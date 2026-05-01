@@ -281,7 +281,8 @@ async def _save_forecasts(
 
     if not forecast_values:
         logger.warning(
-            f"[{log_prefix}] No forecast value objects produced for '{location_key}' - skipping save.",
+            f"[{log_prefix}] No forecast value objects produced for "
+            f"'{location_key}' - skipping save.",
         )
         return
 
