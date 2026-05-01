@@ -51,7 +51,7 @@ def _mock_scorecard() -> pd.DataFrame:
 
 @pytest.mark.asyncio
 async def test_run_blend_app_success(mock_dependencies):
-    """Test full execution path assuming everything returns data."""
+    """Test full execution path: both main blend and adjuster pass run (use_adjuster=True)."""
     deps = mock_dependencies
 
     deps["fetch_dp_location_map"].return_value = {"site_id": "test-uuid"}
@@ -65,11 +65,24 @@ async def test_run_blend_app_success(mock_dependencies):
 
     await run_blend_app()
 
+    # These are called once per run (shared setup)
     deps["fetch_dp_location_map"].assert_called_once()
     deps["load_nl_mae_scorecard"].assert_called_once()
-    deps["get_blend_weights"].assert_called_once()
-    deps["get_blend_forecast_values_latest"].assert_called_once()
-    deps["_save_forecasts"].assert_called_once()
+
+    # get_blend_weights / blend / save are each called twice:
+    # once for the main blend pass and once for the adjuster pass.
+    assert deps["get_blend_weights"].call_count == 2, (
+        f"Expected get_blend_weights to be called 2 times (main + adjuster), "
+        f"got {deps['get_blend_weights'].call_count}"
+    )
+    assert deps["get_blend_forecast_values_latest"].call_count == 2, (
+        f"Expected get_blend_forecast_values_latest to be called 2 times, "
+        f"got {deps['get_blend_forecast_values_latest'].call_count}"
+    )
+    assert deps["_save_forecasts"].call_count == 2, (
+        f"Expected _save_forecasts to be called 2 times (main + adjuster), "
+        f"got {deps['_save_forecasts'].call_count}"
+    )
 
 @pytest.mark.asyncio
 async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies):
