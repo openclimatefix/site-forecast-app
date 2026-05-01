@@ -66,7 +66,7 @@ class NlBlendConfig(BaseModel):
         description="Path to the MAE scorecard, relative to the blend package directory.",
     )
     forecaster_name: str = Field(
-        "blend",
+        "nl_blend",
         title="Forecaster Name",
         description="Forecaster name written to the Data Platform.",
     )
