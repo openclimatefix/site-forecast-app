@@ -239,7 +239,7 @@ async def _save_forecasts(
     # ------------------------------------------------------------------ #
     logger.info(
         f"Saving {n_rows} rows to Data Platform "
-        f"(forecaster='blend', t0={t0}, location='{location_key}') - "
+        f"(forecaster='nl_blend', t0={t0}, location='{location_key}') - "
         f"p50={n_rows}, p10={n_p10}, p90={n_p90} valid rows.",
     )
     try:
