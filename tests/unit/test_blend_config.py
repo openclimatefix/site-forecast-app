@@ -1,16 +1,7 @@
-"""Unit tests for the NL Blend adjuster logic.
+"""Unit tests for the Blend configuration."""
 
-Covers:
-  - NlBlendConfig.adjuster_forecaster_name: correct '_adjust' suffix.
-  - NlBlendConfig.use_adjuster: flag is honoured by the config model.
-  - _run_blend_pass: weight columns are renamed with '_adjust' suffix
-    when use_adjuster=True.
-"""
-
-import pandas as pd
 import pytest
 
-from site_forecast_app.blend.app import rename_columns_with_adjuster
 from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
 
 # ---------------------------------------------------------------------------
@@ -21,14 +12,6 @@ from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
 def _cfg(**overrides) -> NlBlendConfig:
     """Load the real config.yaml and override specific fields for a test."""
     return load_blend_config().model_copy(update=overrides)
-
-
-def _mock_scorecard() -> pd.DataFrame:
-    """Minimal (horizon x model) MAE scorecard."""
-    return pd.DataFrame(
-        {"model_A": [0.1]},
-        index=pd.to_timedelta(["24h"]),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -76,33 +59,3 @@ class TestUseAdjusterFlag:
         """use_adjuster=False can be set regardless of config.yaml default."""
         cfg = _cfg(use_adjuster=False)
         assert cfg.use_adjuster is False
-
-
-# ---------------------------------------------------------------------------
-# Tests: rename_columns_with_adjuster
-# ---------------------------------------------------------------------------
-
-
-class TestRenameColumnsWithAdjuster:
-    """Tests for the helper that appends '_adjust' to weight column names."""
-
-    def test_renames_all_columns(self):
-        """Every column name gets the '_adjust' suffix."""
-        df = pd.DataFrame({"model_A": [0.6], "model_B": [0.4]})
-        renamed_df = rename_columns_with_adjuster(df)
-
-        assert list(renamed_df.columns) == ["model_A_adjust", "model_B_adjust"]
-
-    def test_empty_dataframe(self):
-        """Works cleanly on an empty DataFrame."""
-        df = pd.DataFrame()
-        renamed_df = rename_columns_with_adjuster(df)
-
-        assert list(renamed_df.columns) == []
-
-    def test_original_dataframe_is_unmodified(self):
-        """The original DataFrame columns should not be mutated."""
-        df = pd.DataFrame({"model_A": [0.6]})
-        rename_columns_with_adjuster(df)
-
-        assert list(df.columns) == ["model_A"]

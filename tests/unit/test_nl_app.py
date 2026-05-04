@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from site_forecast_app.blend.app import run_blend_app
+from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
 
 # ---------------------------------------------------------------------------
 # Unit tests for the NL blend application orchestration
@@ -112,3 +112,33 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
         await run_blend_app()
 
     deps["_save_forecasts"].assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Tests: rename_columns_with_adjuster
+# ---------------------------------------------------------------------------
+
+
+class TestRenameColumnsWithAdjuster:
+    """Tests for the helper that appends '_adjust' to weight column names."""
+
+    def test_renames_all_columns(self):
+        """Every column name gets the '_adjust' suffix."""
+        df = pd.DataFrame({"model_A": [0.6], "model_B": [0.4]})
+        renamed_df = rename_columns_with_adjuster(df)
+
+        assert list(renamed_df.columns) == ["model_A_adjust", "model_B_adjust"]
+
+    def test_empty_dataframe(self):
+        """Works cleanly on an empty DataFrame."""
+        df = pd.DataFrame()
+        renamed_df = rename_columns_with_adjuster(df)
+
+        assert list(renamed_df.columns) == []
+
+    def test_original_dataframe_is_unmodified(self):
+        """The original DataFrame columns should not be mutated."""
+        df = pd.DataFrame({"model_A": [0.6]})
+        rename_columns_with_adjuster(df)
+
+        assert list(df.columns) == ["model_A"]
