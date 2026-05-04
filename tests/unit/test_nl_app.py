@@ -23,6 +23,9 @@ def mock_dependencies():
             "site_forecast_app.blend.app.get_blend_weights", new_callable=AsyncMock,
         ) as mock_weights,
         patch(
+            "site_forecast_app.blend.app.get_regional_blend_weights", new_callable=AsyncMock,
+        ) as mock_regional_weights,
+        patch(
             "site_forecast_app.blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
         ) as mock_blend,
         patch("site_forecast_app.blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
@@ -38,6 +41,7 @@ def mock_dependencies():
             "fetch_dp_location_map": mock_loc_map,
             "load_nl_mae_scorecard": mock_load_mae,
             "get_blend_weights": mock_weights,
+            "get_regional_blend_weights": mock_regional_weights,
             "get_blend_forecast_values_latest": mock_blend,
             "_save_forecasts": mock_save,
         }
@@ -142,3 +146,34 @@ class TestRenameColumnsWithAdjuster:
         rename_columns_with_adjuster(df)
 
         assert list(df.columns) == ["model_A"]
+
+@pytest.mark.asyncio
+async def test_run_blend_app_filters_regional_locations(mock_dependencies):
+    """Test that regional blends are only run for locations starting with 'nl_'."""
+    deps = mock_dependencies
+
+    deps["fetch_dp_location_map"].return_value = {
+        "nl_national": "uuid-national",
+        "nl_groningen": "uuid-groningen",
+        "taun1": "uuid-taun1",
+        "temp_3": "uuid-temp_3",
+    }
+    deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
+    deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
+    deps["get_regional_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
+
+    mock_blend_df = pd.DataFrame({"target_time": [], "expected_power_generation_megawatts": []})
+    mock_blend_df.loc[0] = [pd.Timestamp("2024-01-01 12:00", tz="UTC"), 10.0]
+    deps["get_blend_forecast_values_latest"].return_value = mock_blend_df
+
+    await run_blend_app()
+
+    # Should run main blend and adjuster for:
+    # 1. nl_national (National pass) -> uses get_blend_weights (2 calls)
+    # 2. nl_groningen (Regional pass) -> uses get_regional_blend_weights (2 calls)
+    # taun1 and temp_3 should be filtered out.
+    # Total = 2 locations * 2 passes = 4 blend & save calls
+    assert deps["get_blend_weights"].call_count == 2
+    assert deps["get_regional_blend_weights"].call_count == 2
+    assert deps["get_blend_forecast_values_latest"].call_count == 4
+    assert deps["_save_forecasts"].call_count == 4
