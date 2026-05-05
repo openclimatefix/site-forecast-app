@@ -1,13 +1,13 @@
 import logging
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
-from tests.integration.conftest import dp_address
+from dp_sdk.ocf import dp
+
 from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
 from site_forecast_app.save.data_platform import get_dataplatform_client
-from dp_sdk.ocf import dp
-from datetime import datetime, UTC
 
 # ---------------------------------------------------------------------------
 # Unit tests for the NL blend application orchestration
@@ -62,7 +62,7 @@ async def test_run_blend_app_success(mock_dependencies):
                 location_type=dp.LocationType.SITE,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            )
+            ),
         )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
@@ -93,10 +93,8 @@ async def test_run_blend_app_success(mock_dependencies):
     )
 
 @pytest.mark.asyncio
-async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies):
+async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies):  # noqa: ARG001
     """Test early exit if no location map is returned."""
-    deps = mock_dependencies
-
     # We do not seed any locations here, so list_locations will return empty.
 
     with caplog.at_level(logging.ERROR, logger="blend_app"):
@@ -118,7 +116,7 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
                 location_type=dp.LocationType.SITE,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            )
+            ),
         )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
@@ -176,7 +174,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies):
                 location_type=dp.LocationType.NATION,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            )
+            ),
         )
         # Create regional location
         await client.create_location(
@@ -187,7 +185,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies):
                 location_type=dp.LocationType.STATE,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            )
+            ),
         )
         # Create other locations (should be filtered out)
         await client.create_location(
@@ -198,7 +196,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies):
                 location_type=dp.LocationType.SITE,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            )
+            ),
         )
         await client.create_location(
             dp.CreateLocationRequest(
@@ -208,7 +206,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies):
                 location_type=dp.LocationType.SITE,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            )
+            ),
         )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
