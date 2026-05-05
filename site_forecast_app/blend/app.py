@@ -15,7 +15,6 @@ from site_forecast_app.blend.init_times import load_nl_mae_scorecard
 from site_forecast_app.blend.weights import get_blend_weights, get_regional_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
-    fetch_dp_location_map,
     get_dataplatform_client,
 )
 
@@ -64,7 +63,9 @@ async def run_blend_app() -> None:
         # -------------------------------------------------------------- #
         logger.info("Fetching location map from Data Platform.")
         try:
-            dp_loc_map = await fetch_dp_location_map(client)
+            resp = await client.list_locations(dp.ListLocationsRequest())
+            dp_locations = resp.locations
+            dp_loc_map = {loc.location_name: loc.location_uuid for loc in dp_locations}
             if not dp_loc_map:
                 logger.error("Data Platform returned an empty location map. Cannot continue.")
                 return
@@ -118,9 +119,10 @@ async def run_blend_app() -> None:
         # Regional blends (all locations except national)                 #
         # -------------------------------------------------------------- #
         regional_locations = {
-            key: uuid
-            for key, uuid in dp_loc_map.items()
-            if key != NL_NATIONAL_LOCATION_KEY and key.startswith("nl_")
+            loc.location_name: loc.location_uuid
+            for loc in dp_locations
+            if loc.location_name != NL_NATIONAL_LOCATION_KEY
+            and loc.location_type == dp.LocationType.STATE
         }
         logger.info(
             f"Running regional blend for {len(regional_locations)} region(s): "
