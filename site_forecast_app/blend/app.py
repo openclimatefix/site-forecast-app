@@ -12,10 +12,9 @@ from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
 )
 from site_forecast_app.blend.init_times import load_nl_mae_scorecard
-from site_forecast_app.blend.weights import get_blend_weights
+from site_forecast_app.blend.weights import get_blend_weights, get_regional_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
-    fetch_dp_location_map,
     get_dataplatform_client,
 )
 
@@ -33,12 +32,13 @@ async def run_blend_app() -> None:
     1. Determine blend reference time (t0)
     2. Fetch full location map from Data Platform
     3. Load the MAE scorecard
-    4. Calculate blend weights and run blend for main models
-    5. Save main forecast under {forecaster_name}
-    6. If use_adjuster=True:
-       - Calculate blend weights and run blend for adjuster models
-         ({model_name}_adjust) — full pipeline runs unchanged
-       - Save adjuster blend under {forecaster_name}_adjust
+    4. Calculate blend weights and run blend for national location
+    5. Save national forecast under {forecaster_name}
+    6. For each regional location (all non-national keys in the location map):
+       - Calculate regional blend weights and run blend
+       - Save under {forecaster_name}
+    7. If use_adjuster=True: repeat steps 4-6 using {model}_adjust forecasters
+       and save under {forecaster_name}_adjust
     """
     _cfg = load_blend_config()
     logger.info(
@@ -63,7 +63,9 @@ async def run_blend_app() -> None:
         # -------------------------------------------------------------- #
         logger.info("Fetching location map from Data Platform.")
         try:
-            dp_loc_map = await fetch_dp_location_map(client)
+            resp = await client.list_locations(dp.ListLocationsRequest())
+            dp_locations = resp.locations
+            dp_loc_map = {loc.location_name: loc.location_uuid for loc in dp_locations}
             if not dp_loc_map:
                 logger.error("Data Platform returned an empty location map. Cannot continue.")
                 return
@@ -114,6 +116,31 @@ async def run_blend_app() -> None:
         )
 
         # -------------------------------------------------------------- #
+        # Regional blends (all locations except national)                 #
+        # -------------------------------------------------------------- #
+        regional_locations = {
+            loc.location_name: loc.location_uuid
+            for loc in dp_locations
+            if loc.location_name != NL_NATIONAL_LOCATION_KEY
+            and loc.location_type == dp.LocationType.STATE
+        }
+        logger.info(
+            f"Running regional blend for {len(regional_locations)} region(s): "
+            f"{list(regional_locations.keys())}",
+        )
+        for location_key, location_uuid in regional_locations.items():
+            await _run_blend_pass(
+                client=client,
+                t0=t0,
+                location_uuid=location_uuid,
+                location_key=location_key,
+                df_mae=df_mae,
+                max_horizon=max_horizon,
+                forecaster_name=_cfg.forecaster_name,
+                use_regional_weights=True,
+            )
+
+        # -------------------------------------------------------------- #
         # Adjuster blend (only if use_adjuster=True in config)           #
         # Weights are computed from the same module-level constants.     #
         # Weight column names are suffixed with '_adjust' so that        #
@@ -132,6 +159,18 @@ async def run_blend_app() -> None:
                 forecaster_name=_cfg.adjuster_forecaster_name,
                 use_adjuster=True,
             )
+            for location_key, location_uuid in regional_locations.items():
+                await _run_blend_pass(
+                    client=client,
+                    t0=t0,
+                    location_uuid=location_uuid,
+                    location_key=location_key,
+                    df_mae=df_mae,
+                    max_horizon=max_horizon,
+                    forecaster_name=_cfg.adjuster_forecaster_name,
+                    use_adjuster=True,
+                    use_regional_weights=True,
+                )
 
 
 def rename_columns_with_adjuster(weights_df: pd.DataFrame) -> pd.DataFrame:
@@ -150,39 +189,44 @@ async def _run_blend_pass(
     max_horizon: pd.Timedelta,
     forecaster_name: str,
     use_adjuster: bool = False,
+    use_regional_weights: bool = False,
 ) -> None:
     """Runs the full blend pipeline for one set of models and saves the result.
 
-    Shared by the main blend pass and the adjuster blend pass.
+    Shared by national and regional blend passes, and the adjuster variants.
 
-    Blend weights are always computed from the module-level constants in
-    ``weights.py`` (NL_BACKUP_MODEL / NL_NATIONAL_CANDIDATE_MODELS).
-    When *use_adjuster* is True, the weight column names are renamed with an
-    ``_adjust`` suffix before fetching, so that
-    :func:`get_blend_forecast_values_latest` fetches ``{model}_adjust``
-    forecasters from the Data Platform instead of the base model forecasters.
+    Blend weights are computed from the module-level constants in
+    ``weights.py``. When *use_regional_weights* is True,
+    :func:`get_regional_blend_weights` is used (NL_REGIONAL_CANDIDATE_MODELS)
+    instead of the national candidate set.
+    When *use_adjuster* is True, weight column names are renamed with an
+    ``_adjust`` suffix so that :func:`get_blend_forecast_values_latest`
+    fetches ``{model}_adjust`` forecasters from the Data Platform.
 
     Args:
-        client:          Active Data Platform gRPC client stub.
-        t0:              Blend reference time (UTC).
-        location_uuid:   DP location UUID to blend and save for.
-        location_key:    Human-readable location identifier (for logging).
-        df_mae:          (horizon x model) MAE scorecard.
-        max_horizon:     Maximum scorecard horizon.
-        forecaster_name: Forecaster tag to save under.
-        use_adjuster:    When True, fetches {model}_adjust forecasters and
-                         saves under {forecaster_name} (caller sets the
-                         correct adjuster forecaster name).
+        client:               Active Data Platform gRPC client stub.
+        t0:                   Blend reference time (UTC).
+        location_uuid:        DP location UUID to blend and save for.
+        location_key:         Human-readable location identifier (for logging).
+        df_mae:               (horizon x model) MAE scorecard.
+        max_horizon:          Maximum scorecard horizon.
+        forecaster_name:      Forecaster tag to save under.
+        use_adjuster:         When True, fetches {model}_adjust forecasters.
+        use_regional_weights: When True, uses regional candidate models for
+                              weight optimisation instead of national candidates.
     """
     log_prefix = "adjuster" if use_adjuster else "blend"
+    weight_label = "regional" if use_regional_weights else "national"
     logger.info(
-        f"[{log_prefix}] Starting blend pass for '{location_key}' "
+        f"[{log_prefix}] Starting {weight_label} blend pass for '{location_key}' "
         f"(forecaster='{forecaster_name}', use_adjuster={use_adjuster})",
     )
 
     # Weights are always computed from the module-level constants.
+    # Regional locations use the regional candidate model set.
+    weight_fn = get_regional_blend_weights if use_regional_weights else get_blend_weights
     try:
-        weights_df = await get_blend_weights(
+        weights_df = await weight_fn(
             t0=t0,
             location_uuid=location_uuid,
             df_mae=df_mae,
