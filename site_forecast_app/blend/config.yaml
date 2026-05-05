@@ -17,7 +17,7 @@ blend:
     - nl_national_pv_ecmwf_sat_small
 
   # Candidate models for regional blends (subset of national candidates).
-  # These values are not currently being used 
+  # These values are not currently being used.
   regional_candidate_models:
     - nl_regional_48h_pv_ecmwf
     - nl_regional_pv_ecmwf_mo_sat
@@ -36,6 +36,11 @@ blend:
 
   # Minimum forecast horizon (minutes) emitted in any blended forecast.
   min_forecast_horizon_minutes: 15
+
+  # ------------------------------------------------------------------ #
+  # Adjuster                                                             #
+  # ------------------------------------------------------------------ #
+  use_adjuster: true
 
   # ------------------------------------------------------------------ #
   # Infrastructure / naming                                              #

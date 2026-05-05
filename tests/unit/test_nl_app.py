@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from site_forecast_app.blend.app import run_blend_app
+from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
 
 # ---------------------------------------------------------------------------
 # Unit tests for the NL blend application orchestration
@@ -51,7 +51,7 @@ def _mock_scorecard() -> pd.DataFrame:
 
 @pytest.mark.asyncio
 async def test_run_blend_app_success(mock_dependencies):
-    """Test full execution path assuming everything returns data."""
+    """Test full execution path: both main blend and adjuster pass run (use_adjuster=True)."""
     deps = mock_dependencies
 
     deps["fetch_dp_location_map"].return_value = {"site_id": "test-uuid"}
@@ -65,11 +65,24 @@ async def test_run_blend_app_success(mock_dependencies):
 
     await run_blend_app()
 
+    # These are called once per run (shared setup)
     deps["fetch_dp_location_map"].assert_called_once()
     deps["load_nl_mae_scorecard"].assert_called_once()
-    deps["get_blend_weights"].assert_called_once()
-    deps["get_blend_forecast_values_latest"].assert_called_once()
-    deps["_save_forecasts"].assert_called_once()
+
+    # get_blend_weights / blend / save are each called twice:
+    # once for the main blend pass and once for the adjuster pass.
+    assert deps["get_blend_weights"].call_count == 2, (
+        f"Expected get_blend_weights to be called 2 times (main + adjuster), "
+        f"got {deps['get_blend_weights'].call_count}"
+    )
+    assert deps["get_blend_forecast_values_latest"].call_count == 2, (
+        f"Expected get_blend_forecast_values_latest to be called 2 times, "
+        f"got {deps['get_blend_forecast_values_latest'].call_count}"
+    )
+    assert deps["_save_forecasts"].call_count == 2, (
+        f"Expected _save_forecasts to be called 2 times (main + adjuster), "
+        f"got {deps['_save_forecasts'].call_count}"
+    )
 
 @pytest.mark.asyncio
 async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies):
@@ -99,3 +112,33 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
         await run_blend_app()
 
     deps["_save_forecasts"].assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Tests: rename_columns_with_adjuster
+# ---------------------------------------------------------------------------
+
+
+class TestRenameColumnsWithAdjuster:
+    """Tests for the helper that appends '_adjust' to weight column names."""
+
+    def test_renames_all_columns(self):
+        """Every column name gets the '_adjust' suffix."""
+        df = pd.DataFrame({"model_A": [0.6], "model_B": [0.4]})
+        renamed_df = rename_columns_with_adjuster(df)
+
+        assert list(renamed_df.columns) == ["model_A_adjust", "model_B_adjust"]
+
+    def test_empty_dataframe(self):
+        """Works cleanly on an empty DataFrame."""
+        df = pd.DataFrame()
+        renamed_df = rename_columns_with_adjuster(df)
+
+        assert list(renamed_df.columns) == []
+
+    def test_original_dataframe_is_unmodified(self):
+        """The original DataFrame columns should not be mutated."""
+        df = pd.DataFrame({"model_A": [0.6]})
+        rename_columns_with_adjuster(df)
+
+        assert list(df.columns) == ["model_A"]

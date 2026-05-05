@@ -58,6 +58,20 @@ class NlBlendConfig(BaseModel):
     )
 
     # ------------------------------------------------------------------
+    # Adjuster
+    # ------------------------------------------------------------------
+    use_adjuster: bool = Field(
+        False,
+        title="Use Adjuster",
+        description=(
+            "Whether to run a second blend pass using adjuster model forecasts "
+            "({model_name}_adjust) and save the result under {forecaster_name}_adjust. "
+            "The full blend pipeline runs unchanged on the adjuster model names. "
+            "Set to false to skip the adjuster blend entirely."
+        ),
+    )
+
+    # ------------------------------------------------------------------
     # Infrastructure / naming
     # ------------------------------------------------------------------
     scorecard_path: str = Field(
@@ -78,6 +92,11 @@ class NlBlendConfig(BaseModel):
     def min_forecast_horizon(self) -> pd.Timedelta:
         """Minimum forecast horizon as a pd.Timedelta."""
         return pd.Timedelta(minutes=self.min_forecast_horizon_minutes)
+
+    @property
+    def adjuster_forecaster_name(self) -> str:
+        """Forecaster name for the adjusted blend."""
+        return f"{self.forecaster_name}_adjust"
 
 
 class NlBlendConfigWrapper(BaseModel):
