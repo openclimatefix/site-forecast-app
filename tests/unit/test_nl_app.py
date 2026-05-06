@@ -7,7 +7,6 @@ import pytest
 from dp_sdk.ocf import dp
 
 from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
-from site_forecast_app.save.data_platform import get_dataplatform_client
 
 # ---------------------------------------------------------------------------
 # Unit tests for the NL blend application orchestration
@@ -21,7 +20,6 @@ def mock_dependencies(monkeypatch):
 
     with (
         patch("site_forecast_app.blend.app.get_dataplatform_client") as mock_get_client,
-        patch(f"{__name__}.get_dataplatform_client") as mock_get_client_test,
         patch("site_forecast_app.blend.app.load_nl_mae_scorecard") as mock_load_mae,
         patch(
             "site_forecast_app.blend.app.get_blend_weights", new_callable=AsyncMock,
@@ -36,7 +34,6 @@ def mock_dependencies(monkeypatch):
     ):
         mock_client = AsyncMock()
         mock_get_client.return_value.__aenter__.return_value = mock_client
-        mock_get_client_test.return_value.__aenter__.return_value = mock_client
 
         mock_db = []
 
@@ -79,17 +76,17 @@ async def test_run_blend_app_success(mock_dependencies):
     """Test full execution path: both main blend and adjuster pass run (use_adjuster=True)."""
     deps = mock_dependencies
 
-    async with get_dataplatform_client() as client:
-        await client.create_location(
-            dp.CreateLocationRequest(
-                location_name="nl_national",
-                energy_source=dp.EnergySource.SOLAR,
-                geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.NATION,
-                effective_capacity_watts=1_000,
-                valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            ),
-        )
+    mock_client = deps["mock_client"]
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="nl_national",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.NATION,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+        ),
+    )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
     deps["get_regional_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
@@ -136,17 +133,17 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
     """Test safe exit without saving if no blended forecasts are generated."""
     deps = mock_dependencies
 
-    async with get_dataplatform_client() as client:
-        await client.create_location(
-            dp.CreateLocationRequest(
-                location_name="nl_national",
-                energy_source=dp.EnergySource.SOLAR,
-                geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.NATION,
-                effective_capacity_watts=1_000,
-                valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            ),
-        )
+    mock_client = deps["mock_client"]
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="nl_national",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.NATION,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+        ),
+    )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
 
@@ -193,50 +190,50 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies):
     """Test that regional blends are only run for locations starting with 'nl_'."""
     deps = mock_dependencies
 
-    async with get_dataplatform_client() as client:
-        # Create national location
-        await client.create_location(
-            dp.CreateLocationRequest(
-                location_name="nl_national",
-                energy_source=dp.EnergySource.SOLAR,
-                geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.NATION,
-                effective_capacity_watts=1_000,
-                valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            ),
-        )
-        # Create regional location
-        await client.create_location(
-            dp.CreateLocationRequest(
-                location_name="nl_groningen",
-                energy_source=dp.EnergySource.SOLAR,
-                geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.STATE,
-                effective_capacity_watts=1_000,
-                valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            ),
-        )
-        # Create other locations (should be filtered out)
-        await client.create_location(
-            dp.CreateLocationRequest(
-                location_name="taun1",
-                energy_source=dp.EnergySource.SOLAR,
-                geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.SITE,
-                effective_capacity_watts=1_000,
-                valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            ),
-        )
-        await client.create_location(
-            dp.CreateLocationRequest(
-                location_name="temp_3",
-                energy_source=dp.EnergySource.SOLAR,
-                geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.SITE,
-                effective_capacity_watts=1_000,
-                valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            ),
-        )
+    mock_client = deps["mock_client"]
+    # Create national location
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="nl_national",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.NATION,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+        ),
+    )
+    # Create regional location
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="nl_groningen",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.STATE,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+        ),
+    )
+    # Create other locations (should be filtered out)
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="taun1",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.SITE,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+        ),
+    )
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="temp_3",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.SITE,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+        ),
+    )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
     deps["get_regional_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
