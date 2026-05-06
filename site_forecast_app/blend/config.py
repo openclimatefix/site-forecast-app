@@ -84,6 +84,22 @@ class NlBlendConfig(BaseModel):
         title="Forecaster Name",
         description="Forecaster name written to the Data Platform.",
     )
+    national_location_key: str = Field(
+        "nl_national",
+        title="National Location Key",
+        description=(
+            "Location name key that identifies the national location in the "
+            "DP location map."
+        ),
+    )
+    regional_location_type: str = Field(
+        "STATE",
+        title="Regional Location Type",
+        description=(
+            "Data Platform LocationType enum name used to filter regional "
+            "locations (e.g. 'STATE')."
+        ),
+    )
 
     # ------------------------------------------------------------------
     # Computed helpers (plain properties — not serialised by Pydantic)

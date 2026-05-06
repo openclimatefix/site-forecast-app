@@ -17,7 +17,6 @@ blend:
     - nl_national_pv_ecmwf_sat_small
 
   # Candidate models for regional blends (subset of national candidates).
-  # These values are not currently being used.
   regional_candidate_models:
     - nl_regional_48h_pv_ecmwf
     - nl_regional_pv_ecmwf_mo_sat
@@ -51,3 +50,10 @@ blend:
 
   # Forecaster name written to the Data Platform.
   forecaster_name: nl_blend
+
+  # The location name key that identifies the national location in the DP location map.
+  national_location_key: nl_national
+
+  # The location type constraint used to filter regional locations from the map.
+  regional_location_type: STATE
+

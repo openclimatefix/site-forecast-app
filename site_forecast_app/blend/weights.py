@@ -345,4 +345,37 @@ async def get_blend_weights(
     )
 
 
+async def get_regional_blend_weights(
+    t0: pd.Timestamp,
+    location_uuid: str,
+    df_mae: pd.DataFrame,
+    max_horizon: pd.Timedelta,
+    client: dp.DataPlatformDataServiceStub,
+) -> pd.DataFrame:
+    """Produces a regional blend weight DataFrame for t0.
 
+    Identical pipeline to :func:`get_blend_weights` but uses
+    NL_REGIONAL_CANDIDATE_MODELS as the candidate set, which is typically
+    a subset of the national candidates (see config.yaml).
+
+    Args:
+        t0:            Blend reference time (UTC, floored to 15 min).
+        location_uuid: Data Platform location UUID for the specific region.
+        df_mae:        (horizon x model) MAE scorecard.
+        max_horizon:   Maximum horizon in the scorecard.
+        client:        Authenticated Data Platform gRPC client stub.
+
+    Returns:
+        Wide DataFrame indexed by absolute UTC target time.
+        Weights sum to 1.0 at every horizon.
+        Returns an empty DataFrame if the shifted MAE frame is empty.
+    """
+    return await _compute_weights(
+        t0=t0,
+        location_uuid=location_uuid,
+        df_mae=df_mae,
+        max_horizon=max_horizon,
+        client=client,
+        candidate_models=NL_REGIONAL_CANDIDATE_MODELS,
+        label="Regional",
+    )
