@@ -21,9 +21,6 @@ from site_forecast_app.save.data_platform import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("blend_app")
 
-# location_type key that identifies the national location in the DP location map.
-NL_NATIONAL_LOCATION_KEY = "nl_national"
-
 
 async def run_blend_app() -> None:
     """Main execution point for the NL Blend app.
@@ -74,15 +71,14 @@ async def run_blend_app() -> None:
             logger.exception("Failed to connect to Data Platform while fetching location map.")
             return
 
-        # Identify the national location UUID
-        national_location_uuid = dp_loc_map.get(NL_NATIONAL_LOCATION_KEY)
-        if national_location_uuid is None:
-            # Fallback: treat the first entry as national (original behaviour).
-            national_location_uuid = next(iter(dp_loc_map.values()))
+        # Extract national location
+        national_location_uuid = dp_loc_map.get(_cfg.national_location_key)
+        if not national_location_uuid:
             logger.warning(
-                f"Key '{NL_NATIONAL_LOCATION_KEY}' not found in location map; "
-                f"using first entry as national: {national_location_uuid}",
+                f"Key '{_cfg.national_location_key}' not found in location map; "
+                f"using first entry as national: {dp_locations[0].location_uuid}",
             )
+            national_location_uuid = dp_locations[0].location_uuid
 
         # -------------------------------------------------------------- #
         # Load MAE scorecard (shared across all locations)                #
@@ -109,7 +105,7 @@ async def run_blend_app() -> None:
             client=client,
             t0=t0,
             location_uuid=national_location_uuid,
-            location_key=NL_NATIONAL_LOCATION_KEY,
+            location_key=_cfg.national_location_key,
             df_mae=df_mae,
             max_horizon=max_horizon,
             forecaster_name=_cfg.forecaster_name,
@@ -121,8 +117,8 @@ async def run_blend_app() -> None:
         regional_locations = {
             loc.location_name: loc.location_uuid
             for loc in dp_locations
-            if loc.location_name != NL_NATIONAL_LOCATION_KEY
-            and loc.location_type == dp.LocationType.STATE
+            if loc.location_name != _cfg.national_location_key
+            and loc.location_type == getattr(dp.LocationType, _cfg.regional_location_type)
         }
         logger.info(
             f"Running regional blend for {len(regional_locations)} region(s): "
@@ -153,7 +149,7 @@ async def run_blend_app() -> None:
                 client=client,
                 t0=t0,
                 location_uuid=national_location_uuid,
-                location_key=NL_NATIONAL_LOCATION_KEY,
+                location_key=_cfg.national_location_key,
                 df_mae=df_mae,
                 max_horizon=max_horizon,
                 forecaster_name=_cfg.adjuster_forecaster_name,

@@ -14,13 +14,14 @@ from site_forecast_app.save.data_platform import get_dataplatform_client
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def mock_dependencies(dp_address, monkeypatch):
-    """Mock out heavy compute dependencies, but use actual DP container."""
-    host, port = dp_address
-    monkeypatch.setenv("DATA_PLATFORM_HOST", host)
-    monkeypatch.setenv("DATA_PLATFORM_PORT", str(port))
+def mock_dependencies(monkeypatch):
+    """Mock out heavy compute dependencies and the Data Platform client."""
+    monkeypatch.setenv("DATA_PLATFORM_HOST", "mock_host")
+    monkeypatch.setenv("DATA_PLATFORM_PORT", "50051")
 
     with (
+        patch("site_forecast_app.blend.app.get_dataplatform_client") as mock_get_client,
+        patch(f"{__name__}.get_dataplatform_client") as mock_get_client_test,
         patch("site_forecast_app.blend.app.load_nl_mae_scorecard") as mock_load_mae,
         patch(
             "site_forecast_app.blend.app.get_blend_weights", new_callable=AsyncMock,
@@ -33,7 +34,32 @@ def mock_dependencies(dp_address, monkeypatch):
         ) as mock_blend,
         patch("site_forecast_app.blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
     ):
+        mock_client = AsyncMock()
+        mock_get_client.return_value.__aenter__.return_value = mock_client
+        mock_get_client_test.return_value.__aenter__.return_value = mock_client
+
+        mock_db = []
+
+        async def mock_create_location(req):
+            loc = AsyncMock(
+                location_name=req.location_name,
+                location_type=req.location_type,
+                location_uuid=f"uuid-{req.location_name}",
+            )
+            mock_db.append(loc)
+            return loc
+
+        async def mock_list_locations(*_args, **_kwargs):
+            resp = AsyncMock()
+            resp.locations = list(mock_db)
+            return resp
+
+        mock_client.create_location.side_effect = mock_create_location
+        mock_client.list_locations.side_effect = mock_list_locations
+
         yield {
+            "get_dataplatform_client": mock_get_client,
+            "mock_client": mock_client,
             "load_nl_mae_scorecard": mock_load_mae,
             "get_blend_weights": mock_weights,
             "get_regional_blend_weights": mock_regional_weights,
@@ -49,14 +75,6 @@ def _mock_scorecard() -> pd.DataFrame:
     )
 
 @pytest.mark.asyncio
-async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies):  # noqa: ARG001
-    """Test early exit if no location map is returned."""
-    with caplog.at_level(logging.ERROR, logger="blend_app"):
-        await run_blend_app()
-
-    assert "empty location map" in caplog.text
-
-@pytest.mark.asyncio
 async def test_run_blend_app_success(mock_dependencies):
     """Test full execution path: both main blend and adjuster pass run (use_adjuster=True)."""
     deps = mock_dependencies
@@ -64,16 +82,17 @@ async def test_run_blend_app_success(mock_dependencies):
     async with get_dataplatform_client() as client:
         await client.create_location(
             dp.CreateLocationRequest(
-                location_name="site_id",
+                location_name="nl_national",
                 energy_source=dp.EnergySource.SOLAR,
                 geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.SITE,
+                location_type=dp.LocationType.NATION,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
             ),
         )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
+    deps["get_regional_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
 
     # Mocking non-empty result to trigger saving
     mock_blend_df = pd.DataFrame({"target_time": [], "expected_power_generation_megawatts": []})
@@ -100,6 +119,17 @@ async def test_run_blend_app_success(mock_dependencies):
         f"got {deps['_save_forecasts'].call_count}"
     )
 
+@pytest.mark.asyncio
+async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies):  # noqa: ARG001
+    """Test early exit if no location map is returned."""
+    # We do not seed any locations here, so list_locations will return empty.
+
+    with caplog.at_level(logging.ERROR, logger="blend_app"):
+        await run_blend_app()
+
+    assert "empty location map" in caplog.text
+
+
 
 @pytest.mark.asyncio
 async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
@@ -109,10 +139,10 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
     async with get_dataplatform_client() as client:
         await client.create_location(
             dp.CreateLocationRequest(
-                location_name="test_blend",
+                location_name="nl_national",
                 energy_source=dp.EnergySource.SOLAR,
                 geometry_wkt="POINT(0 0)",
-                location_type=dp.LocationType.SITE,
+                location_type=dp.LocationType.NATION,
                 effective_capacity_watts=1_000,
                 valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
             ),

@@ -50,3 +50,10 @@ blend:
 
   # Forecaster name written to the Data Platform.
   forecaster_name: nl_blend
+
+  # The location name key that identifies the national location in the DP location map.
+  national_location_key: nl_national
+
+  # The location type constraint used to filter regional locations from the map.
+  regional_location_type: STATE
+
