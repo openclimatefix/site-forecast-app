@@ -7,6 +7,7 @@ import pytest
 from dp_sdk.ocf import dp
 
 from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
+from site_forecast_app.blend.config import load_blend_config
 
 # ---------------------------------------------------------------------------
 # Unit tests for the NL blend application orchestration
@@ -96,7 +97,7 @@ async def test_run_blend_app_success(mock_dependencies):
     mock_blend_df.loc[0] = [pd.Timestamp("2024-01-01 12:00", tz="UTC"), 10.0]
     deps["get_blend_forecast_values_latest"].return_value = mock_blend_df
 
-    await run_blend_app()
+    await run_blend_app(config=load_blend_config())
 
     # These are called once per run (shared setup)
     deps["load_nl_mae_scorecard"].assert_called_once()
@@ -122,7 +123,7 @@ async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies)
     # We do not seed any locations here, so list_locations will return empty.
 
     with caplog.at_level(logging.ERROR, logger="blend_app"):
-        await run_blend_app()
+        await run_blend_app(config=load_blend_config())
 
     assert "empty location map" in caplog.text
 
@@ -151,7 +152,7 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies):
     deps["get_blend_forecast_values_latest"].return_value = pd.DataFrame()
 
     with caplog.at_level(logging.WARNING, logger="site_forecast_app.blend.blend"):
-        await run_blend_app()
+        await run_blend_app(config=load_blend_config())
 
     deps["_save_forecasts"].assert_not_called()
 
@@ -242,7 +243,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies):
     mock_blend_df.loc[0] = [pd.Timestamp("2024-01-01 12:00", tz="UTC"), 10.0]
     deps["get_blend_forecast_values_latest"].return_value = mock_blend_df
 
-    await run_blend_app()
+    await run_blend_app(config=load_blend_config())
 
     # Should run main blend and adjuster for:
     # 1. nl_national (National pass) -> uses get_blend_weights (2 calls)

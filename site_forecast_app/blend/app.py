@@ -7,7 +7,7 @@ import pandas as pd
 from dp_sdk.ocf import dp
 
 from site_forecast_app.blend.blend import get_blend_forecast_values_latest
-from site_forecast_app.blend.config import load_blend_config
+from site_forecast_app.blend.config import NlBlendConfig
 from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
 )
@@ -22,8 +22,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("blend_app")
 
 
-async def run_blend_app() -> None:
-    """Main execution point for the NL Blend app.
+async def run_blend_app(config: NlBlendConfig) -> None:
+    """Main execution point for the forecast blending application.
+
+    The caller is responsible for loading and selecting the correct
+    :class:`~site_forecast_app.blend.config.NlBlendConfig` for the country
+    being processed and passing it in here.  This keeps config selection
+    centralised in the orchestrating ``app.py`` and makes this function
+    reusable for future countries without modification.
+
+    Args:
+        config: A fully-validated blend configuration for the country
+                being processed.
 
     Steps:
     1. Determine blend reference time (t0)
@@ -37,7 +47,7 @@ async def run_blend_app() -> None:
     7. If use_adjuster=True: repeat steps 4-6 using {model}_adjust forecasters
        and save under {forecaster_name}_adjust
     """
-    _cfg = load_blend_config()
+    _cfg = config
     logger.info(
         f"Starting NL Blend execution. "
         f"use_adjuster={_cfg.use_adjuster}, "
@@ -109,6 +119,7 @@ async def run_blend_app() -> None:
             df_mae=df_mae,
             max_horizon=max_horizon,
             forecaster_name=_cfg.forecaster_name,
+            config=_cfg,
         )
 
         # -------------------------------------------------------------- #
@@ -134,6 +145,7 @@ async def run_blend_app() -> None:
                 max_horizon=max_horizon,
                 forecaster_name=_cfg.forecaster_name,
                 use_regional_weights=True,
+                config=_cfg,
             )
 
         # -------------------------------------------------------------- #
@@ -154,6 +166,7 @@ async def run_blend_app() -> None:
                 max_horizon=max_horizon,
                 forecaster_name=_cfg.adjuster_forecaster_name,
                 use_adjuster=True,
+                config=_cfg,
             )
             for location_key, location_uuid in regional_locations.items():
                 await _run_blend_pass(
@@ -166,6 +179,7 @@ async def run_blend_app() -> None:
                     forecaster_name=_cfg.adjuster_forecaster_name,
                     use_adjuster=True,
                     use_regional_weights=True,
+                    config=_cfg,
                 )
 
 
@@ -184,6 +198,7 @@ async def _run_blend_pass(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     forecaster_name: str,
+    config: NlBlendConfig,
     use_adjuster: bool = False,
     use_regional_weights: bool = False,
 ) -> None:
@@ -207,6 +222,7 @@ async def _run_blend_pass(
         df_mae:               (horizon x model) MAE scorecard.
         max_horizon:          Maximum scorecard horizon.
         forecaster_name:      Forecaster tag to save under.
+        config:               Blend configuration (models, kernel, etc.).
         use_adjuster:         When True, fetches {model}_adjust forecasters.
         use_regional_weights: When True, uses regional candidate models for
                               weight optimisation instead of national candidates.
@@ -218,7 +234,6 @@ async def _run_blend_pass(
         f"(forecaster='{forecaster_name}', use_adjuster={use_adjuster})",
     )
 
-    # Weights are always computed from the module-level constants.
     # Regional locations use the regional candidate model set.
     weight_fn = get_regional_blend_weights if use_regional_weights else get_blend_weights
     try:
@@ -228,6 +243,7 @@ async def _run_blend_pass(
             df_mae=df_mae,
             max_horizon=max_horizon,
             client=client,
+            config=config,
         )
         logger.info(f"[{log_prefix}] Blend weights calculated:\n{weights_df.head(10)}")
     except Exception:
@@ -366,4 +382,6 @@ async def _save_forecasts(
 
 
 if __name__ == "__main__":
-    asyncio.run(run_blend_app())
+    from site_forecast_app.blend.config import load_blend_config as _load_cfg
+
+    asyncio.run(run_blend_app(config=_load_cfg()))

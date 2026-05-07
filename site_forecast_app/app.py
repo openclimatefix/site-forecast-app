@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 import site_forecast_app
 from site_forecast_app import __version__
 from site_forecast_app.blend.app import run_blend_app
+from site_forecast_app.blend.config import load_blend_config
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pvnet.consts import root_data_path
@@ -363,8 +364,11 @@ def app_run(
         if client_name == "nl" and save_to_data_platform:
             # Run the NL blend pipeline automatically after site forecasts complete.
             # Blend writes to the Data Platform, so only run when DP saves are enabled.
+            # The config is loaded here (where country context lives) and passed into
+            # run_blend_app so the blend app remains country-agnostic.
             log.info("Starting NL blend pipeline...")
-            asyncio.run(run_blend_app())
+            nl_blend_config = load_blend_config()
+            asyncio.run(run_blend_app(config=nl_blend_config))
             log.info("NL blend pipeline completed.")
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
