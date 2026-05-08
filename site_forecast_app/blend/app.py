@@ -7,7 +7,7 @@ import pandas as pd
 from dp_sdk.ocf import dp
 
 from site_forecast_app.blend.blend import get_blend_forecast_values_latest
-from site_forecast_app.blend.config import NlBlendConfig
+from site_forecast_app.blend.config import BlendConfig
 from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
 )
@@ -22,11 +22,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("blend_app")
 
 
-async def run_blend_app(config: NlBlendConfig) -> None:
+async def run_blend_app(config: BlendConfig) -> None:
     """Main execution point for the forecast blending application.
 
     The caller is responsible for loading and selecting the correct
-    :class:`~site_forecast_app.blend.config.NlBlendConfig` for the country
+    :class:`~site_forecast_app.blend.config.BlendConfig` for the country
     being processed and passing it in here.  This keeps config selection
     centralised in the orchestrating ``app.py`` and makes this function
     reusable for future countries without modification.
@@ -49,7 +49,7 @@ async def run_blend_app(config: NlBlendConfig) -> None:
     """
     _cfg = config
     logger.info(
-        f"Starting NL Blend execution. "
+        "Starting blend execution. "
         f"use_adjuster={_cfg.use_adjuster}, "
         f"forecaster='{_cfg.forecaster_name}'",
     )
@@ -198,7 +198,7 @@ async def _run_blend_pass(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     forecaster_name: str,
-    config: NlBlendConfig,
+    config: BlendConfig,
     use_adjuster: bool = False,
     use_regional_weights: bool = False,
 ) -> None:

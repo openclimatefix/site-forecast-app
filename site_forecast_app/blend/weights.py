@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from site_forecast_app.blend.config import NlBlendConfig
+from site_forecast_app.blend.config import BlendConfig
 from site_forecast_app.blend.data_platform import fetch_latest_nl_init_times
 from site_forecast_app.blend.init_times import calculate_model_delays, shift_mae_curves
 
@@ -318,7 +318,7 @@ async def get_blend_weights(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     client: dp.DataPlatformDataServiceStub,
-    config: NlBlendConfig,
+    config: BlendConfig,
 ) -> pd.DataFrame:
     """Produces the national blend weight DataFrame for t0.
 
@@ -358,7 +358,7 @@ async def get_regional_blend_weights(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     client: dp.DataPlatformDataServiceStub,
-    config: NlBlendConfig,
+    config: BlendConfig,
 ) -> pd.DataFrame:
     """Produces a regional blend weight DataFrame for t0.
 

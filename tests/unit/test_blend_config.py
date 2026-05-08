@@ -2,20 +2,20 @@
 
 import pytest
 
-from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
+from site_forecast_app.blend.config import BlendConfig, load_blend_config
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _cfg(**overrides) -> NlBlendConfig:
+def _cfg(**overrides) -> BlendConfig:
     """Load the real config.yaml and override specific fields for a test."""
-    return load_blend_config().model_copy(update=overrides)
+    return load_blend_config().blend.model_copy(update=overrides)
 
 
 # ---------------------------------------------------------------------------
-# Tests: NlBlendConfig — adjuster_forecaster_name
+# Tests: BlendConfig — adjuster_forecaster_name
 # ---------------------------------------------------------------------------
 
 
@@ -43,7 +43,7 @@ class TestAdjusterForecasterName:
 
 
 # ---------------------------------------------------------------------------
-# Tests: NlBlendConfig — use_adjuster flag
+# Tests: BlendConfig — use_adjuster flag
 # ---------------------------------------------------------------------------
 
 

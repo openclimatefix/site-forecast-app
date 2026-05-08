@@ -361,15 +361,17 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
-        if client_name == "nl" and save_to_data_platform:
-            # Run the NL blend pipeline automatically after site forecasts complete.
+        if save_to_data_platform:
+            # Run the generic blend pipeline automatically after site forecasts complete.
             # Blend writes to the Data Platform, so only run when DP saves are enabled.
             # The config is loaded here (where country context lives) and passed into
             # run_blend_app so the blend app remains country-agnostic.
-            log.info("Starting NL blend pipeline...")
-            nl_blend_config = load_blend_config()
-            asyncio.run(run_blend_app(config=nl_blend_config))
-            log.info("NL blend pipeline completed.")
+            log.info("Checking for blend pipeline configuration...")
+            app_config = load_blend_config()
+            if app_config.client_name == client_name:
+                log.info(f"Starting {app_config.client_name} blend pipeline...")
+                asyncio.run(run_blend_app(config=app_config.blend))
+                log.info(f"{app_config.client_name} blend pipeline completed.")
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs < runs:

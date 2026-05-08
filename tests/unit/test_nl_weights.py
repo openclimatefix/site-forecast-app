@@ -3,14 +3,14 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from site_forecast_app.blend.config import NlBlendConfig, load_blend_config
+from site_forecast_app.blend.config import BlendConfig, load_blend_config
 from site_forecast_app.blend.weights import get_blend_weights
 
 
 @pytest.fixture
-def blend_config() -> NlBlendConfig:
-    """Real NlBlendConfig loaded from config.yaml."""
-    return load_blend_config()
+def blend_config() -> BlendConfig:
+    """Real BlendConfig loaded from config.yaml."""
+    return load_blend_config().blend
 
 
 # ---------------------------------------------------------------------------
@@ -18,7 +18,7 @@ def blend_config() -> NlBlendConfig:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_get_blend_weights_missing_init_times(blend_config: NlBlendConfig):
+async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     """Verify weights fallback to penalty logic when models missing."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     location_uuid = "test-uuid"
@@ -67,7 +67,7 @@ async def test_get_blend_weights_missing_init_times(blend_config: NlBlendConfig)
 
 
 @pytest.mark.asyncio
-async def test_get_blend_weights_all_fail(blend_config: NlBlendConfig):
+async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
     """Verify fallback when no initialisation times exist (everything falls back)."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     df_mae = pd.DataFrame({"nl_regional_2h_pv_ecmwf": [1.0]}, index=[pd.Timedelta("30min")])

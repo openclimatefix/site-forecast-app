@@ -12,8 +12,8 @@ from pyaml_env import parse_config
 from pydantic import BaseModel, Field
 
 
-class NlBlendConfig(BaseModel):
-    """Configuration for the NL Blend blending pipeline."""
+class BlendConfig(BaseModel):
+    """Configuration for a client-specific blend pipeline."""
 
     # ------------------------------------------------------------------
     # Model registry
@@ -115,26 +115,34 @@ class NlBlendConfig(BaseModel):
         return f"{self.forecaster_name}_adjust"
 
 
-class NlBlendConfigWrapper(BaseModel):
-    """Wrapper for the NL Blend configuration."""
+class BlendAppConfig(BaseModel):
+    """Global configuration for the blend application.
 
-    blend: NlBlendConfig
+    Provides a generic trigger mechanism: the blend only runs if
+    the environment's CLIENT_NAME matches ``client_name``.
+    """
+
+    client_name: str = Field(
+        "nl",
+        title="Client Name",
+        description="The name of the client to process (e.g. 'nl').",
+    )
+    blend: BlendConfig
 
 
-def load_blend_config() -> NlBlendConfig:
-    """Load and validate the NL Blend configuration from ``config.yaml``.
+def load_blend_config() -> BlendAppConfig:
+    """Load and validate the blend configuration from ``config.yaml``.
 
     The file is resolved relative to this module so it is always found
-    regardless of the working directory — identical to the approach used
-    by ``site_forecast_app/models/pydantic_models.py``.
+    regardless of the working directory.
 
     Returns:
-        A validated :class:`NlBlendConfig` instance.
+        A validated :class:`BlendAppConfig` instance.
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
 
     with fsspec.open(filename, mode="r") as stream:
         raw = parse_config(data=stream)
-        wrapper = NlBlendConfigWrapper(**raw)
+        config = BlendAppConfig(**raw)
 
-    return wrapper.blend
+    return config
