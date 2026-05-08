@@ -56,6 +56,11 @@ class BlendConfig(BaseModel):
         title="Minimum Forecast Horizon (minutes)",
         description="Minimum forecast horizon emitted in any blended forecast.",
     )
+    t0_frequency: str = Field(
+        "15min",
+        title="t0 Floor Frequency",
+        description="The frequency to floor the current time to for the blend reference time (t0).",
+    )
 
     # ------------------------------------------------------------------
     # Adjuster
@@ -113,6 +118,11 @@ class BlendConfig(BaseModel):
     def adjuster_forecaster_name(self) -> str:
         """Forecaster name for the adjusted blend."""
         return f"{self.forecaster_name}_adjust"
+
+    @property
+    def t0(self) -> pd.Timestamp:
+        """The blend reference time (t0), floored to the configured frequency."""
+        return pd.Timestamp.utcnow().floor(self.t0_frequency)
 
 
 class BlendAppConfig(BaseModel):

@@ -36,6 +36,9 @@ blend:
   # Minimum forecast horizon (minutes) emitted in any blended forecast.
   min_forecast_horizon_minutes: 15
 
+  # Frequency used to floor the blend reference time (t0).
+  t0_frequency: 15min
+
   # ------------------------------------------------------------------ #
   # Adjuster                                                             #
   # ------------------------------------------------------------------ #

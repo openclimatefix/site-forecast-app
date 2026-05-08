@@ -55,9 +55,9 @@ async def run_blend_app(config: BlendConfig) -> None:
     )
 
     # ------------------------------------------------------------------ #
-    # Determine blend reference time - floor to 15-min boundary          #
+    # Determine blend reference time (t0) from config                    #
     # ------------------------------------------------------------------ #
-    t0 = pd.Timestamp.utcnow().floor("15min")
+    t0 = config.t0
     logger.info(f"Blend t0: {t0}")
 
     # ------------------------------------------------------------------ #
