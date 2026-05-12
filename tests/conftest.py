@@ -26,6 +26,7 @@ from pvsite_datamodel.sqlmodels import (
 from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
+from site_forecast_app.blend.config import BlendConfig, load_blend_config
 from site_forecast_app.data.gencast import get_latest_6hr_init_time
 
 log = logging.getLogger(__name__)
@@ -627,3 +628,9 @@ def small_satellite_data(tmp_path_factory, init_timestamp):
 def use_satellite():
     """Set use satellite env var"""
     os.environ["USE_SATELLITE"] = "true"
+
+
+@pytest.fixture
+def blend_config() -> BlendConfig:
+    """Fixture providing a real BlendConfig populated from config.yaml."""
+    return load_blend_config(client_name="nl")

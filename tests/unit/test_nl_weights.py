@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
+from site_forecast_app.blend.config import BlendConfig
 from site_forecast_app.blend.weights import get_blend_weights
 
 # ---------------------------------------------------------------------------
@@ -10,7 +11,7 @@ from site_forecast_app.blend.weights import get_blend_weights
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_get_blend_weights_missing_init_times():
+async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     """Verify weights fallback to penalty logic when models missing."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     location_uuid = "test-uuid"
@@ -44,6 +45,7 @@ async def test_get_blend_weights_missing_init_times():
             df_mae=df_mae,
             max_horizon=max_horizon,
             client=mock_client,
+            config=blend_config,
         )
 
     assert weights_df is not None
@@ -56,8 +58,9 @@ async def test_get_blend_weights_missing_init_times():
     weight_sum = weights_df.sum(axis=1)
     assert (weight_sum > 0.99).all() and (weight_sum < 1.01).all()
 
+
 @pytest.mark.asyncio
-async def test_get_blend_weights_all_fail():
+async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
     """Verify fallback when no initialisation times exist (everything falls back)."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     df_mae = pd.DataFrame({"nl_regional_2h_pv_ecmwf": [1.0]}, index=[pd.Timedelta("30min")])
@@ -74,6 +77,7 @@ async def test_get_blend_weights_all_fail():
             df_mae=df_mae,
             max_horizon=pd.Timedelta("30min"),
             client=AsyncMock(),
+            config=blend_config,
         )
         assert len(weights_df) == 1
         # It still computes weights evenly or heavily shifts since they both have huge penalties.

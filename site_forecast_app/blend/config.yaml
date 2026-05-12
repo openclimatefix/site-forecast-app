@@ -1,59 +1,63 @@
 # NL Blend configuration
 # Values here drive blend/weights.py and blend/app.py.
-blend:
-  # ------------------------------------------------------------------ #
-  # Model registry                                                       #
-  # ------------------------------------------------------------------ #
+blends:
+  - client_name: nl
+    # ------------------------------------------------------------------ #
+    # Model registry                                                       #
+    # ------------------------------------------------------------------ #
 
-  # The absolute fallback model: always available, used as the backup.
-  backup_model: nl_regional_2h_pv_ecmwf
+    # The absolute fallback model: always available, used as the backup.
+    backup_model: nl_regional_2h_pv_ecmwf
 
-  # Candidate models for the national blend.
-  # The optimiser will pick the single best one to blend against backup_model.
-  national_candidate_models:
-    - nl_regional_48h_pv_ecmwf
-    - nl_regional_pv_ecmwf_mo_sat
-    - nl_regional_pv_ecmwf_sat
-    - nl_national_pv_ecmwf_sat_small
+    # Candidate models for the national blend.
+    # The optimiser will pick the single best one to blend against backup_model.
+    national_candidate_models:
+      - nl_regional_48h_pv_ecmwf
+      - nl_regional_pv_ecmwf_mo_sat
+      - nl_regional_pv_ecmwf_sat
+      - nl_national_pv_ecmwf_sat_small
 
-  # Candidate models for regional blends (subset of national candidates).
-  regional_candidate_models:
-    - nl_regional_48h_pv_ecmwf
-    - nl_regional_pv_ecmwf_mo_sat
-    - nl_regional_pv_ecmwf_sat
+    # Candidate models for regional blends (subset of national candidates).
+    regional_candidate_models:
+      - nl_regional_48h_pv_ecmwf
+      - nl_regional_pv_ecmwf_mo_sat
+      - nl_regional_pv_ecmwf_sat
 
-  # ------------------------------------------------------------------ #
-  # Blending parameters                                                  #
-  # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------ #
+    # Blending parameters                                                  #
+    # ------------------------------------------------------------------ #
 
-  # Taper kernel: weights at the transition zone between two models.
-  # Values must be strictly between 0 and 1 and non-increasing.
-  blend_kernel:
-    - 0.75
-    - 0.5
-    - 0.25
+    # Taper kernel: weights at the transition zone between two models.
+    # Values must be strictly between 0 and 1 and non-increasing.
+    blend_kernel:
+      - 0.75
+      - 0.5
+      - 0.25
 
-  # Minimum forecast horizon (minutes) emitted in any blended forecast.
-  min_forecast_horizon_minutes: 15
+    # Minimum forecast horizon (minutes) emitted in any blended forecast.
+    min_forecast_horizon_minutes: 15
 
-  # ------------------------------------------------------------------ #
-  # Adjuster                                                             #
-  # ------------------------------------------------------------------ #
-  use_adjuster: true
+    # Frequency used to floor the blend reference time (t0).
+    t0_frequency: 15min
 
-  # ------------------------------------------------------------------ #
-  # Infrastructure / naming                                              #
-  # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------ #
+    # Adjuster                                                             #
+    # ------------------------------------------------------------------ #
+    use_adjuster: true
 
-  # Path to the MAE scorecard, relative to the blend package directory.
-  scorecard_path: data/nl_backtest_nmae_comparison.csv
+    # ------------------------------------------------------------------ #
+    # Infrastructure / naming                                              #
+    # ------------------------------------------------------------------ #
 
-  # Forecaster name written to the Data Platform.
-  forecaster_name: nl_blend
+    # Path to the MAE scorecard, relative to the blend package directory.
+    scorecard_path: data/nl_backtest_nmae_comparison.csv
 
-  # The location name key that identifies the national location in the DP location map.
-  national_location_key: nl_national
+    # Forecaster name written to the Data Platform.
+    forecaster_name: nl_blend
 
-  # The location type constraint used to filter regional locations from the map.
-  regional_location_type: STATE
+    # The location name key that identifies the national location in the DP location map.
+    national_location_key: nl_national
+
+    # The location type constraint used to filter regional locations from the map.
+    regional_location_type: STATE
 

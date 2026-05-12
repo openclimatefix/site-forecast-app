@@ -12,8 +12,14 @@ from pyaml_env import parse_config
 from pydantic import BaseModel, Field
 
 
-class NlBlendConfig(BaseModel):
-    """Configuration for the NL Blend blending pipeline."""
+class BlendConfig(BaseModel):
+    """Configuration for a client-specific blend pipeline."""
+
+    client_name: str = Field(
+        "nl",
+        title="Client Name",
+        description="The name of the client to process (e.g. 'nl').",
+    )
 
     # ------------------------------------------------------------------
     # Model registry
@@ -55,6 +61,11 @@ class NlBlendConfig(BaseModel):
         15,
         title="Minimum Forecast Horizon (minutes)",
         description="Minimum forecast horizon emitted in any blended forecast.",
+    )
+    t0_frequency: str = Field(
+        "15min",
+        title="t0 Floor Frequency",
+        description="The frequency to floor the current time to for the blend reference time (t0).",
     )
 
     # ------------------------------------------------------------------
@@ -114,27 +125,47 @@ class NlBlendConfig(BaseModel):
         """Forecaster name for the adjusted blend."""
         return f"{self.forecaster_name}_adjust"
 
+    @property
+    def t0(self) -> pd.Timestamp:
+        """The blend reference time (t0), floored to the configured frequency."""
+        return pd.Timestamp.utcnow().floor(self.t0_frequency)
 
-class NlBlendConfigWrapper(BaseModel):
-    """Wrapper for the NL Blend configuration."""
 
-    blend: NlBlendConfig
+class BlendConfigs(BaseModel):
+    """Global configuration containing all blend configurations."""
+
+    blends: list[BlendConfig] = Field(
+        ...,
+        title="Blend Configurations",
+        description="List of all client-specific blend configurations.",
+    )
 
 
-def load_blend_config() -> NlBlendConfig:
-    """Load and validate the NL Blend configuration from ``config.yaml``.
+def load_blend_config(client_name: str | None = None) -> BlendConfig | None:
+    """Load and validate the blend configuration from ``config.yaml``.
 
     The file is resolved relative to this module so it is always found
-    regardless of the working directory — identical to the approach used
-    by ``site_forecast_app/models/pydantic_models.py``.
+    regardless of the working directory.
+
+    Args:
+        client_name: The client name to load the configuration for.
+                     If None, it uses the CLIENT_NAME environment variable
+                     (defaulting to "nl").
 
     Returns:
-        A validated :class:`NlBlendConfig` instance.
+        A validated :class:`BlendConfig` instance, or None if no configuration
+        exists for the client.
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
 
     with fsspec.open(filename, mode="r") as stream:
         raw = parse_config(data=stream)
-        wrapper = NlBlendConfigWrapper(**raw)
+        configs = BlendConfigs(**raw)
 
-    return wrapper.blend
+    target_client = client_name or os.getenv("CLIENT_NAME", "nl")
+
+    for blend_cfg in configs.blends:
+        if blend_cfg.client_name == target_client:
+            return blend_cfg
+
+    return None

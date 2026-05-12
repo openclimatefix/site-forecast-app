@@ -23,42 +23,35 @@ import numpy as np
 import pandas as pd
 from dp_sdk.ocf import dp
 
-from site_forecast_app.blend.config import load_blend_config
+from site_forecast_app.blend.config import BlendConfig
 from site_forecast_app.blend.data_platform import fetch_latest_nl_init_times
 from site_forecast_app.blend.init_times import calculate_model_delays, shift_mae_curves
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Load config - all tuning parameters live in blend/config.yaml
-# ---------------------------------------------------------------------------
-_cfg = load_blend_config()
-
-NL_BACKUP_MODEL: str = _cfg.backup_model
-NL_NATIONAL_CANDIDATE_MODELS: list[str] = _cfg.national_candidate_models
-NL_REGIONAL_CANDIDATE_MODELS: list[str] = _cfg.regional_candidate_models
-BLEND_KERNEL: list[float] = _cfg.blend_kernel
-MIN_FORECAST_HORIZON: pd.Timedelta = _cfg.min_forecast_horizon
 
 
 # ---------------------------------------------------------------------------
 # Score function
 # ---------------------------------------------------------------------------
 
-def make_avg_mae_func(horizon: pd.Timedelta) -> Callable[[pd.Series], float]:
+def make_avg_mae_func(
+    horizon: pd.Timedelta,
+    min_forecast_horizon: pd.Timedelta,
+) -> Callable[[pd.Series], float]:
     """Returns a scoring function that averages MAE up to *horizon*.
 
-    Computes the mean MAE over [MIN_FORECAST_HORIZON, horizon], excluding
+    Computes the mean MAE over [min_forecast_horizon, horizon], excluding
     the final boundary point (half-open interval).
 
     Args:
-        horizon: Upper bound of the scoring window (e.g. max_horizon).
+        horizon:              Upper bound of the scoring window (e.g. max_horizon).
+        min_forecast_horizon: Lower bound of the scoring window.
 
     Returns:
         A callable that takes a horizon-MAE Series and returns a float score.
     """
     def _score(horizon_mae: pd.Series) -> float:
-        window = horizon_mae.loc[MIN_FORECAST_HORIZON:horizon]
+        window = horizon_mae.loc[min_forecast_horizon:horizon]
         return float(window.iloc[:-1].mean())
 
     _score.__name__ = f"avg_mae_up_to_{horizon}"
@@ -108,6 +101,7 @@ def calculate_optimal_blend_weights(
     candidate_models: list[str],
     kernel: list[float],
     score_func: Callable[[pd.Series], float],
+    min_forecast_horizon: pd.Timedelta,
 ) -> pd.DataFrame:
     """Selects the single best candidate to blend against the backup.
 
@@ -117,11 +111,12 @@ def calculate_optimal_blend_weights(
     horizon. If no candidate beats the backup, returns backup-only weights.
 
     Args:
-        df_mae:            Shifted (horizon x model) MAE DataFrame.
-        backup_model_name: Column name of the fallback model.
-        candidate_models:  Model names to evaluate (excluding backup).
-        kernel:            Taper kernel (e.g. [0.75, 0.5, 0.25]).
-        score_func:        Callable(pd.Series) -> float, lower is better.
+        df_mae:               Shifted (horizon x model) MAE DataFrame.
+        backup_model_name:    Column name of the fallback model.
+        candidate_models:     Model names to evaluate (excluding backup).
+        kernel:               Taper kernel (e.g. [0.75, 0.5, 0.25]).
+        score_func:           Callable(pd.Series) -> float, lower is better.
+        min_forecast_horizon: Minimum horizon; taper positions below this are skipped.
 
     Returns:
         DataFrame with one or two columns. Weights sum to 1.0 at every
@@ -177,7 +172,7 @@ def calculate_optimal_blend_weights(
             # Sweep taper-start positions over the candidate's valid range.
             max_blend_start_pos = last_non_nan_idx - len(kernel_arr) + 1
             for position in range(max_blend_start_pos + 1):
-                if df_mae.index[position] < MIN_FORECAST_HORIZON:
+                if df_mae.index[position] < min_forecast_horizon:
                     continue
                 candidate_weights = make_blend_weights_array(
                     size=n,
@@ -232,27 +227,33 @@ async def _compute_weights(
     client: dp.DataPlatformDataServiceStub,
     candidate_models: list[str],
     label: str,
+    backup_model: str,
+    kernel: list[float],
+    min_forecast_horizon: pd.Timedelta,
 ) -> pd.DataFrame:
     """Fetches init times, shifts MAE curves, and runs the single-stage optimiser.
 
-    Shared by get_blend_weights
+    Shared by get_blend_weights and get_regional_blend_weights.
 
     Args:
-        t0:               Blend reference time (UTC).
-        location_uuid:    Data Platform location UUID.
-        df_mae:           (horizon x model) MAE scorecard.
-        max_horizon:      Maximum scorecard horizon; used as max_delay and as
-                          the score window upper bound.
-        client:           Authenticated Data Platform gRPC client stub.
-        candidate_models: Models to evaluate against NL_BACKUP_MODEL.
-        label:            Short label for log messages ("National"/"Regional").
+        t0:                   Blend reference time (UTC).
+        location_uuid:        Data Platform location UUID.
+        df_mae:               (horizon x model) MAE scorecard.
+        max_horizon:          Maximum scorecard horizon; used as max_delay and as
+                              the score window upper bound.
+        client:               Authenticated Data Platform gRPC client stub.
+        candidate_models:     Models to evaluate against *backup_model*.
+        label:                Short label for log messages ("National"/"Regional").
+        backup_model:         Fallback model name (always available).
+        kernel:               Taper kernel weights (e.g. [0.75, 0.5, 0.25]).
+        min_forecast_horizon: Minimum forecast horizon used in the scoring window.
 
     Returns:
         Wide DataFrame indexed by absolute UTC target time.
         Weights sum to 1.0 at every horizon.
         Returns an empty DataFrame on failure.
     """
-    all_models = [NL_BACKUP_MODEL, *candidate_models]
+    all_models = [backup_model, *candidate_models]
 
     # Fetch model initialisation times
     model_init_times = await fetch_latest_nl_init_times(
@@ -271,7 +272,7 @@ async def _compute_weights(
     for m in missing:
         # Backup always gets delay=0 (always available).
         # Candidates get delay=max_horizon (effectively excluded).
-        model_init_times[m] = t0 if m == NL_BACKUP_MODEL else t0 - max_horizon
+        model_init_times[m] = t0 if m == backup_model else t0 - max_horizon
 
     # Compute delays and shift MAE scorecard
     delays = calculate_model_delays(model_init_times, t0)
@@ -286,13 +287,14 @@ async def _compute_weights(
         return pd.DataFrame()
 
     # Single-stage optimisation: best candidate vs backup over full horizon
-    score_func = make_avg_mae_func(max_horizon)
+    score_func = make_avg_mae_func(max_horizon, min_forecast_horizon)
     df_weights = calculate_optimal_blend_weights(
         df_mae=df_delayed_mae,
-        backup_model_name=NL_BACKUP_MODEL,
+        backup_model_name=backup_model,
         candidate_models=candidate_models,
-        kernel=BLEND_KERNEL,
+        kernel=kernel,
         score_func=score_func,
+        min_forecast_horizon=min_forecast_horizon,
     )
     logger.info(f"[{label}] Weights (head):\n{df_weights.head()}")
 
@@ -316,11 +318,12 @@ async def get_blend_weights(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     client: dp.DataPlatformDataServiceStub,
+    config: BlendConfig,
 ) -> pd.DataFrame:
     """Produces the national blend weight DataFrame for t0.
 
-    Single-stage: picks the best model from NL_NATIONAL_CANDIDATE_MODELS
-    to blend against NL_BACKUP_MODEL, scored over the full scorecard horizon.
+    Single-stage: picks the best model from config.national_candidate_models
+    to blend against config.backup_model, scored over the full scorecard horizon.
 
     Args:
         t0:            Blend reference time (UTC, floored to 15 min).
@@ -328,6 +331,7 @@ async def get_blend_weights(
         df_mae:        (horizon x model) MAE scorecard.
         max_horizon:   Maximum horizon in the scorecard.
         client:        Authenticated Data Platform gRPC client stub.
+        config:        Blend configuration supplying model names and kernel.
 
     Returns:
         Wide DataFrame indexed by absolute UTC target time.
@@ -340,8 +344,11 @@ async def get_blend_weights(
         df_mae=df_mae,
         max_horizon=max_horizon,
         client=client,
-        candidate_models=NL_NATIONAL_CANDIDATE_MODELS,
+        candidate_models=config.national_candidate_models,
         label="National",
+        backup_model=config.backup_model,
+        kernel=config.blend_kernel,
+        min_forecast_horizon=config.min_forecast_horizon,
     )
 
 
@@ -351,12 +358,12 @@ async def get_regional_blend_weights(
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     client: dp.DataPlatformDataServiceStub,
+    config: BlendConfig,
 ) -> pd.DataFrame:
     """Produces a regional blend weight DataFrame for t0.
 
     Identical pipeline to :func:`get_blend_weights` but uses
-    NL_REGIONAL_CANDIDATE_MODELS as the candidate set, which is typically
-    a subset of the national candidates (see config.yaml).
+    config.regional_candidate_models as the candidate set.
 
     Args:
         t0:            Blend reference time (UTC, floored to 15 min).
@@ -364,6 +371,7 @@ async def get_regional_blend_weights(
         df_mae:        (horizon x model) MAE scorecard.
         max_horizon:   Maximum horizon in the scorecard.
         client:        Authenticated Data Platform gRPC client stub.
+        config:        Blend configuration supplying model names and kernel.
 
     Returns:
         Wide DataFrame indexed by absolute UTC target time.
@@ -376,6 +384,9 @@ async def get_regional_blend_weights(
         df_mae=df_mae,
         max_horizon=max_horizon,
         client=client,
-        candidate_models=NL_REGIONAL_CANDIDATE_MODELS,
+        candidate_models=config.regional_candidate_models,
         label="Regional",
+        backup_model=config.backup_model,
+        kernel=config.blend_kernel,
+        min_forecast_horizon=config.min_forecast_horizon,
     )

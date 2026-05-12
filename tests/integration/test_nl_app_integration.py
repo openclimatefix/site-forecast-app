@@ -8,7 +8,7 @@ from site_forecast_app.blend.app import run_blend_app
 
 
 @pytest.mark.asyncio
-async def test_run_blend_app_e2e(dp_address, monkeypatch):
+async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
     """
     End-to-End integration test hitting a real Data Platform test container.
 
@@ -53,8 +53,8 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch):
             n_steps=96,  # 24 h at 15-min resolution
         )
 
-    # 3. Run the blend app.
-    await run_blend_app()
+    # Also run the full blend pipeline against the stored model forecasts
+    await run_blend_app(config=blend_config)
 
     # 4. Verify the blended forecast was written to the Data Platform.
     list_forecasters_resp = await client.list_forecasters(
