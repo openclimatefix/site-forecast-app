@@ -1,5 +1,4 @@
 """Main entry point for the NL forecast blending application."""
-import asyncio
 import logging
 import os
 

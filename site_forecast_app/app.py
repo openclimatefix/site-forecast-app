@@ -368,7 +368,7 @@ def app_run(
             # run_blend_app so the blend app remains country-agnostic.
             log.info("Checking for blend pipeline configuration...")
             app_config = load_blend_config(client_name=client_name)
-            if app_config and app_config.client_name == client_name and client_name == 'nl':
+            if app_config and app_config.client_name == client_name and client_name == "nl":
                 log.info(f"Starting {app_config.client_name} blend pipeline...")
                 asyncio.run(run_blend_app(config=app_config))
                 log.info(f"{app_config.client_name} blend pipeline completed.")
