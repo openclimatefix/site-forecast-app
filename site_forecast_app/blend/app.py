@@ -381,7 +381,3 @@ async def _save_forecasts(
         logger.exception(f"Failed to write forecast for '{location_key}'.")
 
 
-if __name__ == "__main__":
-    from site_forecast_app.blend.config import load_blend_config as _load_cfg
-
-    asyncio.run(run_blend_app(config=_load_cfg()))

@@ -15,6 +15,12 @@ from pydantic import BaseModel, Field
 class BlendConfig(BaseModel):
     """Configuration for a client-specific blend pipeline."""
 
+    client_name: str = Field(
+        "nl",
+        title="Client Name",
+        description="The name of the client to process (e.g. 'nl').",
+    )
+
     # ------------------------------------------------------------------
     # Model registry
     # ------------------------------------------------------------------
@@ -125,34 +131,41 @@ class BlendConfig(BaseModel):
         return pd.Timestamp.utcnow().floor(self.t0_frequency)
 
 
-class BlendAppConfig(BaseModel):
-    """Global configuration for the blend application.
+class BlendConfigs(BaseModel):
+    """Global configuration containing all blend configurations."""
 
-    Provides a generic trigger mechanism: the blend only runs if
-    the environment's CLIENT_NAME matches ``client_name``.
-    """
-
-    client_name: str = Field(
-        "nl",
-        title="Client Name",
-        description="The name of the client to process (e.g. 'nl').",
+    blends: list[BlendConfig] = Field(
+        ...,
+        title="Blend Configurations",
+        description="List of all client-specific blend configurations.",
     )
-    blend: BlendConfig
 
 
-def load_blend_config() -> BlendAppConfig:
+def load_blend_config(client_name: str | None = None) -> BlendConfig | None:
     """Load and validate the blend configuration from ``config.yaml``.
 
     The file is resolved relative to this module so it is always found
     regardless of the working directory.
 
+    Args:
+        client_name: The client name to load the configuration for.
+                     If None, it uses the CLIENT_NAME environment variable
+                     (defaulting to "nl").
+
     Returns:
-        A validated :class:`BlendAppConfig` instance.
+        A validated :class:`BlendConfig` instance, or None if no configuration
+        exists for the client.
     """
     filename = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml")
 
     with fsspec.open(filename, mode="r") as stream:
         raw = parse_config(data=stream)
-        config = BlendAppConfig(**raw)
+        configs = BlendConfigs(**raw)
 
-    return config
+    target_client = client_name or os.getenv("CLIENT_NAME", "nl")
+
+    for blend_cfg in configs.blends:
+        if blend_cfg.client_name == target_client:
+            return blend_cfg
+
+    return None
