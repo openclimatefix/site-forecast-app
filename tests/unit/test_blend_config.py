@@ -11,7 +11,7 @@ from site_forecast_app.blend.config import BlendConfig, load_blend_config
 
 def _cfg(**overrides) -> BlendConfig:
     """Load the real config.yaml and override specific fields for a test."""
-    return load_blend_config().model_copy(update=overrides)
+    return load_blend_config(client_name="nl").model_copy(update=overrides)
 
 
 # ---------------------------------------------------------------------------

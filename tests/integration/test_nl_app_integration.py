@@ -55,7 +55,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch):
         )
 
     # Also run the full blend pipeline against the stored model forecasts
-    await run_blend_app(config=load_blend_config())
+    await run_blend_app(config=load_blend_config(client_name="nl"))
 
     # 4. Verify the blended forecast was written to the Data Platform.
     list_forecasters_resp = await client.list_forecasters(

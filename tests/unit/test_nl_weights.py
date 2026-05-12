@@ -10,7 +10,7 @@ from site_forecast_app.blend.weights import get_blend_weights
 @pytest.fixture
 def blend_config() -> BlendConfig:
     """Fixture providing a real BlendConfig populated from config.yaml."""
-    return load_blend_config()
+    return load_blend_config(client_name="nl")
 
 
 # ---------------------------------------------------------------------------
