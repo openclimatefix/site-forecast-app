@@ -1,4 +1,6 @@
 import datetime as dt
+import os
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -95,3 +97,23 @@ def test_format_generation_data():
     np.testing.assert_allclose(
         result["capacity_mwp"].values, expected_capacity_broadcast,
     )
+
+@patch("site_forecast_app.data.generation.fetch_generation_from_dp")
+def test_get_generation_data_dp(mock_fetch, db_session, sites, init_timestamp):
+    """Test reading generation data from the data platform via env var."""
+    mock_fetch.return_value = [
+        (init_timestamp - dt.timedelta(hours=1), 10.5),
+        (init_timestamp, 20.0),
+    ]
+
+    os.environ["READ_FROM_DATA_PLATFORM"] = "true"
+    try:
+        gen_sites = [s for s in sites if s.asset_type == LocationAssetType.pv][0:1]
+        gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
+        gen_xr, gen_meta = gen_data["data"], gen_data["metadata"]
+
+        mock_fetch.assert_called_once()
+        assert "generation_kw" in gen_xr
+        assert len(gen_meta) == 1
+    finally:
+        os.environ.pop("READ_FROM_DATA_PLATFORM", None)

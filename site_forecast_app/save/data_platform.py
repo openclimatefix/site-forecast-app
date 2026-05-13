@@ -51,6 +51,75 @@ async def build_dp_location_map() -> dict[str, str]:
         return await fetch_dp_location_map(client)
 
 
+async def fetch_generation_from_dp(
+    site_name: str,
+    start: datetime,
+    end: datetime,
+) -> list[tuple[datetime, float]]:
+    """Fetch generation (observation) data from the Data Platform."""
+    if not site_name:
+        return []
+
+    async with get_dataplatform_client() as client:
+        loc_map = await fetch_dp_location_map(client)
+        loc_uuid = loc_map.get(site_name)
+        if not loc_uuid:
+            log.warning(f"Site {site_name} not found in Data Platform")
+            return []
+
+        # Determine the observer name from the environment, defaulting to nednl
+        observer_name = os.getenv("OBSERVER_NAME", "nednl")
+
+        req = dp.GetObservationsAsTimeseriesRequest(
+            location_uuid=loc_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            observer_name=observer_name,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=ensure_timezone_aware(start).to_pydatetime()
+                if hasattr(ensure_timezone_aware(start), "to_pydatetime")
+                else ensure_timezone_aware(start),
+                end_timestamp_utc=ensure_timezone_aware(end).to_pydatetime()
+                if hasattr(ensure_timezone_aware(end), "to_pydatetime")
+                else ensure_timezone_aware(end),
+            ),
+        )
+        try:
+            res = await client.get_observations_as_timeseries(req)
+        except Exception as e:
+            import traceback
+            log.error(f"Failed to fetch observations for {site_name}: {e}")
+            log.error(f"Traceback: {traceback.format_exc()}")
+            return []
+
+        if not res.values:
+            return []
+
+        loc_res = await client.get_location(
+            dp.GetLocationRequest(
+                location_uuid=loc_uuid,
+                energy_source=dp.EnergySource.SOLAR,
+                include_geometry=False,
+            ),
+        )
+        cap_w = loc_res.effective_capacity_watts
+        if cap_w == 0:
+            log.warning(f"Site {site_name} has 0 capacity in Data Platform")
+            return []
+
+        data = []
+        for val in res.values:
+            if hasattr(val.timestamp_utc, "ToDatetime"):
+                t = val.timestamp_utc.ToDatetime()
+            else:
+                t = val.timestamp_utc
+            if t.tzinfo is None:
+                t = t.replace(tzinfo=UTC)
+            power_kw = (val.value_fraction * cap_w) / 1000.0
+            data.append((t, power_kw))
+
+        return data
+
+
 @contextlib.asynccontextmanager
 async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
     """Async context manager that opens a gRPC channel and yields a ready-to-use client.
@@ -66,7 +135,7 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
     (defaulting to ``localhost:50051``).
     """
     channel = Channel(
-        host=os.getenv("DATA_PLATFORM_HOST","localhost"),
+        host=os.getenv("DATA_PLATFORM_HOST", "localhost"),
         port=int(os.getenv("DATA_PLATFORM_PORT", "50051")),
     )
     try:
@@ -115,7 +184,6 @@ async def save_to_dataplatform(
     except Exception as e:
         log.error(f"Failed to save forecast to Data Platform: {e}")
         log.error(traceback.format_exc())
-
 
 
 async def make_forecaster_adjuster(
@@ -281,7 +349,6 @@ async def create_new_location(
         raise
 
 
-
 async def create_forecaster_if_not_exists(
     client: DataPlatformClient,
     model_tag: str,
@@ -303,9 +370,7 @@ async def create_forecaster_if_not_exists(
 
     if len(existing_forecasters) > 0:
         filtered_forecasters = [
-            f
-            for f in existing_forecasters
-            if f.forecaster_version == dp_forecaster_version
+            f for f in existing_forecasters if f.forecaster_version == dp_forecaster_version
         ]
         if len(filtered_forecasters) == 1:
             return filtered_forecasters[0]
@@ -453,7 +518,7 @@ async def save_forecast_to_dataplatform(
         p50s = [fv.p50_fraction for fv in forecast_values]
         log.info(
             f"p50 range: min={min(p50s):.6f}  max={max(p50s):.6f}  "
-            f"mean={sum(p50s)/len(p50s):.6f}",
+            f"mean={sum(p50s) / len(p50s):.6f}",
         )
     else:
         log.warning("no forecast values after preparation")

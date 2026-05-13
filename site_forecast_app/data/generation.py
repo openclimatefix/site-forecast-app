@@ -1,6 +1,8 @@
 """Functions for working with site generation data."""
+import asyncio
 import datetime as dt
 import logging
+import os
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,8 @@ from pvsite_datamodel import LocationSQL
 from pvsite_datamodel.read import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import LocationAssetType
 from sqlalchemy.orm import Session
+
+from site_forecast_app.save.data_platform import fetch_generation_from_dp
 
 log = logging.getLogger(__name__)
 
@@ -71,13 +75,28 @@ def _get_site_generation_data(
     end = timestamp + dt.timedelta(seconds=1)
 
     log.info(f"Getting generation data for site {site.location_uuid}, from {start=} to {end=}")
-    generation_data = get_pv_generation_by_sites(
-        session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
-    )
+
+    read_from_dp = os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
+
     # get the ml id
     system_id = site.ml_id
 
-    if len(generation_data) == 0:
+    if read_from_dp:
+        log.info(
+            f"Reading from Data Platform for the location {site.client_location_name} "
+            f"from {start} to {end}",
+        )
+        dp_data = asyncio.run(fetch_generation_from_dp(site.client_location_name, start, end))
+        formatted_data = [(t, p, system_id) for t, p in dp_data]
+    else:
+        generation_data = get_pv_generation_by_sites(
+            session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
+        )
+        formatted_data = [
+            (g.start_utc, g.generation_power_kw, system_id) for g in generation_data
+        ]
+
+    if len(formatted_data) == 0:
         log.warning(f"No generation found for site {site.location_uuid}")
         # created empty data frame with dimesion of time_utc
         generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
@@ -93,7 +112,7 @@ def _get_site_generation_data(
     else:
         # Convert to dataframe
         generation_df = pd.DataFrame(
-            [(g.start_utc, g.generation_power_kw, system_id) for g in generation_data],
+            formatted_data,
             columns=["time_utc", "power_kw", "ml_id"],
         ).pivot(index="time_utc", columns="ml_id", values="power_kw")
 
