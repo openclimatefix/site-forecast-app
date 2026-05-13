@@ -10,6 +10,7 @@ models:
     asset_type: pv
     satellite_scaling_method: constant
     location_type: nation
+    observer_name: nednl
   - name: nl_national_pv_ecmwf_sat_small
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -19,6 +20,7 @@ models:
     asset_type: pv
     satellite_scaling_method: constant
     location_type: nation
+    observer_name: nednl
   - name: nl_regional_pv_ecmwf_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -31,6 +33,7 @@ models:
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
     location_type: state
     summation_location_type: nation
+    observer_name: nednl
   - name: nl_regional_48h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -43,6 +46,7 @@ models:
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
     location_type: state
     summation_location_type: nation
+    observer_name: nednl
   - name: nl_regional_2h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -55,6 +59,7 @@ models:
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
     location_type: state
     summation_location_type: nation
+    observer_name: nednl
   - name: nl_regional_pv_ecmwf_mo_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -67,6 +72,8 @@ models:
     site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
     location_type: state
     summation_location_type: nation
+    observer_name: nednl
+
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
