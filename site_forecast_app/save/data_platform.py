@@ -86,9 +86,7 @@ async def fetch_generation_from_dp(
         try:
             res = await client.get_observations_as_timeseries(req)
         except Exception as e:
-            import traceback
             log.error(f"Failed to fetch observations for {site_name}: {e}")
-            log.error(f"Traceback: {traceback.format_exc()}")
             return []
 
         if not res.values:
@@ -135,7 +133,7 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
     (defaulting to ``localhost:50051``).
     """
     channel = Channel(
-        host=os.getenv("DATA_PLATFORM_HOST", "localhost"),
+        host=os.getenv("DATA_PLATFORM_HOST","localhost"),
         port=int(os.getenv("DATA_PLATFORM_PORT", "50051")),
     )
     try:
@@ -370,8 +368,9 @@ async def create_forecaster_if_not_exists(
 
     if len(existing_forecasters) > 0:
         filtered_forecasters = [
-            f for f in existing_forecasters if f.forecaster_version == dp_forecaster_version
-        ]
+            f for f in existing_forecasters
+            if f.forecaster_version == dp_forecaster_version
+            ]
         if len(filtered_forecasters) == 1:
             return filtered_forecasters[0]
         else:
@@ -518,7 +517,7 @@ async def save_forecast_to_dataplatform(
         p50s = [fv.p50_fraction for fv in forecast_values]
         log.info(
             f"p50 range: min={min(p50s):.6f}  max={max(p50s):.6f}  "
-            f"mean={sum(p50s) / len(p50s):.6f}",
+            f"mean={sum(p50s)/len(p50s):.6f}",
         )
     else:
         log.warning("no forecast values after preparation")
