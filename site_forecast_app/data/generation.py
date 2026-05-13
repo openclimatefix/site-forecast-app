@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 
 def get_generation_data(
         db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
+        observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
 
@@ -30,6 +31,7 @@ def get_generation_data(
             db_session: A SQLAlchemy session
             sites: A list of LocationSQL objects
             timestamp: The end time from which to retrieve data
+            observer_name: The name of the observer to fetch DP generation data from.
 
     Returns:
             A Dict containing:
@@ -37,13 +39,17 @@ def get_generation_data(
             - "metadata": Dataframe containing information about the sites.
     """
     if len(sites) == 1:
-        return _get_site_generation_data(db_session, sites[0], timestamp)
+        return asyncio.run(
+            _get_site_generation_data(db_session, sites[0], timestamp, observer_name),
+        )
     else:
         log.info("Multiple sites requested. Loading data for one site at a time...")
         metadata_list: list[pd.DataFrame] = []
         data_list: list[xr.Dataset] = []
         for site in sites:
-            site_dict = _get_site_generation_data(db_session, site, timestamp)
+            site_dict = asyncio.run(
+                _get_site_generation_data(db_session, site, timestamp, observer_name),
+            )
             metadata_list.append(site_dict["metadata"])
             data_list.append(site_dict["data"])
         log.debug("Generation data loaded for all sites. Compiling...")
@@ -55,8 +61,9 @@ def get_generation_data(
         return {"data": data, "metadata": metadata.set_index("system_id")}
 
 
-def _get_site_generation_data(
+async def _get_site_generation_data(
     db_session: Session, site: LocationSQL, timestamp: pd.Timestamp,
+    observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Gets generation data values for a single site.
 
@@ -64,6 +71,7 @@ def _get_site_generation_data(
             db_session: A SQLAlchemy session
             site: A LocationSQL object
             timestamp: The end time from which to retrieve data
+            observer_name: The name of the observer to fetch DP generation data from.
 
     Returns:
             A Dict containing:
@@ -86,7 +94,9 @@ def _get_site_generation_data(
             f"Reading from Data Platform for the location {site.client_location_name} "
             f"from {start} to {end}",
         )
-        dp_data = asyncio.run(fetch_generation_from_dp(site.client_location_name, start, end))
+        dp_data = await fetch_generation_from_dp(
+            site.client_location_name, start, end, observer_name,
+        )
         formatted_data = [(t, p, system_id) for t, p in dp_data]
     else:
         generation_data = get_pv_generation_by_sites(

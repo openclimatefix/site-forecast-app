@@ -55,6 +55,7 @@ async def fetch_generation_from_dp(
     site_name: str,
     start: datetime,
     end: datetime,
+    observer_name: str | None = None,
 ) -> list[tuple[datetime, float]]:
     """Fetch generation (observation) data from the Data Platform."""
     if not site_name:
@@ -67,13 +68,13 @@ async def fetch_generation_from_dp(
             log.warning(f"Site {site_name} not found in Data Platform")
             return []
 
-        # Determine the observer name from the environment, defaulting to nednl
-        observer_name = os.getenv("OBSERVER_NAME", "nednl")
+        # Determine the observer name from the argument, then environment, defaulting to nednl
+        actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "nednl")
 
         req = dp.GetObservationsAsTimeseriesRequest(
             location_uuid=loc_uuid,
             energy_source=dp.EnergySource.SOLAR,
-            observer_name=observer_name,
+            observer_name=actual_observer_name,
             time_window=dp.TimeWindow(
                 start_timestamp_utc=ensure_timezone_aware(start).to_pydatetime()
                 if hasattr(ensure_timezone_aware(start), "to_pydatetime")
@@ -92,26 +93,10 @@ async def fetch_generation_from_dp(
         if not res.values:
             return []
 
-        loc_res = await client.get_location(
-            dp.GetLocationRequest(
-                location_uuid=loc_uuid,
-                energy_source=dp.EnergySource.SOLAR,
-                include_geometry=False,
-            ),
-        )
-        cap_w = loc_res.effective_capacity_watts
-        if cap_w == 0:
-            log.warning(f"Site {site_name} has 0 capacity in Data Platform")
-            return []
-
+        cap_w = res.effective_capacity_watts
         data = []
         for val in res.values:
-            if hasattr(val.timestamp_utc, "ToDatetime"):
-                t = val.timestamp_utc.ToDatetime()
-            else:
-                t = val.timestamp_utc
-            if t.tzinfo is None:
-                t = t.replace(tzinfo=UTC)
+            t = val.timestamp_utc.ToDatetime(tzinfo=UTC)
             power_kw = (val.value_fraction * cap_w) / 1000.0
             data.append((t, power_kw))
 

@@ -228,7 +228,9 @@ def app_run(
 
                 log.info("Running the model concurrently")
                 log.info("Reading latest historic generation data for all sites...")
-                generation_data = get_generation_data(session, sites_for_model, timestamp)
+                generation_data = get_generation_data(
+                    session, sites_for_model, timestamp, observer_name=model_config.observer_name,
+                )
 
                 log.debug(f"{generation_data['data']=}")
                 log.debug(f"{generation_data['metadata']=}")
@@ -301,7 +303,9 @@ def app_run(
                     site_uuid = str(site.location_uuid)
 
                     log.info(f"Reading latest historic {site} generation data...")
-                    generation_data = get_generation_data(session, [site], timestamp)
+                    generation_data = get_generation_data(
+                        session, [site], timestamp, observer_name=model_config.observer_name,
+                    )
 
                     log.debug(f"{generation_data['data']=}")
                     log.debug(f"{generation_data['metadata']=}")
