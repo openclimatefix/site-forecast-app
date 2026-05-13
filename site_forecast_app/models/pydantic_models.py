@@ -78,6 +78,12 @@ class Model(BaseModel):
         description="The type of location for the summation outcome (site, state, or nation)",
     )
 
+    curtailment: bool = Field(
+        False,
+        title="Curtailment",
+        description="Whether the model should apply curtailment to the forecasts.",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""

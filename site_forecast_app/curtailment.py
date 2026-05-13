@@ -1,0 +1,76 @@
+"""Class for managing curtailment forecasts."""
+
+import logging
+import os
+
+import pandas as pd
+from entsoe import EntsoePandasClient
+
+log = logging.getLogger(__name__)
+
+api_key = os.getenv("APIKEY_ENTSOE")
+
+
+class Curtailment:
+    """Curtailment class for managing curtailment forecasts."""
+    def __init__(self, now: pd.Timestamp) -> None:
+        """Initialize the Curtailment class by getting NL DA prices."""
+        self.now = now
+        self.get_prices()
+
+    def get_prices(self) -> None:
+        """Fetch the latest market prices for curtailment."""
+        # TODO
+        client = EntsoePandasClient(api_key=api_key)
+        country_code = "NL"  # Netherlands
+        start = self.now
+        end = self.now + pd.Timedelta(days=2)  # fetch a week of data
+
+        # methods that return Pandas Series
+        log.info(f"Fetching day-ahead prices from ENTSOE API for {country_code} \
+                 from {start} to {end}")
+        data = client.query_day_ahead_prices(country_code, start=start, end=end)
+
+        # validate data
+        if data.empty:
+            log.warning("No data returned from ENTSOE API.")
+            return pd.DataFrame()
+
+        # check there are not nans
+        if data.isnull().values.any():
+            log.warning("Data contains NaNs.")
+            return pd.DataFrame()
+
+        # make sure timezone is utc
+        data.index = data.index.tz_convert("UTC")
+
+        # convert to dataframe with columns ['target_datetime_utc', 'price']
+        data = data.reset_index()
+        data.columns = ["target_datetime_utc", "NL_day_ahead_prices_euros_per_mwh"]
+        data["target_datetime_utc"] = pd.to_datetime(data["target_datetime_utc"])
+
+        self.prices_df = data
+
+    def apply_curtailment(self, forecast_values: list[dict]) -> list[dict]:
+        """Apply curtailment to the forecast values.
+
+        This is v1 curtailment for NL.
+        If the prices are negative, then we reduce the values by 11%.
+        """
+        # make into dataframe and merge with prices
+        forecast_values_df = pd.DataFrame(forecast_values)
+        forecast_values_df = forecast_values_df.merge(
+            self.prices_df, on="target_datetime_utc", how="left",
+        )
+
+        # apply curtailment
+        forecast_values_df["curtailed"] = forecast_values_df[
+            "NL_day_ahead_prices_euros_per_mwh"
+        ].apply(lambda x: x < 0)
+        forecast_values_df["forecast_value"] = forecast_values_df.apply(
+            lambda row: row["forecast_value"] / 1.11 if row["curtailed"] else row["forecast_value"],
+            axis=1,
+        )
+
+        # convert back
+        return forecast_values_df.to_dict("records")
