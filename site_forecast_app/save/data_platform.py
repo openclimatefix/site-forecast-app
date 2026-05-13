@@ -370,7 +370,7 @@ async def create_forecaster_if_not_exists(
         filtered_forecasters = [
             f for f in existing_forecasters
             if f.forecaster_version == dp_forecaster_version
-            ]
+        ]
         if len(filtered_forecasters) == 1:
             return filtered_forecasters[0]
         else:
