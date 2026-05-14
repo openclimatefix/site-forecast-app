@@ -183,7 +183,7 @@ def test_app(
 
     fv_per_hour = 4 # 15 min resolution = 4 values per hour
     n_forecasts = 6 + 12*4
-    n_models = 6
+    n_models = 7
     # 1 site, 5 models do 36 hours
     # 4 regional models also do 36 hours for 12 more sites
     # average number of forecast is:
