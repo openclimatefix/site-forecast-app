@@ -13,3 +13,5 @@ __pycache__/
 # Test reports
 ut-report.xml
 
+# Virtual environment
+.venv/

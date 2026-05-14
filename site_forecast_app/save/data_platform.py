@@ -51,6 +51,7 @@ async def build_dp_location_map() -> dict[str, str]:
         return await fetch_dp_location_map(client)
 
 
+
 @contextlib.asynccontextmanager
 async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
     """Async context manager that opens a gRPC channel and yields a ready-to-use client.
@@ -115,7 +116,6 @@ async def save_to_dataplatform(
     except Exception as e:
         log.error(f"Failed to save forecast to Data Platform: {e}")
         log.error(traceback.format_exc())
-
 
 
 async def make_forecaster_adjuster(
@@ -279,7 +279,6 @@ async def create_new_location(
     except Exception as create_error:
         log.error(f"Failed to create location: {create_error}")
         raise
-
 
 
 async def create_forecaster_if_not_exists(
