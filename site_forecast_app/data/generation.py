@@ -190,6 +190,10 @@ async def _get_site_generation_data(
         if site.asset_type == LocationAssetType.pv:
             generation_df = filter_on_sun_elevation(generation_df, site)
 
+        # Ensure index is timezone-naive to match contiguous_dt_idx
+        if generation_df.index.tz is not None:
+            generation_df.index = generation_df.index.tz_convert("UTC").tz_localize(None)
+
         # Ensure timestamps line up with 3min intervals
         generation_df.index = generation_df.index.round("3min")
 
