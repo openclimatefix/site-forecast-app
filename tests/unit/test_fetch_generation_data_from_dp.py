@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from site_forecast_app.save.data_platform import fetch_generation_from_dp
+from site_forecast_app.data.generation import fetch_generation_from_dp
 
 
 @pytest.mark.asyncio
@@ -29,11 +29,11 @@ async def test_fetch_generation_from_dp_success():
 
     with (
         patch(
-            "site_forecast_app.save.data_platform.get_dataplatform_client",
+            "site_forecast_app.data.generation.get_dataplatform_client",
             return_value=mock_ctx,
         ),
         patch(
-            "site_forecast_app.save.data_platform.fetch_dp_location_map",
+            "site_forecast_app.data.generation.fetch_dp_location_map",
             return_value={"test-site": "uuid-123"},
         ),
     ):
@@ -67,11 +67,11 @@ async def test_fetch_generation_from_dp_no_site():
 
     with (
         patch(
-            "site_forecast_app.save.data_platform.get_dataplatform_client",
+            "site_forecast_app.data.generation.get_dataplatform_client",
             return_value=mock_ctx,
         ),
         patch(
-            "site_forecast_app.save.data_platform.fetch_dp_location_map",
+            "site_forecast_app.data.generation.fetch_dp_location_map",
             return_value={"other-site": "uuid-123"},
         ),
     ):

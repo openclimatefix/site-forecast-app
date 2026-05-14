@@ -51,57 +51,6 @@ async def build_dp_location_map() -> dict[str, str]:
         return await fetch_dp_location_map(client)
 
 
-async def fetch_generation_from_dp(
-    site_name: str,
-    start: datetime,
-    end: datetime,
-    observer_name: str | None = None,
-) -> list[tuple[datetime, float]]:
-    """Fetch generation (observation) data from the Data Platform."""
-    if not site_name:
-        return []
-
-    async with get_dataplatform_client() as client:
-        loc_map = await fetch_dp_location_map(client)
-        loc_uuid = loc_map.get(site_name)
-        if not loc_uuid:
-            log.warning(f"Site {site_name} not found in Data Platform")
-            return []
-
-        # Determine the observer name from the argument, then environment, defaulting to nednl
-        actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "nednl")
-
-        req = dp.GetObservationsAsTimeseriesRequest(
-            location_uuid=loc_uuid,
-            energy_source=dp.EnergySource.SOLAR,
-            observer_name=actual_observer_name,
-            time_window=dp.TimeWindow(
-                start_timestamp_utc=ensure_timezone_aware(start).to_pydatetime()
-                if hasattr(ensure_timezone_aware(start), "to_pydatetime")
-                else ensure_timezone_aware(start),
-                end_timestamp_utc=ensure_timezone_aware(end).to_pydatetime()
-                if hasattr(ensure_timezone_aware(end), "to_pydatetime")
-                else ensure_timezone_aware(end),
-            ),
-        )
-        try:
-            res = await client.get_observations_as_timeseries(req)
-        except Exception as e:
-            log.error(f"Failed to fetch observations for {site_name}: {e}")
-            return []
-
-        if not res.values:
-            return []
-
-        cap_w = res.values[0].effective_capacity_watts
-        data = []
-        for val in res.values:
-            t = val.timestamp_utc
-            power_kw = (val.value_fraction * cap_w) / 1000.0
-            data.append((t, power_kw))
-
-        return data
-
 
 @contextlib.asynccontextmanager
 async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
