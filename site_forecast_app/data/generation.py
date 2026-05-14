@@ -1,21 +1,84 @@
 """Functions for working with site generation data."""
+import asyncio
 import datetime as dt
 import logging
+import os
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import pvlib
 import xarray as xr
+from dp_sdk.ocf import dp
 from pvsite_datamodel import LocationSQL
 from pvsite_datamodel.read import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import LocationAssetType
 from sqlalchemy.orm import Session
 
+from site_forecast_app.save.data_platform import (
+    fetch_dp_location_map,
+    get_dataplatform_client,
+)
+from site_forecast_app.save.utils import ensure_timezone_aware
+
 log = logging.getLogger(__name__)
+
+
+async def fetch_generation_from_dp(
+    site_name: str,
+    start: datetime,
+    end: datetime,
+    observer_name: str | None = None,
+) -> list[tuple[datetime, float]]:
+    """Fetch generation (observation) data from the Data Platform."""
+    if not site_name:
+        return []
+
+    async with get_dataplatform_client() as client:
+        loc_map = await fetch_dp_location_map(client)
+        loc_uuid = loc_map.get(site_name)
+        if not loc_uuid:
+            log.warning(f"Site {site_name} not found in Data Platform")
+            return []
+
+        # Determine the observer name from the argument, then environment, defaulting to nednl
+        actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "nednl")
+
+        req = dp.GetObservationsAsTimeseriesRequest(
+            location_uuid=loc_uuid,
+            energy_source=dp.EnergySource.SOLAR,
+            observer_name=actual_observer_name,
+            time_window=dp.TimeWindow(
+                start_timestamp_utc=ensure_timezone_aware(start).to_pydatetime()
+                if hasattr(ensure_timezone_aware(start), "to_pydatetime")
+                else ensure_timezone_aware(start),
+                end_timestamp_utc=ensure_timezone_aware(end).to_pydatetime()
+                if hasattr(ensure_timezone_aware(end), "to_pydatetime")
+                else ensure_timezone_aware(end),
+            ),
+        )
+        try:
+            res = await client.get_observations_as_timeseries(req)
+        except Exception as e:
+            log.error(f"Failed to fetch observations for {site_name}: {e}")
+            return []
+
+        if not res.values:
+            return []
+
+        cap_w = res.values[0].effective_capacity_watts
+        data = []
+        for val in res.values:
+            t = val.timestamp_utc
+            power_kw = (val.value_fraction * cap_w) / 1000.0
+            data.append((t, power_kw))
+
+        return data
 
 
 def get_generation_data(
         db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
+        observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
 
@@ -26,6 +89,7 @@ def get_generation_data(
             db_session: A SQLAlchemy session
             sites: A list of LocationSQL objects
             timestamp: The end time from which to retrieve data
+            observer_name: The name of the observer to fetch DP generation data from.
 
     Returns:
             A Dict containing:
@@ -33,13 +97,17 @@ def get_generation_data(
             - "metadata": Dataframe containing information about the sites.
     """
     if len(sites) == 1:
-        return _get_site_generation_data(db_session, sites[0], timestamp)
+        return asyncio.run(
+            _get_site_generation_data(db_session, sites[0], timestamp, observer_name),
+        )
     else:
         log.info("Multiple sites requested. Loading data for one site at a time...")
         metadata_list: list[pd.DataFrame] = []
         data_list: list[xr.Dataset] = []
         for site in sites:
-            site_dict = _get_site_generation_data(db_session, site, timestamp)
+            site_dict = asyncio.run(
+                _get_site_generation_data(db_session, site, timestamp, observer_name),
+            )
             metadata_list.append(site_dict["metadata"])
             data_list.append(site_dict["data"])
         log.debug("Generation data loaded for all sites. Compiling...")
@@ -51,8 +119,9 @@ def get_generation_data(
         return {"data": data, "metadata": metadata.set_index("system_id")}
 
 
-def _get_site_generation_data(
+async def _get_site_generation_data(
     db_session: Session, site: LocationSQL, timestamp: pd.Timestamp,
+    observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Gets generation data values for a single site.
 
@@ -60,6 +129,7 @@ def _get_site_generation_data(
             db_session: A SQLAlchemy session
             site: A LocationSQL object
             timestamp: The end time from which to retrieve data
+            observer_name: The name of the observer to fetch DP generation data from.
 
     Returns:
             A Dict containing:
@@ -71,13 +141,30 @@ def _get_site_generation_data(
     end = timestamp + dt.timedelta(seconds=1)
 
     log.info(f"Getting generation data for site {site.location_uuid}, from {start=} to {end=}")
-    generation_data = get_pv_generation_by_sites(
-        session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
-    )
+
+    read_from_dp = os.getenv("READ_FROM_DATA_PLATFORM", "false").lower() == "true"
+
     # get the ml id
     system_id = site.ml_id
 
-    if len(generation_data) == 0:
+    if read_from_dp:
+        log.info(
+            f"Reading from Data Platform for the location {site.client_location_name} "
+            f"from {start} to {end}",
+        )
+        dp_data = await fetch_generation_from_dp(
+            site.client_location_name, start, end, observer_name,
+        )
+        formatted_data = [(t, p, system_id) for t, p in dp_data]
+    else:
+        generation_data = get_pv_generation_by_sites(
+            session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
+        )
+        formatted_data = [
+            (g.start_utc, g.generation_power_kw, system_id) for g in generation_data
+        ]
+
+    if len(formatted_data) == 0:
         log.warning(f"No generation found for site {site.location_uuid}")
         # created empty data frame with dimesion of time_utc
         generation_xr = pd.DataFrame(columns=["generation_kw"]).to_xarray()
@@ -93,7 +180,7 @@ def _get_site_generation_data(
     else:
         # Convert to dataframe
         generation_df = pd.DataFrame(
-            [(g.start_utc, g.generation_power_kw, system_id) for g in generation_data],
+            formatted_data,
             columns=["time_utc", "power_kw", "ml_id"],
         ).pivot(index="time_utc", columns="ml_id", values="power_kw")
 
@@ -102,6 +189,10 @@ def _get_site_generation_data(
         # Filter out any 0 values when the sun is up
         if site.asset_type == LocationAssetType.pv:
             generation_df = filter_on_sun_elevation(generation_df, site)
+
+        # Ensure index is timezone-naive to match contiguous_dt_idx
+        if generation_df.index.tz is not None:
+            generation_df.index = generation_df.index.tz_convert("UTC").tz_localize(None)
 
         # Ensure timestamps line up with 3min intervals
         generation_df.index = generation_df.index.round("3min")

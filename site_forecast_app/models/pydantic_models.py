@@ -78,6 +78,12 @@ class Model(BaseModel):
         description="The type of location for the summation outcome (site, state, or nation)",
     )
 
+    observer_name: str | None = Field(
+        None,
+        title="Observer Name",
+        description="The name of the observer to fetch DP generation data from",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""
