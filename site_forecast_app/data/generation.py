@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import pvlib
 import xarray as xr
+from dp_sdk.ocf import dp
 from pvsite_datamodel import LocationSQL
 from pvsite_datamodel.read import get_pv_generation_by_sites
 from pvsite_datamodel.sqlmodels import LocationAssetType
@@ -42,8 +43,6 @@ async def fetch_generation_from_dp(
 
         # Determine the observer name from the argument, then environment, defaulting to nednl
         actual_observer_name = observer_name or os.getenv("OBSERVER_NAME", "nednl")
-
-        from dp_sdk.ocf import dp
 
         req = dp.GetObservationsAsTimeseriesRequest(
             location_uuid=loc_uuid,
