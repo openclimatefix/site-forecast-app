@@ -10,7 +10,8 @@ models:
     asset_type: pv
     satellite_scaling_method: constant
     location_type: nation
-    observer_name: nednl
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
   - name: nl_national_pv_ecmwf_sat_small
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -21,7 +22,8 @@ models:
     satellite_scaling_method: constant
     location_type: nation
     curtailment: true
-    observer_name: nednl
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
   - name: nl_regional_pv_ecmwf_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -35,7 +37,8 @@ models:
     location_type: state
     summation_location_type: nation
     curtailment: true
-    observer_name: nednl
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
   - name: nl_regional_48h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -49,7 +52,8 @@ models:
     location_type: state
     summation_location_type: nation
     curtailment: true
-    observer_name: nednl
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
   - name: nl_regional_2h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -63,7 +67,8 @@ models:
     location_type: state
     summation_location_type: nation
     curtailment: true
-    observer_name: nednl
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
   - name: nl_regional_pv_ecmwf_mo_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -77,7 +82,8 @@ models:
     location_type: state
     summation_location_type: nation
     curtailment: true
-    observer_name: nednl
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
 
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history

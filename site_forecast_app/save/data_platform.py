@@ -82,6 +82,7 @@ async def save_to_dataplatform(
     ml_model_name: str | None,
     location_map: dict[str, str] | None = None,
     use_adjuster: bool = True,
+    observer_name: str | None = None,
 ) -> None:
     """Save Forecast to Dataplatform."""
     client_location_name = forecast_meta.get("client_location_name")
@@ -111,6 +112,7 @@ async def save_to_dataplatform(
                 location_type=forecast_meta.get("location_type", dp.LocationType.SITE),
                 location_map=location_map,
                 use_adjuster=use_adjuster,
+                observer_name=observer_name,
             )
         log.info(f"Save complete for location={client_location_name!r}")
     except Exception as e:
@@ -125,6 +127,7 @@ async def make_forecaster_adjuster(
     forecast_values: list[dp.CreateForecastRequestForecastValue],
     model_tag: str,
     forecaster: dp.Forecaster,
+    observer_name: str | None = None,
 ) -> dp.CreateForecastRequest:
     """Build an adjusted forecast request using week-average deltas from the Data Platform.
 
@@ -139,16 +142,21 @@ async def make_forecaster_adjuster(
         forecast_values: Base forecast values to adjust.
         model_tag: Model name used to look up/create the adjuster forecaster.
         forecaster: The base forecaster object (used to fetch deltas).
+        observer_name: The name of the observer to use for the adjuster
+            (defaults to env var OBSERVER_NAME or "nednl").
 
     Returns:
         A ``CreateForecastRequest`` for the adjusted forecast.
     """
+    if observer_name is None:
+        observer_name = os.getenv("OBSERVER_NAME", "nednl")
+
     deltas_request = dp.GetWeekAverageDeltasRequest(
         location_uuid=location_uuid,
         energy_source=dp.EnergySource.SOLAR,
         pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
         forecaster=forecaster,
-        observer_name=os.getenv("OBSERVER_NAME", "nednl"),
+        observer_name=observer_name,
     )
     deltas_response = await client.get_week_average_deltas(deltas_request)
     deltas = deltas_response.deltas
@@ -382,6 +390,7 @@ async def save_forecast_to_dataplatform(
     location_type: dp.LocationType = dp.LocationType.SITE,
     location_map: dict[str, str] | None = None,
     use_adjuster: bool = True,
+    observer_name: str | None = None,
 ) -> None:
     """Save forecast to the Data Platform."""
     app_version = version("site-forecast-app")
@@ -485,6 +494,7 @@ async def save_forecast_to_dataplatform(
                 forecast_values=forecast_values,
                 model_tag=model_tag,
                 forecaster=forecaster,
+                observer_name=observer_name,
             )
             await client.create_forecast(adjusted_request)
             log.info(f"Adjusted forecast submitted for {client_location_name!r}")
