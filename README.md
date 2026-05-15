@@ -31,6 +31,13 @@ The main application (`blend/app.py`):
 3. Saves the blended forecast to the Data Platform ready to be used by the API
 4. This is done for the national location
 
+## NL Curtialment 
+
+We've added an optional for the NL forecast to model curtailment. We do this by 
+1. Loading in uncrtailed generation values
+2. Run the forecast
+3. If the DA NL prices are negative, we reduce the forecast by 11%. 
+
 ### Details
 
 The blend is created by selecting the candidate model with the lowest expected MAE (whilst also
