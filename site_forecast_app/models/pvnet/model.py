@@ -322,8 +322,7 @@ class PVNetModel:
         )
 
         # format target_datetime_utc
-        values_df["target_datetime_utc"] = values_df["start_utc"]
-        values_df["target_datetime_utc"] = values_df["target_datetime_utc"].dt.tz_localize("UTC")
+        values_df["target_datetime_utc"] = values_df["start_utc"].dt.tz_localize("UTC")
 
         return values_df.to_dict("records")
 
