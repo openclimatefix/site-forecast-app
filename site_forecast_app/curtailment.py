@@ -51,12 +51,15 @@ class Curtailment:
 
         self.prices_df = data
 
-    def apply_curtailment(self, forecast_values: list[dict]) -> list[dict]:
+    def apply_curtailment(self, forecast_values: dict) -> dict:
         """Apply curtailment to the forecast values.
 
         This is v1 curtailment for NL.
         If the prices are negative, then we reduce the values by 11%.
         """
+        if len(forecast_values):
+            return forecast_values
+
         # make into dataframe and merge with prices
         forecast_values_df = pd.DataFrame(forecast_values)
         forecast_values_df = forecast_values_df.merge(
