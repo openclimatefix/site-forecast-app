@@ -78,10 +78,22 @@ class Model(BaseModel):
         description="The type of location for the summation outcome (site, state, or nation)",
     )
 
+    curtailment: bool = Field(
+        False,
+        title="Curtailment",
+        description="Whether the model should apply curtailment to the forecasts.",
+    )
+
     observer_name: str | None = Field(
         None,
         title="Observer Name",
         description="The name of the observer to fetch DP generation data from",
+    )
+
+    observer_name_adjuster: str | None = Field(
+        None,
+        title="Observer Name for the adjuster",
+        description="The name of the observer to fetch DP use for the adjuster",
     )
 
 

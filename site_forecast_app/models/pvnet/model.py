@@ -321,6 +321,9 @@ class PVNetModel:
             values_df,
         )
 
+        # format target_datetime_utc
+        values_df["target_datetime_utc"] = values_df["start_utc"].dt.tz_localize("UTC")
+
         return values_df.to_dict("records")
 
     def _prepare_data_sources(self) -> None:

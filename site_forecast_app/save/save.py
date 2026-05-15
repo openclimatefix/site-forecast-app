@@ -27,6 +27,7 @@ def save_forecast(
     use_adjuster_database: bool = True,
     adjuster_average_minutes: int | None = 60,
     location_map: dict[str, str] | None = None,
+    observer_name: str | None = None,
 ) -> None:
     """Save a forecast for a given site & timestamp.
 
@@ -41,6 +42,7 @@ def save_forecast(
         adjuster_average_minutes: Minutes to average over when calculating adjuster values
         location_map: Optional pre-fetched mapping of DP location name to UUID.
             When provided, avoids a list_locations gRPC call per site.
+        observer_name: The name of the observer to use for the adjuster
 
     Raises:
         IOError: An error if the database save fails
@@ -104,5 +106,6 @@ def save_forecast(
                 ml_model_name=ml_model_name,
                 location_map=location_map,
                 use_adjuster=ml_model_name is not None,
+                observer_name=observer_name,
             ),
         )

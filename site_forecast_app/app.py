@@ -20,6 +20,7 @@ import site_forecast_app
 from site_forecast_app import __version__
 from site_forecast_app.blend.app import run_blend_app
 from site_forecast_app.blend.config import load_blend_config
+from site_forecast_app.curtailment import Curtailment
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pvnet.consts import root_data_path
@@ -208,6 +209,11 @@ def app_run(
                     "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
                     exc_info=True,
                 )
+
+        if any(m.curtailment for m in all_model_configs.models):
+            log.info("Curtailment is enabled for at least one model.")
+            curtailment = Curtailment(timestamp)
+
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
@@ -265,6 +271,12 @@ def app_run(
                         f"No forecast values for site_group_uuid={model_config.site_group_uuid}",
                     )
                 else:
+
+                    if model_config.curtailment:
+                        log.info("Applying curtailment to forecast values...")
+                        forecast_values = {k: curtailment.apply_curtailment(v) \
+                                        for k, v in forecast_values.items()}
+
                     # 4. Write forecast to DB or stdout
                     log.info(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
@@ -358,6 +370,7 @@ def app_run(
                             ml_model_version=version,
                             location_map=dp_location_map,
                             use_adjuster_database=use_adjuster_database,
+                            observer_name=model_config.observer_name_adjuster,
                         )
                         successful_runs += 1
 

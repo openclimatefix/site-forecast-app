@@ -634,3 +634,14 @@ def use_satellite():
 def blend_config() -> BlendConfig:
     """Fixture providing a real BlendConfig populated from config.yaml."""
     return load_blend_config(client_name="nl")
+
+@pytest.fixture
+def mock_da_prices() -> pd.DataFrame:
+    start = pd.Timestamp("2026-05-12").tz_localize("UTC")
+    end = pd.Timestamp("2026-05-13").tz_localize("UTC")
+    mock_da_prices = pd.DataFrame({
+        "target_datetime_utc": pd.date_range(start=start, end=end, freq="15min"),
+        "price": [10] * (4*24+1),   # 1 days +1
+    })
+    mock_da_prices.set_index("target_datetime_utc", inplace=True)
+    return mock_da_prices
