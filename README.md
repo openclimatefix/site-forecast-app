@@ -31,7 +31,7 @@ The main application (`blend/app.py`):
 3. Saves the blended forecast to the Data Platform ready to be used by the API
 4. This is done for the national location
 
-## NL Curtialment 
+## NL Curtailment 
 
 We've added an option for the NL forecast to model curtailment. We do this by 
 1. Loading in uncurtailed generation values
