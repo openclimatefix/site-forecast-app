@@ -73,7 +73,20 @@ models:
     location_type: state
     summation_location_type: nation
     observer_name: nednl
-
+    # Uncurtailed model below
+  - name: nl_regional_ecmwf_mo_sat
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: c5b25a74b99807645114a1b866a83adc7c270d2c
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: 1be9cd5b4688aad9ffa738a2ba229990dc795a47
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    observer_name: nednl
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
