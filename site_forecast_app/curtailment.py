@@ -55,7 +55,8 @@ class Curtailment:
         """Apply curtailment to the forecast values.
 
         This is v1 curtailment for NL.
-        If the prices are negative, then we reduce the values by 11%.
+        If the prices are negative, then we reduce the values by 9.1%.
+        (This is done by divided by 1.11 - this is what the analysis showed)
         """
         # for forecast values is None, then also return None
         if forecast_values is None:
@@ -71,6 +72,7 @@ class Curtailment:
         )
 
         # apply curtailment
+        # method as of 2026-05-15 from NedNL analysis
         forecast_values_df["curtailed"] = forecast_values_df[
             "NL_day_ahead_prices_euros_per_mwh"
         ].apply(lambda x: x < 0)
