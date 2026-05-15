@@ -266,16 +266,17 @@ def app_run(
                     timestamp=timestamp,
                 )
 
-                if model_config.curtailment:
-                    log.info("Applying curtailment to forecast values...")
-                    forecast_values = {k: curtailment.apply_curtailment(v) \
-                                       for k, v in forecast_values.items()}
-
                 if forecast_values is None:
                     log.info(
                         f"No forecast values for site_group_uuid={model_config.site_group_uuid}",
                     )
                 else:
+
+                    if model_config.curtailment:
+                        log.info("Applying curtailment to forecast values...")
+                        forecast_values = {k: curtailment.apply_curtailment(v) \
+                                        for k, v in forecast_values.items()}
+
                     # 4. Write forecast to DB or stdout
                     log.info(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
