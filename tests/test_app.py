@@ -7,6 +7,7 @@ import json
 import multiprocessing as mp
 import os
 import uuid
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -157,8 +158,10 @@ def test_save_forecast(db_session, sites, forecast_values):
 
 
 @freeze_time(now)
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
 @pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
+    mock_entsoe_pandas_client,
     write_to_db,
     db_session,
     sites,  # noqa: ARG001
@@ -166,10 +169,15 @@ def test_app(
     nwp_mo_global_data_nl,  # noqa: ARG001
     generation_db_values,   # noqa: ARG001
     satellite_data,  # noqa: ARG001
+    mock_da_prices,
 ):
     """Test for running app from command line"""
     os.environ["CLIENT_NAME"] = "nl"
     os.environ["COUNTRY"] = "nl"
+
+    mock_entsoe_pandas_client_instance = MagicMock()
+    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
