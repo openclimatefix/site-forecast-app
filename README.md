@@ -33,8 +33,8 @@ The main application (`blend/app.py`):
 
 ## NL Curtialment 
 
-We've added an optional for the NL forecast to model curtailment. We do this by 
-1. Loading in uncrtailed generation values
+We've added an option for the NL forecast to model curtailment. We do this by 
+1. Loading in uncurtailed generation values
 2. Run the forecast
 3. If the DA NL prices are negative, we reduce the forecast by 11%. 
 
