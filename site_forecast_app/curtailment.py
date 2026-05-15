@@ -72,7 +72,8 @@ class Curtailment:
             "NL_day_ahead_prices_euros_per_mwh"
         ].apply(lambda x: x < 0)
         forecast_values_df["forecast_power_kw"] = forecast_values_df.apply(
-            lambda row: row["forecast_power_kw"] / 1.11 if row["curtailed"] else row["forecast_power_kw"],
+            lambda row: row["forecast_power_kw"] / 1.11 if row["curtailed"] \
+                else row["forecast_power_kw"],
             axis=1,
         )
 
