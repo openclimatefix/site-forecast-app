@@ -20,7 +20,6 @@ class Curtailment:
 
     def get_prices(self) -> None:
         """Fetch the latest market prices for curtailment."""
-        # TODO
         client = EntsoePandasClient(api_key=api_key)
         country_code = "NL"  # Netherlands
         start = self.now
@@ -34,12 +33,10 @@ class Curtailment:
         # validate data
         if data.empty:
             log.warning("No data returned from ENTSOE API.")
-            return pd.DataFrame()
 
         # check there are not nans
         if data.isnull().values.any():
             log.warning("Data contains NaNs.")
-            return pd.DataFrame()
 
         # make sure timezone is utc
         data.index = data.index.tz_convert("UTC")
@@ -51,13 +48,17 @@ class Curtailment:
 
         self.prices_df = data
 
-    def apply_curtailment(self, forecast_values: dict) -> dict:
+    def apply_curtailment(self, forecast_values: dict | None) -> dict | None:
         """Apply curtailment to the forecast values.
 
         This is v1 curtailment for NL.
         If the prices are negative, then we reduce the values by 11%.
         """
-        if len(forecast_values):
+        # for forecast values is None, then also return None
+        if forecast_values is None:
+            return forecast_values
+
+        if len(forecast_values) == 0:
             return forecast_values
 
         # make into dataframe and merge with prices
@@ -70,8 +71,8 @@ class Curtailment:
         forecast_values_df["curtailed"] = forecast_values_df[
             "NL_day_ahead_prices_euros_per_mwh"
         ].apply(lambda x: x < 0)
-        forecast_values_df["forecast_value"] = forecast_values_df.apply(
-            lambda row: row["forecast_value"] / 1.11 if row["curtailed"] else row["forecast_value"],
+        forecast_values_df["forecast_power_kw"] = forecast_values_df.apply(
+            lambda row: row["forecast_power_kw"] / 1.11 if row["curtailed"] else row["forecast_power_kw"],
             axis=1,
         )
 

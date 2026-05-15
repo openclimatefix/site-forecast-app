@@ -268,7 +268,7 @@ def app_run(
 
                 if model_config.curtailment:
                     log.info("Applying curtailment to forecast values...")
-                    forecast_values = curtailment.apply_curtailment(forecast_values)
+                    forecast_values = {k: curtailment.apply_curtailment(v) for k, v in forecast_values.items()}
 
                 if forecast_values is None:
                     log.info(
