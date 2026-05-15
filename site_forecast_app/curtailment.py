@@ -23,7 +23,10 @@ class Curtailment:
         client = EntsoePandasClient(api_key=api_key)
         country_code = "NL"  # Netherlands
         start = self.now
-        end = self.now + pd.Timedelta(days=2)  # fetch a week of data
+        # make sure start has a timezone
+        if start.tzinfo is None:
+            start = start.tz_localize("UTC")
+        end = start + pd.Timedelta(days=2)  # fetch a week of data
 
         # methods that return Pandas Series
         log.info(f"Fetching day-ahead prices from ENTSOE API for {country_code} \
