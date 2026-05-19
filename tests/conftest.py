@@ -385,7 +385,8 @@ def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centr
 
     # AS NWP data is loaded by the app from environment variable,
     # save out data and set paths as environmental variables
-    temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf.zarr"
+    temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/ \
+        nwp_ecmwf_{lat_centroid}_{lon_centroid}.zarr"
     os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
 
@@ -479,7 +480,8 @@ def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, c
             ds["mo_global"][:, :, idx] = np.full(ds["mo_global"][:, :, idx].shape, 100)
     # AS NWP data is loaded by the app from environment variable,
     # save out data and set paths as environmental variables
-    temp_nwp_path_gfs = f"{tmp_path_factory.mktemp('data')}/nwp_mo_global.zarr"
+    temp_nwp_path_gfs = f"{tmp_path_factory.mktemp('data')}/ \
+        nwp_mo_global_{center_lat}_{center_lon}.zarr"
 
     os.environ["NWP_MO_GLOBAL_ZARR_PATH"] = temp_nwp_path_gfs
     ds.to_zarr(temp_nwp_path_gfs)
