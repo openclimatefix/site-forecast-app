@@ -36,10 +36,11 @@ def test_app(
     generation_db_values,   # noqa: ARG001
     satellite_data,  # noqa: ARG001
     mock_da_prices,
+    monkeypatch,
 ):
     """Test for running app from command line"""
-    os.environ["CLIENT_NAME"] = "nl"
-    os.environ["COUNTRY"] = "nl"
+    monkeypatch.setenv("CLIENT_NAME", "nl")
+    monkeypatch.setenv("COUNTRY", "nl")
 
     mock_entsoe_pandas_client_instance = MagicMock()
     mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
@@ -78,7 +79,7 @@ def test_app(
 
 @freeze_time(now)
 def test_app_ad(
-    db_session, sites, nwp_data, nwp_mo_global_data_india, generation_db_values, satellite_data,  # noqa: ARG001
+    db_session, sites, nwp_data, nwp_mo_global_data_india, generation_db_values, satellite_data, monkeypatch # noqa: ARG001
 ):
     """Test for running app from command line"""
 
@@ -88,8 +89,8 @@ def test_app_ad(
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
 
-    os.environ["CLIENT_NAME"] = "ad"
-    os.environ["COUNTRY"] = "india"
+    monkeypatch.setenv("CLIENT_NAME", "ad")
+    monkeypatch.setenv("COUNTRY", "india")
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
@@ -102,7 +103,7 @@ def test_app_ad(
 
 
 @freeze_time(now)
-def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: ARG001
+def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data, monkeypatch):  # noqa: ARG001
     """Test for running app from command line"""
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
@@ -111,8 +112,8 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
 
-    os.environ["CLIENT_NAME"] = "ad"
-    os.environ["COUNTRY"] = "india"
+    monkeypatch.setenv("CLIENT_NAME", "ad")
+    monkeypatch.setenv("COUNTRY", "india")
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
