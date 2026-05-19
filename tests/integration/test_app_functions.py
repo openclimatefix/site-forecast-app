@@ -100,8 +100,8 @@ def test_run_model(
 ):
     """Test for running a PV model"""
 
-    print(f'{os.environ["NWP_ECMWF_ZARR_PATH"]=}')
-    print(f'{os.environ["NWP_MO_GLOBAL_ZARR_PATH"]=}')
+    print(f'{os.environ["NWP_ECMWF_ZARR_PATH"]=}') #noqa
+    print(f'{os.environ["NWP_MO_GLOBAL_ZARR_PATH"]=}') #noqa
 
     all_models = get_all_models()
     ml_model = all_models.models[0]
