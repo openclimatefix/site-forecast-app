@@ -24,7 +24,7 @@ from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
 
-from ._utils import run_click_script
+from .._utils import run_click_script
 
 mp.set_start_method("spawn", force=True)
 now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
@@ -78,7 +78,6 @@ def test_get_model(
     satellite_data,  # noqa: ARG001
 ):
     """Test for getting valid model"""
-
     all_models = get_all_models()
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
@@ -244,6 +243,9 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data):  # noqa: A
 
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
+
+    os.environ["CLIENT_NAME"] = "ad"
+    os.environ["COUNTRY"] = "india"
 
     result = run_click_script(app, args)
     assert result.exit_code == 0

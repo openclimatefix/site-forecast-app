@@ -9,7 +9,7 @@ from dp_sdk.ocf import dp
 from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
 
 # ---------------------------------------------------------------------------
-# Unit tests for the NL blend application orchestration
+# End to end tests for the NL blend application orchestration
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
