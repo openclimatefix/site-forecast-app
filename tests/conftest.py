@@ -6,6 +6,7 @@ import datetime as dt
 import logging
 import os
 import random
+import shutil
 from uuid import uuid4
 
 import numpy as np
@@ -388,6 +389,12 @@ def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
     """Dummy NWP data for netherlands"""
+
+    # remove dir .data, so nothing is left there
+    folder_path = "data"
+    shutil.rmtree(folder_path)
+
+    # make new data
     make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
 
 
