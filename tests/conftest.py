@@ -266,14 +266,14 @@ def forecasts(db_session, sites):
         db_session.add_all(forecast_values)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def init_timestamp():
     """Returns a datetime floored to the last 15 mins"""
 
     return pd.Timestamp(dt.datetime.now(tz=None)).floor(dt.timedelta(minutes=15))  # noqa: DTZ005
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture()
 def time_before_present():
     """Returns a fixed time in the past with specified offset"""
 
