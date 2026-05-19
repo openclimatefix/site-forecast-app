@@ -315,6 +315,14 @@ def nwp_data_india(tmp_path_factory, time_before_present):
 def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centroid):
     """Dummy NWP data"""
 
+    # remove any files in data/*nwp_ecmwf
+    if os.path.isdir("data"):
+        folder_path = "data"
+        # remove any files in data/*nwp_ecmwf
+        for filename in os.listdir(folder_path):
+            if "nwp_ecmwf" in filename:
+                shutil.rmtree(os.path.join(folder_path, filename))
+
     # Load dataset which only contains coordinates, but no data
     ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data-3.zarr")
 
@@ -389,18 +397,20 @@ def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
     """Dummy NWP data for netherlands"""
-
-    # remove dir .data, so nothing is left there
-    if os.path.isdir("data"):
-        folder_path = "data"
-        shutil.rmtree(folder_path)
-
     # make new data
     make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
 
 
 def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, center_lon):
     """Dummy NWP data"""
+
+        # remove any files in data/*nwp_ecmwf
+    if os.path.isdir("data"):
+        folder_path = "data"
+        # remove any files in data/*nwp_ecmwf
+        for filename in os.listdir(folder_path):
+            if "nwp_mo_global" in filename:
+                shutil.rmtree(os.path.join(folder_path, filename))
 
     # Load dataset which only contains coordinates, but no data
     ds = xr.open_zarr(f"{os.path.dirname(os.path.abspath(__file__))}/test_data/nwp-no-data-3.zarr")
