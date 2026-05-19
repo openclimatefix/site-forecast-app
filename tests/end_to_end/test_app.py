@@ -79,7 +79,13 @@ def test_app(
 
 @freeze_time(now)
 def test_app_ad(
-    db_session, sites, nwp_data, nwp_mo_global_data_india, generation_db_values, satellite_data, monkeypatch, # noqa: ARG001
+    db_session,
+    sites, # noqa: ARG001
+    nwp_data, # noqa: ARG001
+    nwp_mo_global_data_india, # noqa: ARG001
+    generation_db_values, # noqa: ARG001
+    satellite_data, # noqa: ARG001
+    monkeypatch,
 ):
     """Test for running app from command line"""
 
