@@ -391,8 +391,9 @@ def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
     """Dummy NWP data for netherlands"""
 
     # remove dir .data, so nothing is left there
-    folder_path = "data"
-    shutil.rmtree(folder_path)
+    if os.path.isdir("data"):
+        folder_path = "data"
+        shutil.rmtree(folder_path)
 
     # make new data
     make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
