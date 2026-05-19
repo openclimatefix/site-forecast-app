@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
-from pvsite_datamodel.sqlmodels import LocationAssetType
 from freezegun import freeze_time
+from pvsite_datamodel.sqlmodels import LocationAssetType
 
 from site_forecast_app.adjuster import (
     adjust_forecast_with_adjuster,

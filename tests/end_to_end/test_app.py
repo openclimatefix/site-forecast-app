@@ -23,7 +23,6 @@ from site_forecast_app.app import (
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
-
 from tests.end_to_end._utils import run_click_script
 
 mp.set_start_method("spawn", force=True)
