@@ -28,7 +28,7 @@ def save_forecast(
     adjuster_average_minutes: int | None = 60,
     location_map: dict[str, str] | None = None,
     observer_name: str | None = None,
-    use_adjuster: bool = True
+    use_adjuster: bool = True,
 ) -> None:
     """Save a forecast for a given site & timestamp.
 
