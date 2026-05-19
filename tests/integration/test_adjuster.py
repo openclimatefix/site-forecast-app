@@ -5,12 +5,16 @@ from datetime import datetime
 import pandas as pd
 import pytest
 from pvsite_datamodel.sqlmodels import LocationAssetType
+from freezegun import freeze_time
 
 from site_forecast_app.adjuster import (
     adjust_forecast_with_adjuster,
     get_me_values,
     zero_out_night_time_for_pv,
 )
+
+now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
+
 
 
 def test_get_me_values_no_values(db_session, sites):
@@ -21,6 +25,7 @@ def test_get_me_values_no_values(db_session, sites):
     assert len(me_df) == 0
 
 
+@freeze_time(now)
 def test_get_me_values(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check ME results are found"""
 
@@ -35,6 +40,7 @@ def test_get_me_values(db_session, sites, generation_db_values, forecasts):  # n
     assert me_df["me_kw"][90] != 0
 
 
+@freeze_time(now)
 def test_get_me_values_15(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check ME results are found"""
 
@@ -83,6 +89,7 @@ def test_get_me_values_no_forecasts(db_session, sites, generation_db_values):  #
     assert len(me_df) == 0
 
 
+@freeze_time(now)
 def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
     """Check forecast gets adjuster"""
     forecast_meta = {"timestamp_utc": datetime.now(), "location_uuid": sites[0].location_uuid}  # noqa: DTZ005
@@ -127,6 +134,7 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
     # note the way the tests are setup, only the horizon_minutes=90 has some ME values
 
 
+@freeze_time(now)
 def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
     """Check forecast doesnt adjuster, no me values"""
     forecast_meta = {"timestamp_utc": datetime.now(), "location_uuid": sites[0].location_uuid}  # noqa: DTZ005
@@ -148,6 +156,7 @@ def test_adjust_forecast_with_adjuster_no_values(db_session, sites):
     assert forecast_values_df["forecast_power_kw"].sum() == 15
 
 
+@freeze_time(now)
 @pytest.mark.parametrize("asset_type", [LocationAssetType.pv])
 def test_zero_out_night_time_for_pv(asset_type, db_session, sites):
     """Test for zero_out_nighttime"""
