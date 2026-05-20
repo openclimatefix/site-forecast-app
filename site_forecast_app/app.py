@@ -271,7 +271,8 @@ def app_run(
                     log.info(
                         f"No forecast values for site_group_uuid={model_config.site_group_uuid}",
                     )
-                    failed_runs.append([model_config.name, model_config.site_group_uuid])
+                    failed_runs.append(f"model={model_config.name}, "
+                                       f"site_group_uuid={model_config.site_group_uuid}")
                 else:
 
                     if model_config.curtailment:
@@ -349,7 +350,9 @@ def app_run(
 
                     if forecast_values is None:
                         log.info(f"No forecast values for site_uuid={site_uuid}")
-                        failed_runs.append([model_config.name, site.client_location_name])
+                        failed_runs.append(
+                            f"model={model_config.name}, "
+                            f"site={site.client_location_name}")
                     else:
                         # 4. Write forecast to DB or stdout
                         log.info(f"Writing forecast for site_uuid={site_uuid}")
