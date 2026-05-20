@@ -407,10 +407,9 @@ def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
 def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, center_lon):
     """Dummy NWP data"""
 
-        # remove any files in data/*nwp_ecmwf
     if os.path.isdir("data"):
         folder_path = "data"
-        # remove any files in data/*nwp_ecmwf
+        # remove any files in data/*nwp_mo_global
         for filename in os.listdir(folder_path):
             if "nwp_mo_global" in filename:
                 shutil.rmtree(os.path.join(folder_path, filename))
