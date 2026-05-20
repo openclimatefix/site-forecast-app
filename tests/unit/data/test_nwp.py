@@ -1,4 +1,3 @@
-import os
 from importlib.resources import files
 
 import numpy as np
@@ -13,13 +12,14 @@ from site_forecast_app.data.nwp import (
 )
 
 
-def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl): # noqa: ARG001
+def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl, monkeypatch):
     """Test cloud variables are scaled when requested."""
-    nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
+    nwp_ds = xr.open_zarr(nwp_mo_global_data_nl)
     nwp_ds = nwp_ds.transpose("init_time", "step", "variable", "latitude", "longitude")
 
     # Set environment variable to request scaling
-    os.environ["MO_GLOBAL_SCALE_CLOUDS"] = "1"
+    monkeypatch.setenv("MO_GLOBAL_SCALE_CLOUDS", "1")
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
 
     output_ds = scale_mo_cloud_variables(nwp_ds)
 
@@ -34,12 +34,13 @@ def test_scale_mo_cloud_variables_true(nwp_mo_global_data_nl): # noqa: ARG001
         assert output_ds["mo_global"].sel(variable=var).data.max() == 1
 
 
-def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl): # noqa: ARG001
+def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl, monkeypatch):
     """Test cloud variables are NOT scaled if not requested."""
-    nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
+    nwp_ds = xr.open_zarr(nwp_mo_global_data_nl)
 
     # Set environment variable to request scaling
-    os.environ["MO_GLOBAL_SCALE_CLOUDS"] = "0"
+    monkeypatch.setenv("MO_GLOBAL_SCALE_CLOUDS", "0")
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
 
     output_ds = scale_mo_cloud_variables(nwp_ds)
 
@@ -54,11 +55,12 @@ def test_scale_mo_cloud_variables_false(nwp_mo_global_data_nl): # noqa: ARG001
         assert output_ds["mo_global"].sel(variable=var).data.max() == 100
 
 
-def test_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
+def test_regrid_mo_global_nl(nwp_mo_global_data_nl, monkeypatch):
     """Test MetOffice Global is regridded for NL."""
-    nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
+    nwp_ds = xr.open_zarr(nwp_mo_global_data_nl)
 
-    os.environ["CLIENT_NAME"] = "nl"
+    monkeypatch.setenv("CLIENT_NAME", "nl")
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
 
     target_coords_path  = files("site_forecast_app.data").joinpath("nl_mo_target_coords.nc")
     ds_target_coords = xr.load_dataset(target_coords_path)
@@ -72,12 +74,13 @@ def test_regrid_mo_global_nl(nwp_mo_global_data_nl): # noqa: ARG001
     assert all(output_ds.longitude.data == ds_target_coords.longitude.data)
 
 
-def test_regrid_mo_global_india(nwp_mo_global_data_india): # noqa: ARG001
+def test_regrid_mo_global_india(nwp_mo_global_data_india, monkeypatch):
     """Test MetOffice Global is NOT regridded for India."""
-    nwp_ds = xr.open_zarr(os.environ["NWP_MO_GLOBAL_ZARR_PATH"])
+    nwp_ds = xr.open_zarr(nwp_mo_global_data_india)
 
-    os.environ["CLIENT_NAME"] = "ad"
-    os.environ["COUNTRY"] = "india"
+    monkeypatch.setenv("CLIENT_NAME", "ad")
+    monkeypatch.setenv("COUNTRY", "india")
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_india)
 
     output_ds = regrid_mo_global(nwp_ds)
 
@@ -86,10 +89,13 @@ def test_regrid_mo_global_india(nwp_mo_global_data_india): # noqa: ARG001
     assert all(output_ds.longitude.data == nwp_ds.longitude.data)
 
 
-def test_process_and_cash_nwp_raise_nan_error(tmp_path_factory, nwp_data_with_nans): # noqa: ARG001
+def test_process_and_cash_nwp_raise_nan_error(tmp_path_factory, nwp_data_with_nans, monkeypatch):
     """Test an error is raised when there are NaNs in the NWP data."""
+
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_data_with_nans)
+
     config = NWPProcessAndCacheConfig(
-                    source_nwp_path=os.environ["NWP_ECMWF_NANS_ZARR_PATH"],
+                    source_nwp_path=nwp_data_with_nans,
                     dest_nwp_path=f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf_nans_save.zarr",
                     source="ecmwf",
                 )

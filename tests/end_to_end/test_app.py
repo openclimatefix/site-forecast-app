@@ -5,7 +5,6 @@ Tests for functions in app.py
 import datetime as dt
 import json
 import multiprocessing as mp
-import os
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -31,16 +30,19 @@ def test_app(
     write_to_db,
     db_session,
     sites,  # noqa: ARG001
-    nwp_data,  # noqa: ARG001
-    nwp_mo_global_data_nl,  # noqa: ARG001
+    nwp_data,
+    nwp_mo_global_data_nl,
     generation_db_values,   # noqa: ARG001
-    satellite_data,  # noqa: ARG001
+    satellite_data,
     mock_da_prices,
     monkeypatch,
 ):
     """Test for running app from command line"""
     monkeypatch.setenv("CLIENT_NAME", "nl")
     monkeypatch.setenv("COUNTRY", "nl")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
 
     mock_entsoe_pandas_client_instance = MagicMock()
     mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
@@ -81,22 +83,25 @@ def test_app(
 def test_app_ad(
     db_session,
     sites, # noqa: ARG001
-    nwp_data, # noqa: ARG001
-    nwp_mo_global_data_india, # noqa: ARG001
+    nwp_data,
+    nwp_mo_global_data_india,
     generation_db_values, # noqa: ARG001
-    satellite_data, # noqa: ARG001
+    satellite_data,
     monkeypatch,
 ):
     """Test for running app from command line"""
+
+    monkeypatch.setenv("CLIENT_NAME", "ad")
+    monkeypatch.setenv("COUNTRY", "india")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_india)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
-
-    monkeypatch.setenv("CLIENT_NAME", "ad")
-    monkeypatch.setenv("COUNTRY", "india")
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
@@ -112,14 +117,16 @@ def test_app_ad(
 def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data, monkeypatch):  # noqa: ARG001
     """Test for running app from command line"""
 
+    monkeypatch.setenv("CLIENT_NAME", "ad")
+    monkeypatch.setenv("COUNTRY", "india")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
-
-    monkeypatch.setenv("CLIENT_NAME", "ad")
-    monkeypatch.setenv("COUNTRY", "india")
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
@@ -132,18 +139,21 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data, monkeypatch
 
 @freeze_time(now)
 def test_app_ruvnl(
-    db_session, sites, nwp_data_india, nwp_data_gencast, generation_db_values,  # noqa: ARG001
+    db_session, sites, nwp_data_india, nwp_data_gencast, generation_db_values, monkeypatch, # noqa: ARG001
 ):
     """Test for running app from command line"""
+
+    monkeypatch.setenv("CLIENT_NAME", "ruvnl")
+    monkeypatch.setenv("COUNTRY", "india")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data_india)
+    monkeypatch.setenv("NWP_GENCAST_GCS_BUCKET_PATH", nwp_data_gencast["bucket"])
+    monkeypatch.setenv("NWP_GENCAST_ZARR_PATH", nwp_data_gencast["zarr"])
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db")
-
-    os.environ["CLIENT_NAME"] = "ruvnl"
-    os.environ["COUNTRY"] = "india"
 
     result = run_click_script(app, args)
     assert result.exit_code == 0

@@ -4,7 +4,6 @@ Tests for functions in app.py
 
 import datetime as dt
 import multiprocessing as mp
-import os
 import uuid
 
 import pandas as pd
@@ -64,12 +63,16 @@ def test_get_sites_with_model_config(db_session, sites):
 def test_get_model(
     db_session,
     sites,
-    nwp_data,  # noqa: ARG001
+    nwp_data,
     generation_db_values,  # noqa: ARG001
     init_timestamp,
-    satellite_data,  # noqa: ARG001
+    satellite_data,
+    monkeypatch,
 ):
     """Test for getting valid model"""
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+
     all_models = get_all_models()
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
@@ -92,16 +95,18 @@ def test_get_model(
 def test_run_model(
     db_session,
     sites,
-    nwp_data,  # noqa: ARG001
-    nwp_mo_global_data_nl,  # noqa: ARG001
+    nwp_data,
+    nwp_mo_global_data_nl,
     generation_db_values,  # noqa: ARG001
     init_timestamp,
-    satellite_data,  # noqa: ARG001
-):
+    satellite_data,
+    monkeypatch,
+    ):
     """Test for running a PV model"""
 
-    print(f'{os.environ["NWP_ECMWF_ZARR_PATH"]=}') #noqa
-    print(f'{os.environ["NWP_MO_GLOBAL_ZARR_PATH"]=}') #noqa
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
 
     all_models = get_all_models()
     ml_model = all_models.models[0]

@@ -288,9 +288,9 @@ def time_before_present():
 
 
 @pytest.fixture(scope="session")
-def nwp_data_with_nans(tmp_path_factory, nwp_data): # noqa: ARG001
+def nwp_data_with_nans(tmp_path_factory, nwp_data):
     """Dummy ECMWF data with one variable filled with NaNs"""
-    ds = xr.open_zarr(os.environ["NWP_ECMWF_ZARR_PATH"])
+    ds = xr.open_zarr(nwp_data)
 
     # get the name of the first variable and fill with nans
     channel = ds["variable"].values[0]
@@ -298,8 +298,9 @@ def nwp_data_with_nans(tmp_path_factory, nwp_data): # noqa: ARG001
 
     # save at new data path
     temp_nwp_path_ecmwf_nans = f"{tmp_path_factory.mktemp('data')}/nwp_ecmwf_nans.zarr"
-    os.environ["NWP_ECMWF_NANS_ZARR_PATH"] = temp_nwp_path_ecmwf_nans
     ds.to_zarr(temp_nwp_path_ecmwf_nans)
+
+    return temp_nwp_path_ecmwf_nans
 
 
 @pytest.fixture(scope="session")
@@ -387,19 +388,20 @@ def make_nwp_data(tmp_path_factory, time_before_present, lat_centroid, lon_centr
     # save out data and set paths as environmental variables
     temp_nwp_path_ecmwf = f"{tmp_path_factory.mktemp('data')}/ \
         nwp_ecmwf_{lat_centroid}_{lon_centroid}.zarr"
-    os.environ["NWP_ECMWF_ZARR_PATH"] = temp_nwp_path_ecmwf
     ds.to_zarr(temp_nwp_path_ecmwf)
+
+    return temp_nwp_path_ecmwf
 
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_india(tmp_path_factory, time_before_present):
     """Dummy NWP data for india"""
-    make_nwp_mo_global_data(tmp_path_factory, time_before_present, 65.0, 3.0)
+    return make_nwp_mo_global_data(tmp_path_factory, time_before_present, 65.0, 3.0)
 
 @pytest.fixture(scope="session")
 def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
     """Dummy NWP data for netherlands"""
     # make new data
-    make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
+    return make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
 
 
 def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, center_lon):
@@ -483,8 +485,9 @@ def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, c
     temp_nwp_path_gfs = f"{tmp_path_factory.mktemp('data')}/ \
         nwp_mo_global_{center_lat}_{center_lon}.zarr"
 
-    os.environ["NWP_MO_GLOBAL_ZARR_PATH"] = temp_nwp_path_gfs
     ds.to_zarr(temp_nwp_path_gfs)
+
+    return temp_nwp_path_gfs
 
 
 @pytest.fixture(scope="session")
@@ -546,10 +549,10 @@ def nwp_data_gencast(tmp_path_factory):
     temp_nwp_path_gencast_raw = f"{tmp_path_factory.mktemp('data_raw')}/gencast/"
     temp_nwp_path_gencast = f"{tmp_path_factory.mktemp('data')}/nwp_gencast.zarr"
 
-    os.environ["NWP_GENCAST_GCS_BUCKET_PATH"] = temp_nwp_path_gencast_raw
-    os.environ["NWP_GENCAST_ZARR_PATH"] = temp_nwp_path_gencast
     ds1.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path1}_01_preds/predictions.zarr")
     ds2.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path2}_01_preds/predictions.zarr")
+
+    return {"bucket": temp_nwp_path_gencast_raw, "zarr" : temp_nwp_path_gencast}
 
 
 @pytest.fixture(scope="session")
@@ -593,9 +596,10 @@ def satellite_data(tmp_path_factory, init_timestamp):
     temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_sat.zarr.zip"
 
     # save out data and set paths as environmental variables
-    os.environ["SATELLITE_ZARR_PATH"] = temp_sat_path
     with zarr.storage.ZipStore(temp_sat_path, mode="x") as store:
         ds.to_zarr(store)
+
+    return temp_sat_path
 
 
 @pytest.fixture(scope="function")
@@ -639,9 +643,10 @@ def small_satellite_data(tmp_path_factory, init_timestamp):
     temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_small_sat.zarr.zip"
 
     # save out data and set paths as environmental variables
-    os.environ["SATELLITE_ZARR_PATH"] = temp_sat_path
     with zarr.storage.ZipStore(temp_sat_path, mode="x") as store:
         ds.to_zarr(store)
+
+    return temp_sat_path
 
 
 @pytest.fixture(scope="function")

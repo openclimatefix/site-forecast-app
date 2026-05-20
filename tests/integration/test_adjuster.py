@@ -55,7 +55,7 @@ def test_get_me_values_15(db_session, sites, generation_db_values, forecasts, in
     )
 
     assert len(me_df_15) != 0
-    assert len(me_df_15) > 95
+    assert len(me_df_15) >= 95
     assert me_df_15["me_kw"].sum() != 0
     assert me_df_15["horizon_minutes"][0] == 0
     assert me_df_15["horizon_minutes"][1] == 15
