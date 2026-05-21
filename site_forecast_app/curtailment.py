@@ -85,9 +85,11 @@ class Curtailment:
 
         # Lets now also apply curtailment to the probabilistic_values
         # Convert to probabilistic_values column of dict to columns
+        forecast_values_df["probabilistic_values"] = forecast_values_df["probabilistic_values"].apply(json.loads)
         forecast_values_df = forecast_values_df.pipe(
             lambda df: df.join(pd.json_normalize(df["probabilistic_values"])),
         )
+
         # apply curtailament on p10 and p90
         for plevel in ["p10", "p90"]:
             forecast_values_df[plevel] = forecast_values_df.apply(

@@ -35,6 +35,7 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
             lambda row: json.dumps(row.to_dict()),
             axis=1,
         )
+    data = data[["target_datetime_utc", "forecast_power_kw", "probabilistic_values"]]
 
     # add negative prices
     negative_prices_idx =\
