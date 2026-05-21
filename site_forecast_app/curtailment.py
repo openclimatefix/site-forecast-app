@@ -1,5 +1,6 @@
 """Class for managing curtailment forecasts."""
 
+import json
 import logging
 import os
 
@@ -82,5 +83,23 @@ class Curtailment:
             axis=1,
         )
 
-        # convert back
+        # Lets now also apply curtailment to the probabilistic_values
+        # Convert to probabilistic_values column of dict to columns
+        forecast_values_df = forecast_values_df.pipe(
+            lambda df: df.join(pd.json_normalize(df["probabilistic_values"])),
+        )
+        # apply curtailament on p10 and p90
+        for plevel in ["p10", "p90"]:
+            forecast_values_df[plevel] = forecast_values_df.apply(
+                lambda x: x[plevel] / 1.11 if x["curtailed"] else x[plevel],
+                axis=1,
+            )
+
+        # convert back to json
+        forecast_values_df["probabilistic_values"] = forecast_values_df[["p10", "p90"]].apply(
+            lambda row: json.dumps(row.to_dict()),
+            axis=1,
+        ).drop(columns=["p10", "p90"])
+
+        # convert back to list of dicts
         return forecast_values_df.to_dict("records")
