@@ -91,7 +91,7 @@ class Curtailment:
         # apply curtailament on p10 and p90
         for plevel in ["p10", "p90"]:
             forecast_values_df[plevel] = forecast_values_df.apply(
-                lambda x: x[plevel] / 1.11 if x["curtailed"] else x[plevel],
+                lambda x: x[plevel] / 1.11 if x["curtailed"] else x[plevel], # noqa B023
                 axis=1,
             )
 
