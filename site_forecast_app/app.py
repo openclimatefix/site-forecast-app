@@ -196,6 +196,7 @@ def app_run(
         all_model_configs = get_all_models(client_abbreviation=os.getenv("CLIENT_NAME", "nl"))
         successful_runs = 0
         runs = 0
+        failed_runs = []
 
         # Pre-fetch the DP location map once so _resolve_target_uuid doesn't call
         # list_locations on every individual forecast save.
@@ -270,6 +271,8 @@ def app_run(
                     log.info(
                         f"No forecast values for site_group_uuid={model_config.site_group_uuid}",
                     )
+                    failed_runs.append(f"model={model_config.name}, "
+                                       f"site_group_uuid={model_config.site_group_uuid}")
                 else:
 
                     if model_config.curtailment:
@@ -347,6 +350,9 @@ def app_run(
 
                     if forecast_values is None:
                         log.info(f"No forecast values for site_uuid={site_uuid}")
+                        failed_runs.append(
+                            f"model={model_config.name}, "
+                            f"site={site.client_location_name}")
                     else:
                         # 4. Write forecast to DB or stdout
                         log.info(f"Writing forecast for site_uuid={site_uuid}")
@@ -393,7 +399,7 @@ def app_run(
         if successful_runs == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs < runs:
-            raise Exception("Some forecasts failed")
+            raise Exception(f"Some forecasts failed {failed_runs}")
         else:
             raise Exception("All forecasts failed")
 
