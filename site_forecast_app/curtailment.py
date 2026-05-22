@@ -102,7 +102,8 @@ class Curtailment:
         forecast_values_df["probabilistic_values"] = forecast_values_df[["p10", "p90"]].apply(
             lambda row: json.dumps(row.to_dict()),
             axis=1,
-        ).drop(columns=["p10", "p90"])
+        )
+        forecast_values_df = forecast_values_df.drop(columns=["p10", "p90"])
 
         # convert back to list of dicts
         return forecast_values_df.to_dict("records")
