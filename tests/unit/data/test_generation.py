@@ -56,8 +56,8 @@ def test_format_generation_data():
 
     # 3. Capacity correctly computed and broadcast
     np.testing.assert_allclose(
-        result["capacity_mwp"].sel(location_id=101).values, 5.0
+        result["capacity_mwp"].sel(location_id=101).values, 5.0,
     )
     np.testing.assert_allclose(
-        result["capacity_mwp"].sel(location_id=102).values, 10.0
+        result["capacity_mwp"].sel(location_id=102).values, 10.0,
     )
