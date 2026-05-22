@@ -4,7 +4,6 @@ Tests for functions in app.py
 
 import datetime as dt
 import json
-import multiprocessing as mp
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -17,9 +16,15 @@ from site_forecast_app.app import (
 )
 from tests.end_to_end._utils import run_click_script
 
-mp.set_start_method("spawn", force=True)
 now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
 
+
+def _base_args(write_to_db: bool = False) -> list[str]:
+    """Build common CLI args for app tests."""
+    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
+    if write_to_db:
+        args.append("--write-to-db")
+    return args
 
 
 @freeze_time(now)
@@ -51,9 +56,7 @@ def test_app(
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
-    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
-    if write_to_db:
-        args.append("--write-to-db")
+    args = _base_args(write_to_db)
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
@@ -100,8 +103,7 @@ def test_app_ad(
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
-    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
-    args.append("--write-to-db")
+    args = _base_args(write_to_db=True)
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
@@ -125,8 +127,7 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data, monkeypatch
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
-    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
-    args.append("--write-to-db")
+    args = _base_args(write_to_db=True)
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
@@ -152,8 +153,7 @@ def test_app_ruvnl(
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
-    args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
-    args.append("--write-to-db")
+    args = _base_args(write_to_db=True)
 
     result = run_click_script(app, args)
     assert result.exit_code == 0
