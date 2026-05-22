@@ -4,7 +4,6 @@ Tests for functions in app.py
 
 import datetime as dt
 import json
-import multiprocessing as mp
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -17,7 +16,6 @@ from site_forecast_app.app import (
 )
 from tests.end_to_end._utils import run_click_script
 
-mp.set_start_method("spawn", force=True)
 now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
 
 
