@@ -10,6 +10,7 @@ import pandas as pd
 import xarray as xr
 import yaml
 import zarr
+from ocf_data_sampler.config.load import load_yaml_configuration
 
 log = logging.getLogger(__name__)
 
@@ -165,6 +166,86 @@ def download_satellite_data(satellite_source_file_path: str,
                               "x_geostationary": len(ds.x_geostationary)//4,
                               "variable": len(ds.variable)})
         ds.to_zarr(local_satellite_path, mode="a")
+
+
+def get_valid_satellite_times(satellite_zarr_path: str) -> pd.DatetimeIndex | None:
+    """Return the non-NaN satellite timestamps from a saved zarr.
+
+    The downloaded zarr may include a NaN-padded timestamp added for late data;
+    those are excluded so validation can detect when real satellite data does not
+    reach far enough toward t0. Returns None if the zarr does not exist.
+    """
+    if not os.path.exists(satellite_zarr_path):
+        return None
+    ds = xr.open_zarr(satellite_zarr_path)
+    nan_dims = [d for d in ds.data.dims if d != "time"]
+    valid_mask = ~ds.data.isnull().all(dim=nan_dims)
+    return pd.to_datetime(ds.time.values[valid_mask.values])
+
+
+def check_model_satellite_inputs_available(
+    data_config_filename: str,
+    t0: pd.Timestamp,
+    sat_datetimes: pd.DatetimeIndex | None,
+) -> bool:
+    """Checks whether the model can be run given the current satellite delay.
+
+    Args:
+        data_config_filename: Path to the data configuration file
+        t0: The init-time of the forecast
+        sat_datetimes: The available satellite timestamps
+
+    Returns:
+        bool: Whether the satellite data satisfies that specified in the config
+    """
+    input_config = load_yaml_configuration(data_config_filename).input_data
+
+    available = True
+
+    # Only check if using satellite data
+    model_uses_satellite = hasattr(input_config, "satellite") and (
+        input_config.satellite is not None
+    )
+
+    # In case the model does not require satellite
+    if not model_uses_satellite:
+        available = True
+
+    # In case the model requires satellite but none is available
+    elif model_uses_satellite and (sat_datetimes is None):
+        available = False
+
+    # In case the model requires satellite and some is available
+    elif model_uses_satellite:
+        # Take into account how recently the model tries to slice satellite data from
+        # interval_[start/end]_minutes is relative to t0 so negative means before t0
+        interval_start_minutes = input_config.satellite.interval_start_minutes
+        interval_end_minutes = input_config.satellite.interval_end_minutes
+
+        # Take into account the dropout the model was trained with
+        # If the model was trained with dropout, we can allow the satellite data to be
+        # delayed by most negative dropout time
+        if input_config.satellite.dropout_fraction > 0:
+            interval_end_minutes = min(
+                interval_end_minutes,
+                np.array(input_config.satellite.dropout_timedeltas_minutes).min(),
+            )
+
+        expected_datetimes = pd.date_range(
+            t0 + pd.Timedelta(f"{int(interval_start_minutes)}min"),
+            t0 + pd.Timedelta(f"{int(interval_end_minutes)}min"),
+            freq="5min",
+        )
+
+        # Check if any of the expected datetimes are missing
+        missing_time_steps = np.setdiff1d(expected_datetimes, sat_datetimes, assume_unique=True)
+
+        available = len(missing_time_steps) == 0
+
+        if len(missing_time_steps) > 0:
+            log.info(f"Some satellite timesteps for {t0=} missing: \n{missing_time_steps}")
+
+    return available
 
 
 def download_and_unzip(file_zip:str, file:str, temp_zarr_zip:str="sat_min.zarr.zip") -> None:
