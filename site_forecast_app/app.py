@@ -22,8 +22,12 @@ from site_forecast_app.blend.app import run_blend_app
 from site_forecast_app.blend.config import load_blend_config
 from site_forecast_app.curtailment import Curtailment
 from site_forecast_app.data.generation import get_generation_data
+from site_forecast_app.data.satellite import (
+    check_model_satellite_inputs_available,
+    get_valid_satellite_times,
+)
 from site_forecast_app.models import PVNetModel, get_all_models
-from site_forecast_app.models.pvnet.consts import root_data_path
+from site_forecast_app.models.pvnet.consts import root_data_path, satellite_path
 from site_forecast_app.models.pydantic_models import Model
 from site_forecast_app.save import (
     build_dp_location_map,
@@ -257,6 +261,21 @@ def app_run(
 
                 log.info(f"{ml_model.site_uuid} model loaded")
 
+                # Validate satellite data is sufficient for this model's requirements.
+                # If not, skip to the next model rather than producing odd outputs.
+                if not check_model_satellite_inputs_available(
+                    data_config_filename=ml_model.populated_data_config_filename,
+                    t0=timestamp,
+                    sat_datetimes=get_valid_satellite_times(satellite_path),
+                ):
+                    log.warning(
+                        f"Skipping model {model_config.name} for site_group_uuid="
+                        f"{model_config.site_group_uuid}: satellite data is too delayed.",
+                    )
+                    failed_runs.append(f"model={model_config.name}, "
+                                       f"site_group_uuid={model_config.site_group_uuid}")
+                    continue
+
                 # 3. Run model for all sites
                 asset_type = model_config.asset_type
                 log.info(
@@ -339,6 +358,22 @@ def app_run(
                     )
 
                     log.info(f"{site} model loaded")
+
+                    # Validate satellite data is sufficient for this model's requirements.
+                    # The check result is the same for every site under this model_config,
+                    # so fail the model once and skip the remaining sites.
+                    if not check_model_satellite_inputs_available(
+                        data_config_filename=ml_model.populated_data_config_filename,
+                        t0=timestamp,
+                        sat_datetimes=get_valid_satellite_times(satellite_path),
+                    ):
+                        log.warning(
+                            f"Skipping model {model_config.name}: "
+                            "satellite data is too delayed.",
+                        )
+                        failed_runs.append(f"model={model_config.name}, "
+                                           f"site={site.client_location_name}")
+                        break
 
                     # 3. Run model for one site
                     asset_type = model_config.asset_type
