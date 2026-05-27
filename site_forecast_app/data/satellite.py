@@ -18,6 +18,7 @@ def check_and_order_time_increasing(ds: xr.Dataset) -> xr.Dataset:
     """Check that the time dimension is increasing."""
     time = pd.DatetimeIndex(ds.time)
     if not (time.is_monotonic_increasing):
+        log.warning("Time dimension is not increasing, sorting by time")
         ds = ds.sortby("time")
     return ds
 
