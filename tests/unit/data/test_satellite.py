@@ -1,10 +1,15 @@
 """ Tests for utils for pvnet"""
 import tempfile
 
+import pandas as pd
 import xarray as xr
 import zarr
 
-from site_forecast_app.data.satellite import download_satellite_data, satellite_scale_minmax
+from site_forecast_app.data.satellite import (
+    check_model_satellite_inputs_available,
+    download_satellite_data,
+    satellite_scale_minmax,
+)
 
 
 def test_satellite_scale_minmax(small_satellite_data,
@@ -57,3 +62,29 @@ def test_satellite_download_backup(small_satellite_data,
                                 satellite_backup_source_file_path=local_satellite_backup_path)
 
 
+def test_check_model_satellite_inputs_available(config_filename) -> None:
+    """Check satellite availability across full coverage, delay, and gap scenarios."""
+    t0 = pd.Timestamp("2023-01-01 00:00")
+    sat_datetime_1 = pd.date_range(
+        t0 - pd.Timedelta("120min"),
+        t0 - pd.Timedelta("5min"),
+        freq="5min",
+    )
+    sat_datetime_2 = pd.date_range(
+        t0 - pd.Timedelta("120min"),
+        t0 - pd.Timedelta("15min"),
+        freq="5min",
+    )
+    sat_datetime_3 = pd.date_range(
+        t0 - pd.Timedelta("120min"),
+        t0 - pd.Timedelta("35min"),
+        freq="5min",
+    )
+    sat_datetime_4 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("30min")])
+    sat_datetime_5 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("60min")])
+
+    assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_1)
+    assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_2)
+    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_3)
+    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_4)
+    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_5)

@@ -34,6 +34,14 @@ log = logging.getLogger(__name__)
 
 random.seed(42)
 
+test_data_dir = os.path.dirname(os.path.abspath(__file__)) + "/test_data"
+
+
+@pytest.fixture(scope="session")
+def config_filename() -> str:
+    """Path to the test data config yaml."""
+    return f"{test_data_dir}/test.yaml"
+
 
 @pytest.fixture(scope="session")
 def engine():
