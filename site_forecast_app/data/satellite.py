@@ -14,6 +14,13 @@ from ocf_data_sampler.config.load import load_yaml_configuration
 
 log = logging.getLogger(__name__)
 
+def check_and_order_time_increasing(ds: xr.Dataset) -> xr.Dataset:
+    """Check that the time dimension is increasing."""
+    time = pd.DatetimeIndex(ds.time)
+    if not (time.is_monotonic_increasing):
+        ds = ds.sortby("time")
+    return ds
+
 def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     """Scale the satellite dataset via min-max to [0,1] range."""
     log.info("Scaling satellite data to 0,1] range via min-max")
@@ -149,6 +156,9 @@ def download_satellite_data(satellite_source_file_path: str,
         if "area" in ds.data.attrs and isinstance(ds.data.attrs["area"], dict):
             log.warning("Converting area attrs from dict to string")
             ds.data.attrs["area"] = yaml.dump(ds.data.attrs["area"])
+
+        # order timestamps in ascending order
+        ds = check_and_order_time_increasing(ds)
 
         # save the dataset
         ds = ds.chunk(chunks={"time": len(ds.time),
