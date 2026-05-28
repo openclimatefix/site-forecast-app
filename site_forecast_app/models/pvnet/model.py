@@ -260,7 +260,9 @@ class PVNetModel:
 
         # set MO GLOBAL cloud_cover_total to 0
         mo_global_nan_total_cloud_cover = os.getenv("MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER", "1") == "1"
-        if "mo_global" in self.config["input_data"]["nwp"] and mo_global_nan_total_cloud_cover:
+        if "nwp" in self.config["input_data"] \
+                and "mo_global" in self.config["input_data"]["nwp"] \
+                and mo_global_nan_total_cloud_cover:
             log.warning("Setting MO Global total cloud cover variables to nans")
             # In training cloud_cover_total were 0, lets do the same here
             channels = list(batch["nwp"]["mo_global"]["nwp_channel_names"])
@@ -340,36 +342,36 @@ class PVNetModel:
 
         # only load nwp that we need
         nwp_configs = []
-        nwp_keys = self.config["input_data"]["nwp"].keys()
-        if "ecmwf" in nwp_keys:
-            nwp_configs.append(
-                NWPProcessAndCacheConfig(
-                    source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
-                    dest_nwp_path=nwp_ecmwf_path,
-                    source="ecmwf",
-                ),
-            )
-        if "mo_global" in nwp_keys:
-            nwp_configs.append(
-                NWPProcessAndCacheConfig(
-                    source_nwp_path=os.environ["NWP_MO_GLOBAL_ZARR_PATH"],
-                    dest_nwp_path=nwp_mo_global_path,
-                    source="mo_global",
-                ),
-            )
-        if "gencast" in nwp_keys:
-            pull_gencast_data(
-                gcs_bucket_path=os.environ["NWP_GENCAST_GCS_BUCKET_PATH"],
-                output_path=os.environ["NWP_GENCAST_ZARR_PATH"],
-            )
-
-            nwp_configs.append(
-                NWPProcessAndCacheConfig(
-                    source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
-                    dest_nwp_path=nwp_gencast_path,
-                    source="gencast",
-                ),
-            )
+        if "nwp" in self.config["input_data"]:
+            nwp_keys = self.config["input_data"]["nwp"].keys()
+            if "ecmwf" in nwp_keys:
+                nwp_configs.append(
+                    NWPProcessAndCacheConfig(
+                        source_nwp_path=os.environ["NWP_ECMWF_ZARR_PATH"],
+                        dest_nwp_path=nwp_ecmwf_path,
+                        source="ecmwf",
+                    ),
+                )
+            if "mo_global" in nwp_keys:
+                nwp_configs.append(
+                    NWPProcessAndCacheConfig(
+                        source_nwp_path=os.environ["NWP_MO_GLOBAL_ZARR_PATH"],
+                        dest_nwp_path=nwp_mo_global_path,
+                        source="mo_global",
+                    ),
+                )
+            if "gencast" in nwp_keys:
+                pull_gencast_data(
+                    gcs_bucket_path=os.environ["NWP_GENCAST_GCS_BUCKET_PATH"],
+                    output_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+                )
+                nwp_configs.append(
+                    NWPProcessAndCacheConfig(
+                        source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+                        dest_nwp_path=nwp_gencast_path,
+                        source="gencast",
+                    ),
+                )
         # Remove local cached zarr if already exists
         for nwp_config in nwp_configs:
             # Process/cache remote zarr locally
