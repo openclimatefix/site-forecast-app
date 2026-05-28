@@ -64,9 +64,9 @@ def test_app(
     fv_per_hour = 4 # 15 min resolution = 4 values per hour
     n_forecasts = 11 + 12*9
     n_models = 11
-    # 2 national models × 1 site = 2
-    # 9 regional models × 1 national summation site = 9
-    # 9 regional models × 12 regional sites = 108
+    # 2 national models times 1 site = 2
+    # 9 regional models times 1 national summation site = 9
+    # 9 regional models times 12 regional sites = 108
     # average number of forecast is:
     n_fv = ((36 * n_forecasts) / n_forecasts) * fv_per_hour
 
