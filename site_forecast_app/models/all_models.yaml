@@ -129,6 +129,7 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
+    is_critical: false
   - name: nl_regional_sat_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -144,6 +145,7 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
+    is_critical: false
   - name: nl_regional_ecmwf_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -159,6 +161,7 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
+    is_critical: false
   - name: nl_regional_mo_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -174,6 +177,7 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
+    is_critical: false
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet

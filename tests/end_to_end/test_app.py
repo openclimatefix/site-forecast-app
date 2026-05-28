@@ -163,3 +163,53 @@ def test_app_ruvnl(
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
     assert len(forecast_values) == init_n_forecast_values + (n * 2 * 192)
+
+
+@freeze_time(now)
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
+def test_app_critical_only(
+    mock_entsoe_pandas_client,
+    db_session,
+    sites,  # noqa: ARG001
+    nwp_data,
+    nwp_mo_global_data_nl,
+    generation_db_values,  # noqa: ARG001
+    satellite_data,
+    mock_da_prices,
+    monkeypatch,
+):
+    """Test that RUN_CRITICAL_MODELS_ONLY=true skips non-critical models."""
+    monkeypatch.setenv("CLIENT_NAME", "nl")
+    monkeypatch.setenv("COUNTRY", "nl")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+    monkeypatch.setenv("RUN_CRITICAL_MODELS_ONLY", "true")
+
+    mock_entsoe_pandas_client_instance = MagicMock()
+    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
+
+    init_n_forecasts = db_session.query(ForecastSQL).count()
+
+    args = _base_args(write_to_db=True)
+
+    result = run_click_script(app, args)
+    assert result.exit_code == 0
+
+    # With critical only, the 4 single-source models (is_critical=false) should be skipped
+    # so fewer forecasts than test_app
+    assert db_session.query(ForecastSQL).count() > init_n_forecasts
+
+
+def test_get_all_models_critical_only():
+    """Test that get_critical_only filters to only critical models."""
+    from site_forecast_app.models.pydantic_models import get_all_models
+
+    all_models = get_all_models(client_abbreviation="nl")
+    critical_models = get_all_models(client_abbreviation="nl", get_critical_only=True)
+
+    assert len(critical_models.models) > 0
+    assert len(critical_models.models) < len(all_models.models)
+    assert all(m.is_critical for m in critical_models.models)
+    assert not all(m.is_critical for m in all_models.models)
