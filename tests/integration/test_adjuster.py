@@ -13,7 +13,6 @@ from site_forecast_app.adjuster import (
     zero_out_night_time_for_pv,
 )
 
-
 now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
 
 def test_get_me_values_no_values(db_session, sites):
