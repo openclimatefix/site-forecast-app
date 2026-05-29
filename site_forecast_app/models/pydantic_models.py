@@ -84,6 +84,13 @@ class Model(BaseModel):
         description="Whether the model should apply curtailment to the forecasts.",
     )
 
+    is_critical: bool = Field(
+        True,
+        title="Is Critical",
+        description="If this model must always be part of the critical set of models which should "
+        "always be run. Non-critical models are skipped when RUN_CRITICAL_MODELS_ONLY is true.",
+    )
+
     observer_name: str | None = Field(
         None,
         title="Observer Name",
@@ -105,9 +112,11 @@ class Models(BaseModel):
     )
 
 
-def get_all_models(client_abbreviation: str | None = None) -> [Model]:
+def get_all_models(
+    client_abbreviation: str | None = None,
+    get_critical_only: bool = False,
+) -> Models:
     """Returns all the models for a given client."""
-    # load models from yaml file
     import os
 
     filename = os.path.dirname(os.path.abspath(__file__)) + "/all_models.yaml"
@@ -118,5 +127,8 @@ def get_all_models(client_abbreviation: str | None = None) -> [Model]:
 
     if client_abbreviation:
         models.models = [model for model in models.models if model.client == client_abbreviation]
+
+    if get_critical_only:
+        models.models = [model for model in models.models if model.is_critical]
 
     return models

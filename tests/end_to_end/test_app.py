@@ -62,10 +62,11 @@ def test_app(
     assert result.exit_code == 0
 
     fv_per_hour = 4 # 15 min resolution = 4 values per hour
-    n_forecasts = 7 + 12*5
-    n_models = 7
-    # 1 site, 5 models do 36 hours
-    # 4 regional models also do 36 hours for 12 more sites
+    n_forecasts = 11 + 12*9
+    n_models = 11
+    # 2 national models times 1 site = 2
+    # 9 regional models times 1 national summation site = 9
+    # 9 regional models times 12 regional sites = 108
     # average number of forecast is:
     n_fv = ((36 * n_forecasts) / n_forecasts) * fv_per_hour
 
@@ -163,3 +164,40 @@ def test_app_ruvnl(
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
     assert len(forecast_values) == init_n_forecast_values + (n * 2 * 192)
+
+
+@freeze_time(now)
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
+def test_app_critical_only(
+    mock_entsoe_pandas_client,
+    db_session,
+    sites,  # noqa: ARG001
+    nwp_data,
+    nwp_mo_global_data_nl,
+    generation_db_values,  # noqa: ARG001
+    satellite_data,
+    mock_da_prices,
+    monkeypatch,
+):
+    """Test that RUN_CRITICAL_MODELS_ONLY=true skips non-critical models."""
+    monkeypatch.setenv("CLIENT_NAME", "nl")
+    monkeypatch.setenv("COUNTRY", "nl")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+    monkeypatch.setenv("RUN_CRITICAL_MODELS_ONLY", "true")
+
+    mock_entsoe_pandas_client_instance = MagicMock()
+    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
+
+    init_n_forecasts = db_session.query(ForecastSQL).count()
+
+    args = _base_args(write_to_db=True)
+
+    result = run_click_script(app, args)
+    assert result.exit_code == 0
+
+    # With critical only, the 4 single-source models (is_critical=false) should be skipped
+    # so fewer forecasts than test_app
+    assert db_session.query(ForecastSQL).count() > init_n_forecasts

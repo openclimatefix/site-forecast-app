@@ -197,7 +197,11 @@ def app_run(
 
     with db_conn.get_session() as session:
         # 1. Load data/models
-        all_model_configs = get_all_models(client_abbreviation=os.getenv("CLIENT_NAME", "nl"))
+        run_critical_only = os.getenv("RUN_CRITICAL_MODELS_ONLY", "false").lower() == "true"
+        all_model_configs = get_all_models(
+            client_abbreviation=os.getenv("CLIENT_NAME", "nl"),
+            get_critical_only=run_critical_only,
+        )
         successful_runs = 0
         runs = 0
         failed_runs = []
