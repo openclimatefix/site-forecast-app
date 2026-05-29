@@ -238,6 +238,9 @@ def generate_probabilistic_values():
 @pytest.fixture()
 def forecasts(db_session, sites):
     """Make fake forecasts"""
+    init_timestamp = pd.Timestamp(dt.datetime.now(tz=None)).floor(  # noqa: DTZ005
+        dt.timedelta(minutes=15),
+    )
 
     n = 24 * 4  # 24 hours of readings of 15
     start_times = [init_timestamp - dt.timedelta(minutes=x * 15) for x in range(n)]
