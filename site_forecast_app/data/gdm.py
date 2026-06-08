@@ -35,11 +35,21 @@ RELEVANT_SLICE = {
     "time": slice(None, np.timedelta64(84, "h")),
 }
 
+# Spatial/time selection
+RELEVANT_SLICE_FGN = {
+    "lat": slice(6, 35),
+    "lon": slice(67, 97),
+    "time": slice(None, np.timedelta64(84, "h")),
+}
 
-def slice_relevant(ds: xr.Dataset) -> xr.Dataset:
+def slice_relevant(ds: xr.Dataset, provider: str = "gencast") -> xr.Dataset:
     """Drop variables and slice to relevant data."""
-    return ds[WEATHER_VARS].sel(**RELEVANT_SLICE)
-
+    if provider == "gencast":
+        return ds[WEATHER_VARS].sel(**RELEVANT_SLICE)
+    if provider == "fgn":
+        return ds[WEATHER_VARS].sel(**RELEVANT_SLICE_FGN)
+    else:
+        raise ValueError(f"Unknown provider: {provider}")
 
 def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     """Returns the latest 6-hourly init time string in a specified format.
@@ -229,3 +239,81 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 
     data_combined.to_zarr(output_path, mode="w")
     log.info("Successfully saved processed GenCast data to zarr path.")
+
+
+def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
+    """Get FGN (WeatherNext2) data sliced to region of interest for most recent init time.
+
+    Fetches to get 6 hourly forecast target times and reshapes
+    into the required format for ocf-data-sampler.
+
+    Args:
+        gcs_bucket_path: Path to where GenCast data is stored.
+        output_path: Path to save the processed GenCast data.
+
+    Returns:
+        An xarray Dataset containing the FGN data in the format required for ocf-data-sampler.
+    """
+    # check if data already exists at output path and if so, skip processing
+    if os.path.exists(output_path):
+        log.info(f"File already exists at {output_path}, skipping FGN data pull.")
+        return
+
+    # Get latest initialised forecast
+    last_expected_init_time = get_latest_6hr_init_time()
+
+    try:
+        zarr_path = f"{gcs_bucket_path}{last_expected_init_time}_01_preds/predictions.zarr"
+
+        # Grab GCS token path and only use it if it exists
+        gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
+
+        if gcs_token_string is None:
+            storage_option = None
+        else:
+            token_dict = json.loads(gcs_token_string)
+            storage_option = {"token": token_dict}
+
+        ds = xr.open_zarr(
+            zarr_path,
+            decode_timedelta=True,
+            chunks="auto",
+            storage_options=storage_option,
+        )
+
+        log.info("Successfully opened FGN data from GCS (lazily).")
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Error loading FGN data from {gcs_bucket_path}",
+        ) from e
+
+    # Load into memory for quicker processing
+    ds_sliced = slice_relevant(ds, provider="fgn")
+    ds_sliced.load()
+    log.info("Loaded GenCast data into memory.")
+
+    # Compute ensemble statistics
+    ds_ens_stats = compute_ensemble_statistics(ds_sliced)
+
+    da_merged = ds_ens_stats.to_array(name="fgn_data")
+
+    # Stack ensemble statistics and variables into single channel dimension
+    data_combined = stack_ensemble_stats_into_channels(da_merged)
+
+    # Rename dimensions
+    data_combined = data_combined.rename(
+        {
+            "lat": "latitude",
+            "lon": "longitude",
+            "time": "step",
+            "init_time": "init_time_utc",
+        },
+    )
+    # Save to zarr path
+    data_combined = data_combined.drop_encoding()
+    data_combined = data_combined.astype("float32")
+    data_combined = data_combined.chunk(data_combined.shape)
+
+    data_combined.to_zarr(output_path, mode="w")
+    log.info("Successfully saved processed FGN data to zarr path.")
