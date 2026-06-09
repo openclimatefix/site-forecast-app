@@ -112,11 +112,12 @@ def test_app_ad(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 4  # 1 site, 4 models
+    n = 6  # 2 sites, 6 models
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
-    assert len(forecast_values) == init_n_forecast_values + (n * 2 * 16)
+    # 4 forecasts (n-2) with 16 forecast steps and 2 with 192 forecast steps
+    assert len(forecast_values) == init_n_forecast_values + ((n - 2) * 2 * 16) + (2 * 2 * 192)
 
 
 @freeze_time(now)
