@@ -244,12 +244,12 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
     """Get FGN (WeatherNext2) data sliced to region of interest for most recent init time.
 
-    Fetches to get 6 hourly forecast target times and reshapes
+    Fetches the latest available FGN forecast and reshapes
     into the required format for ocf-data-sampler.
 
     Args:
-        gcs_bucket_path: Path to where GenCast data is stored.
-        output_path: Path to save the processed GenCast data.
+        gcs_bucket_path: Path to where FGN data is stored.
+        output_path: Path to save the processed FGN data.
 
     Returns:
         An xarray Dataset containing the FGN data in the format required for ocf-data-sampler.
@@ -291,7 +291,7 @@ def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
     # Load into memory for quicker processing
     ds_sliced = slice_relevant(ds, provider="fgn")
     ds_sliced.load()
-    log.info("Loaded GenCast data into memory.")
+    log.info("Loaded FGN data into memory.")
 
     # Compute ensemble statistics
     ds_ens_stats = compute_ensemble_statistics(ds_sliced)
