@@ -6,7 +6,7 @@ import pytest
 import xarray as xr
 from freezegun import freeze_time
 
-from site_forecast_app.data.gencast import (
+from site_forecast_app.data.gdm import (
     combine_to_single_init_time,
     compute_ensemble_statistics,
     get_latest_6hr_init_time,

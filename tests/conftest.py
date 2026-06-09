@@ -28,7 +28,7 @@ from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
 from site_forecast_app.blend.config import BlendConfig, load_blend_config
-from site_forecast_app.data.gencast import get_latest_6hr_init_time
+from site_forecast_app.data.gdm import get_latest_6hr_init_time
 
 log = logging.getLogger(__name__)
 
