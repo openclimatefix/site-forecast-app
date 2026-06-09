@@ -89,6 +89,7 @@ def test_app_ad(
     sites, # noqa: ARG001
     nwp_data,
     nwp_mo_global_data_india,
+    nwp_data_fgn,
     generation_db_values, # noqa: ARG001
     satellite_data,
     monkeypatch,
@@ -100,6 +101,8 @@ def test_app_ad(
     monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_india)
     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+    monkeypatch.setenv("NWP_GENCAST_GCS_BUCKET_PATH", nwp_data_fgn["bucket"])
+    monkeypatch.setenv("NWP_GENCAST_ZARR_PATH", nwp_data_fgn["zarr"])
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
