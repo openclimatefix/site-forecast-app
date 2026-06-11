@@ -297,7 +297,7 @@ def app_run(
                 # when not running the summation model, we get a list back,
                 # lets make sure its a dictionary like we get back if its a summation model
                 if isinstance(forecast_values, list):
-                    forecast_values = {0: forecast_values}
+                    forecast_values = {sites_for_model[0].ml_id: forecast_values}
 
                 if forecast_values is None:
                     log.info(
