@@ -178,7 +178,7 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
-  - name: nl_regional_ecmwf_mo9_sat
+  - name: nl_regional_pv_ecmwf_mo9_sat
     # This model is trained on generation data where we have removed the curtailment
     # Also only 9 MO variables have been used, these have been removed:
     # - downward_shortwave_radiation_flux_gl
@@ -186,9 +186,9 @@ models:
     # - snow_depth_gl
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 85ea039893412b66269b5035a6fcad306079cc64
+    version: e940d1d0eef4eabc55f098645be9287a75d58860
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: ef5616057c8de09360384be7589188e463cc22fe
+    summation_version: a266aaa4e6f59f9246a77b1ae9ec9ef662cdd7fd
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
