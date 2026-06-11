@@ -13,11 +13,11 @@ from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, LocationGr
 from site_forecast_app.app import (
     get_sites,
     run_model,
-    save_forecast,
 )
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.models.pvnet.model import PVNetModel
 from site_forecast_app.models.pydantic_models import get_all_models
+from site_forecast_app.save import save_forecast
 
 mp.set_start_method("spawn", force=True)
 now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
