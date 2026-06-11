@@ -84,6 +84,13 @@ class Model(BaseModel):
         description="Whether the model should apply curtailment to the forecasts.",
     )
 
+    save_uncurtailed: bool = Field(
+        False,
+        title="Save Uncurtailed",
+        description="Whether to save the uncurtailed forecasts. " \
+        "This will only be used if curtailment is enabled.",
+    )
+
     is_critical: bool = Field(
         True,
         title="Is Critical",
