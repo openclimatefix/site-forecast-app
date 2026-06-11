@@ -317,7 +317,7 @@ def app_run(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
 
-                    for site in sites_for_model:
+                    for site in site_group:
                         # Write forecast for one site at a time
                         forecast = {
                             "meta": {
