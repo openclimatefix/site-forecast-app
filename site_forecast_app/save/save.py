@@ -174,7 +174,6 @@ def save_forecast(
         f"version={forecast_meta['forecast_version']}:"
     )
     log.info(output)
-    log.info(f"\n{forecast_values_df.to_string()}\n")
 
     # Optionally push to the Data Platform
     if os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true":
