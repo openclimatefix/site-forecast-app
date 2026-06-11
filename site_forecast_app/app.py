@@ -239,16 +239,20 @@ def app_run(
 
             if model_config.summation_version:
                 # Summation model provided, run the model concurrently on all sites
+                site_groups_for_running_model = [sites_for_model]
+                log.info("Running the model concurrently")
+            else:
+                site_groups_for_running_model = [[s] for s in sites_for_model]
+                log.info("Running the model for each site one by one")
+
+
+            for site_group in site_groups_for_running_model:
                 runs += 1
 
-                log.info("Running the model concurrently")
                 log.info("Reading latest historic generation data for all sites...")
                 generation_data = get_generation_data(
-                    session, sites_for_model, timestamp, observer_name=model_config.observer_name,
+                    session, site_group, timestamp, observer_name=model_config.observer_name,
                 )
-
-                log.debug(f"{generation_data['data']=}")
-                log.debug(f"{generation_data['metadata']=}")
 
                 log.info(f"Loading concurrent model {model_config.name}...")
                 ml_model = PVNetModel(
@@ -289,6 +293,11 @@ def app_run(
                     model=ml_model,
                     timestamp=timestamp,
                 )
+
+                # when not running the summation model, we get a list back,
+                # lets make sure its a dictionary like we get back if its a summation model
+                if isinstance(forecast_values, list):
+                    forecast_values = {0: forecast_values}
 
                 if forecast_values is None:
                     log.info(
@@ -334,91 +343,6 @@ def app_run(
                             use_adjuster=site.ml_id == 0,
                         )
                     successful_runs += 1
-
-            else:
-                # Summation model not provided, running model on one site at a time
-                for site in sites_for_model:
-                    runs += 1
-                    site_uuid = str(site.location_uuid)
-
-                    log.info(f"Reading latest historic {site} generation data...")
-                    generation_data = get_generation_data(
-                        session, [site], timestamp, observer_name=model_config.observer_name,
-                    )
-
-                    log.debug(f"{generation_data['data']=}")
-                    log.debug(f"{generation_data['metadata']=}")
-
-                    log.info(f"Loading {site} model {model_config.name}...")
-                    ml_model = PVNetModel(
-                        timestamp,
-                        generation_data,
-                        hf_repo=model_config.id,
-                        hf_version=model_config.version,
-                        name=model_config.name,
-                        satellite_scaling_method=model_config.satellite_scaling_method,
-                        site_uuid=site_uuid,
-                        asset_type=model_config.asset_type,
-                    )
-
-                    log.info(f"{site} model loaded")
-
-                    # Validate satellite data is sufficient for this model's requirements.
-                    # The check result is the same for every site under this model_config,
-                    # so fail the model once and skip the remaining sites.
-                    if not check_model_satellite_inputs_available(
-                        data_config_filename=ml_model.populated_data_config_filename,
-                        t0=timestamp,
-                        sat_datetimes=get_valid_satellite_times(satellite_path),
-                    ):
-                        log.warning(
-                            f"Skipping model {model_config.name}: "
-                            "satellite data is too delayed.",
-                        )
-                        failed_runs.append(f"model={model_config.name}, "
-                                           f"site={site.client_location_name}")
-                        break
-
-                    # 3. Run model for one site
-                    asset_type = model_config.asset_type
-                    log.info(f"Running {asset_type} model for site={site_uuid}...")
-                    forecast_values = run_model(
-                        model=ml_model,
-                        timestamp=timestamp,
-                    )
-
-                    if forecast_values is None:
-                        log.info(f"No forecast values for site_uuid={site_uuid}")
-                        failed_runs.append(
-                            f"model={model_config.name}, "
-                            f"site={site.client_location_name}")
-                    else:
-                        # 4. Write forecast to DB or stdout
-                        log.info(f"Writing forecast for site_uuid={site_uuid}")
-                        forecast = {
-                            "meta": {
-                                "location_uuid": site_uuid,
-                                "version": version,
-                                "timestamp": timestamp,
-                                "client_location_name": site.client_location_name,
-                                "capacity_kw": site.capacity_kw,
-                                "latitude": site.latitude,
-                                "longitude": site.longitude,
-                                "location_type": determine_location_type(site, model_config),
-                            },
-                            "values": forecast_values,
-                        }
-                        save_forecast(
-                            session,
-                            forecast=forecast,
-                            write_to_db=write_to_db,
-                            ml_model_name=ml_model.name,
-                            ml_model_version=version,
-                            location_map=dp_location_map,
-                            use_adjuster_database=use_adjuster_database,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
-                        successful_runs += 1
 
         log.info(
             f"Completed forecasts for {successful_runs} runs for "
