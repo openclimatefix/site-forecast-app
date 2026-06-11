@@ -312,7 +312,7 @@ def app_run(
                     log.info(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
-
+                    
                     save_forecast_for_site_group_partial = partial(save_forecast_for_site_group,
                         db_session=session,
                         # forecast_values=forecast_values,

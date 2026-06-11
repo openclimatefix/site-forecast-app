@@ -17,7 +17,7 @@ from site_forecast_app.save.data_platform import (
     save_forecast_to_dataplatform,
     save_to_dataplatform,
 )
-from site_forecast_app.save.save import save_forecast
+from site_forecast_app.save.save import save_forecast, save_forecast_for_site_group
 from site_forecast_app.save.utils import limit_adjuster  # noqa: F401
 
 __all__ = [
@@ -32,4 +32,5 @@ __all__ = [
     "save_forecast",
     "save_forecast_to_dataplatform",
     "save_to_dataplatform",
+    "save_forecast_for_site_group",
 ]
