@@ -61,7 +61,6 @@ def save_forecast_for_site_group(
         version: Version of the ML model used for the forecast
         use_adjuster_database: Make a new model adjusted by last 7 days of ME values.
             Also controls whether an adjusted forecast is sent to the Data Platform.
-        adjuster_average_minutes: Minutes to average over when calculating adjuster values
         location_map: Optional pre-fetched mapping of DP location name to UUID.
             When provided, avoids a list_locations gRPC call per site.
         observer_name: The name of the observer to use for the adjuster
