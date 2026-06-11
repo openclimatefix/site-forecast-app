@@ -341,7 +341,7 @@ def app_run(
                             location_map=dp_location_map,
                             use_adjuster_database=use_adjuster_database,
                             use_adjuster=site.ml_id == 0,
-                            observer_name=model_config.model_config.observer_name_adjuster,
+                            observer_name=model_config.observer_name_adjuster,
                         )
                     successful_runs += 1
 
