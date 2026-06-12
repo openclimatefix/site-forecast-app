@@ -199,7 +199,8 @@ models:
     # the generation data that is loaded
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
-    observer_name_adjuster: nednl_no_curtailment
+    observer_name_adjuster: nednl
+    curtailment: true
     is_critical: false
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
