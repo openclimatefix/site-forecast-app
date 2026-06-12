@@ -187,9 +187,9 @@ models:
     # - snow_depth_gl
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: e940d1d0eef4eabc55f098645be9287a75d58860
+    version: 82f11b7c5afedea5900791a60f3753a1df1f5ebe
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: a266aaa4e6f59f9246a77b1ae9ec9ef662cdd7fd
+    summation_version: 8ee6c227a163a394045568d335a14d24c5f33552
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
