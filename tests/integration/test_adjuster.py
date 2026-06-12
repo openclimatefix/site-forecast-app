@@ -1,6 +1,7 @@
 """Test for adjuster.py"""
 
 from datetime import datetime
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -88,8 +89,13 @@ def test_get_me_values_no_forecasts(db_session, sites, generation_db_values, ini
 
 
 @freeze_time(now)
-def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, forecasts):  # noqa: ARG001
+@patch("site_forecast_app.adjuster.get_me_values")
+def test_adjust_forecast_with_adjuster(mock_get_me_values, db_session, sites):
     """Check forecast gets adjuster"""
+
+    mock_get_me_values.return_value = pd.DataFrame.from_dict({
+        "horizon_minutes": [1145,1200,1215], "me_kw": [101, 102, 103]})
+
     forecast_meta = {"timestamp_utc": datetime.now(), "location_uuid": sites[0].location_uuid}  # noqa: DTZ005
     forecast_values_df = pd.DataFrame(
         {
@@ -113,7 +119,7 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
         db_session, forecast_meta, forecast_values_df, ml_model_name="test",
     )
 
-    # check that the forecast_values_df has been adjusted for the horizon_minutes=90
+    # check that the forecast_values_df has been adjusted for the horizon_minutes=1200
     original_p50 = forecast_values_df.loc[
         forecast_values_df["horizon_minutes"] == 1200, "probabilistic_values",
     ].iloc[0]["p50"]
@@ -127,7 +133,7 @@ def test_adjust_forecast_with_adjuster(db_session, sites, generation_db_values, 
     assert len(adjusted_forecast_df) == 5
 
     assert adjusted_forecast_df["forecast_power_kw"][0:4].sum() == 10.0
-    assert adjusted_forecast_df["forecast_power_kw"][4] != 5
+    assert adjusted_forecast_df["forecast_power_kw"][4] != 5 -101
 
     # note the way the tests are setup, only the horizon_minutes=90 has some ME values
 

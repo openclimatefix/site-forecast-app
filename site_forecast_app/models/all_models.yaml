@@ -92,6 +92,7 @@ models:
     location_type: state
     summation_location_type: nation
     curtailment: true
+    save_uncurtailed: true
     # the generation data that is loaded
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster

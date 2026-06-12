@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import sys
+from functools import partial
 
 import click
 import pandas as pd
@@ -31,7 +32,7 @@ from site_forecast_app.models.pvnet.consts import root_data_path, satellite_path
 from site_forecast_app.models.pydantic_models import Model
 from site_forecast_app.save import (
     build_dp_location_map,
-    save_forecast,
+    save_forecast_for_site_group,
 )
 
 log = logging.getLogger(__name__)
@@ -307,41 +308,51 @@ def app_run(
                                        f"site_group_uuid={model_config.site_group_uuid}")
                 else:
 
-                    if model_config.curtailment:
-                        log.info("Applying curtailment to forecast values...")
-                        forecast_values = {k: curtailment.apply_curtailment(v) \
-                                        for k, v in forecast_values.items()}
-
                     # 4. Write forecast to DB or stdout
                     log.info(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
 
-                    for site in site_group:
-                        # Write forecast for one site at a time
-                        forecast = {
-                            "meta": {
-                                "location_uuid": site.location_uuid,
-                                "version": version,
-                                "timestamp": timestamp,
-                                "client_location_name": site.client_location_name,
-                                "capacity_kw": site.capacity_kw,
-                                "latitude": site.latitude,
-                                "longitude": site.longitude,
-                                "location_type": determine_location_type(site, model_config),
-                            },
-                            "values": forecast_values[site.ml_id],
-                        }
-                        save_forecast(
-                            session,
-                            forecast=forecast,
-                            write_to_db=write_to_db,
-                            ml_model_name=ml_model.name,
-                            ml_model_version=version,
-                            location_map=dp_location_map,
-                            use_adjuster_database=use_adjuster_database,
-                            use_adjuster=site.ml_id == 0,
-                            observer_name=model_config.observer_name_adjuster,
+                    # make a partial function for saving forecast, still need to set
+                    # forecast_values and model_name
+                    save_forecast_for_site_group_partial = partial(save_forecast_for_site_group,
+                        db_session=session,
+                        timestamp=timestamp,
+                        site_group=site_group,
+                        write_to_db=write_to_db,
+                        model_config=model_config,
+                        version=version,
+                        use_adjuster_database=use_adjuster_database,
+                        location_map=dp_location_map,
+                        observer_name=model_config.observer_name,
+                    )
+
+                    if not model_config.curtailment:
+                        # if there is no curtailment, we can save the forecast normally
+                        save_forecast_for_site_group_partial(
+                            forecast_values=forecast_values,
+                            model_name=model_config.name,
+                        )
+
+                    elif model_config.save_uncurtailed & model_config.curtailment:
+                        # if there is curtailment, and we want to save the uncurtailed values
+                        log.info("Saving uncurtailed forecast values...")
+
+                        save_forecast_for_site_group_partial(
+                            forecast_values=forecast_values,
+                            model_name=model_config.name + "_uncurtailed",
+                        )
+
+                    if model_config.curtailment:
+                        # now saving the curtailed forecast values
+                        log.info("Applying curtailment to forecast values...")
+                        forecast_values = {k: curtailment.apply_curtailment(v) \
+                                        for k, v in forecast_values.items()}
+
+
+                        save_forecast_for_site_group_partial(
+                            forecast_values=forecast_values,
+                            model_name=model_config.name,
                         )
                     successful_runs += 1
 
