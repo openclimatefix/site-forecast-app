@@ -52,6 +52,12 @@ class Model(BaseModel):
         description="The UUID of the site group that the model is for.",
     )
 
+    observer_name: str | None = Field(
+        None,
+        title="Observer Name",
+        description="The name of the observer to fetch from the DP generation data from",
+    )
+
     # Summation model requires a National site, which by convention has ml_id=0 and should be
     # added to the site_group alongside the regional sites for the model
     summation_id: str | None = Field(
@@ -78,6 +84,20 @@ class Model(BaseModel):
         description="The type of location for the summation outcome (site, state, or nation)",
     )
 
+    is_critical: bool = Field(
+        True,
+        title="Is Critical",
+        description="If this model must always be part of the critical set of models which should "
+        "always be run. Non-critical models are skipped when RUN_CRITICAL_MODELS_ONLY is true.",
+    )
+
+    observer_name_adjuster: str | None = Field(
+        None,
+        title="Observer Name for the adjuster",
+        description="The name of the observer to fetch from the DP use for the adjuster",
+    )
+
+    # curtailment options
     curtailment: bool = Field(
         False,
         title="Curtailment",
@@ -91,29 +111,11 @@ class Model(BaseModel):
         "This will only be used if curtailment is enabled.",
     )
 
-    is_critical: bool = Field(
-        True,
-        title="Is Critical",
-        description="If this model must always be part of the critical set of models which should "
-        "always be run. Non-critical models are skipped when RUN_CRITICAL_MODELS_ONLY is true.",
-    )
-
-    observer_name: str | None = Field(
-        None,
-        title="Observer Name",
-        description="The name of the observer to fetch DP generation data from",
-    )
-
-    observer_name_adjuster: str | None = Field(
-        None,
-        title="Observer Name for the adjuster",
-        description="The name of the observer to fetch DP use for the adjuster",
-    )
-
     observer_name_uncurtailed_adjuster: str | None = Field(
         None,
         title="Observer Name for the uncurtailed adjuster",
-        description="The name of the observer to fetch DP use for the uncurtailed adjuster",
+        description="The name of the observer to " \
+        "fetch from the DP use for the uncurtailed adjuster",
     )
 
 
