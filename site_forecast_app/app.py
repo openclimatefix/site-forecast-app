@@ -324,7 +324,6 @@ def app_run(
                         version=version,
                         use_adjuster_database=use_adjuster_database,
                         location_map=dp_location_map,
-                        observer_name=model_config.observer_name_adjuster,
                     )
 
                     if not model_config.curtailment:
