@@ -324,7 +324,7 @@ def app_run(
                         version=version,
                         use_adjuster_database=use_adjuster_database,
                         location_map=dp_location_map,
-                        observer_name=model_config.observer_name,
+                        observer_name=model_config.observer_name_adjuster,
                     )
 
                     if not model_config.curtailment:
@@ -332,6 +332,7 @@ def app_run(
                         save_forecast_for_site_group_partial(
                             forecast_values=forecast_values,
                             model_name=model_config.name,
+                            observer_name=model_config.observer_name_adjuster,
                         )
 
                     elif model_config.save_uncurtailed & model_config.curtailment:
@@ -341,6 +342,7 @@ def app_run(
                         save_forecast_for_site_group_partial(
                             forecast_values=forecast_values,
                             model_name=model_config.name + "_uncurtailed",
+                            observer_name=model_config.observer_name_uncurtailed_adjuster,
                         )
 
                     if model_config.curtailment:
@@ -353,6 +355,7 @@ def app_run(
                         save_forecast_for_site_group_partial(
                             forecast_values=forecast_values,
                             model_name=model_config.name,
+                            observer_name=model_config.observer_name_adjuster,
                         )
                     successful_runs += 1
 

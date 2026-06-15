@@ -110,6 +110,12 @@ class Model(BaseModel):
         description="The name of the observer to fetch DP use for the adjuster",
     )
 
+    observer_name_uncurtailed_adjuster: str | None = Field(
+        None,
+        title="Observer Name for the uncurtailed adjuster",
+        description="The name of the observer to fetch DP use for the uncurtailed adjuster",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""
