@@ -36,6 +36,14 @@ def determine_location_type(site: LocationSQL, model_config: Model) -> dp.Locati
     return dp.LocationType.SITE
 
 
+def determine_energy_source(site: LocationSQL) -> dp.EnergySource:
+    """Determine the Data Platform EnergySource based on site asset type."""
+    asset_type = site.asset_type.name if hasattr(site.asset_type, "name") else str(site.asset_type)
+    if asset_type.lower() == "wind":
+        return dp.EnergySource.WIND
+    return dp.EnergySource.SOLAR
+
+
 def save_forecast_for_site_group(
     db_session: Session,
     forecast_values: dict,
@@ -79,6 +87,7 @@ def save_forecast_for_site_group(
                 "latitude": site.latitude,
                 "longitude": site.longitude,
                 "location_type": determine_location_type(site, model_config),
+                "energy_source": determine_energy_source(site),
             },
             "values": forecast_values[site.ml_id],
         }
@@ -137,6 +146,7 @@ def save_forecast(
         "latitude": forecast["meta"].get("latitude"),
         "longitude": forecast["meta"].get("longitude"),
         "location_type": forecast["meta"].get("location_type"),
+        "energy_source": forecast["meta"].get("energy_source", dp.EnergySource.SOLAR),
     }
 
     forecast_values_df = pd.DataFrame(forecast["values"])

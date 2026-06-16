@@ -29,6 +29,7 @@ async def fetch_generation_from_dp(
     start: datetime,
     end: datetime,
     observer_name: str | None = None,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> list[tuple[datetime, float]]:
     """Fetch generation (observation) data from the Data Platform."""
     if not site_name:
@@ -46,7 +47,7 @@ async def fetch_generation_from_dp(
 
         req = dp.GetObservationsAsTimeseriesRequest(
             location_uuid=loc_uuid,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             observer_name=actual_observer_name,
             time_window=dp.TimeWindow(
                 start_timestamp_utc=ensure_timezone_aware(start).to_pydatetime()
@@ -152,8 +153,12 @@ async def _get_site_generation_data(
             f"Reading from Data Platform for the location {site.client_location_name} "
             f"from {start} to {end}",
         )
+        if hasattr(site.asset_type, "name") and site.asset_type.name.lower() == "wind":
+            energy_source = dp.EnergySource.WIND
+        else:
+            energy_source = dp.EnergySource.SOLAR
         dp_data = await fetch_generation_from_dp(
-            site.client_location_name, start, end, observer_name,
+            site.client_location_name, start, end, observer_name, energy_source=energy_source,
         )
         formatted_data = [(t, p, system_id) for t, p in dp_data]
     else:
