@@ -29,6 +29,7 @@ from site_forecast_app.data.satellite import download_satellite_data
 from .consts import (
     generation_path,
     nwp_ecmwf_path,
+    nwp_fgn_path,
     nwp_gencast_path,
     nwp_mo_global_path,
     root_data_path,
@@ -380,7 +381,7 @@ class PVNetModel:
                 nwp_configs.append(
                     NWPProcessAndCacheConfig(
                         source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
-                        dest_nwp_path=nwp_gencast_path,
+                        dest_nwp_path=nwp_fgn_path,
                         source="fgn",
                     ),
                 )

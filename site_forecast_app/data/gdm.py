@@ -78,7 +78,7 @@ def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
     """Compute statistics using Numpy for speed on in-memory datasets."""
     quantiles = [0.5, 0.10, 0.25, 0.75, 0.90]
     # Match the order of concatenation below
-    stat_names = ["mean", "std", "median", "P10", "P25", "P75", "P90"]
+    stat_names = ["mean", "std", "P50", "P10", "P25", "P75", "P90"]
 
     data_vars = {}
 
@@ -280,6 +280,12 @@ def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
             chunks="auto",
             storage_options=storage_option,
         )
+
+        # Promote scalar init_time to a length-1 dimension right away
+        if "init_time" not in ds.dims:
+            ds = ds.drop_vars("init_time").expand_dims(
+                init_time=ds.init_time.values.reshape(1),
+            )
 
         log.info("Successfully opened FGN data from GCS (lazily).")
 
