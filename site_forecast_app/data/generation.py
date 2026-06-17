@@ -20,6 +20,7 @@ from site_forecast_app.save.data_platform import (
     fetch_dp_location_map,
     get_dataplatform_client,
 )
+from site_forecast_app.save.save import determine_energy_source
 from site_forecast_app.save.utils import ensure_timezone_aware
 
 log = logging.getLogger(__name__)
@@ -158,8 +159,6 @@ async def _get_site_generation_data(
             f"Reading from Data Platform for the location {site.client_location_name} "
             f"from {start} to {end}",
         )
-        from site_forecast_app.save.save import determine_energy_source
-
         energy_source = determine_energy_source(site)
         dp_data = await fetch_generation_from_dp(
             site.client_location_name,
