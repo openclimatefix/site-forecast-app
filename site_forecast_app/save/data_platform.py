@@ -492,15 +492,20 @@ async def save_forecast_to_dataplatform(
 
     if use_adjuster:
         log.info(f"Building adjuster forecast for {client_location_name!r}")
-        adjusted_request = await make_forecaster_adjuster(
-            client=client,
-            location_uuid=target_uuid_str,
-            init_time_utc=init_time_utc,
-            forecast_values=forecast_values,
-            model_tag=model_tag,
-            forecaster=forecaster,
-            observer_name=observer_name,
-            energy_source=energy_source,
-        )
-        await client.create_forecast(adjusted_request)
-        log.info(f"Adjusted forecast submitted for {client_location_name!r}")
+        try:
+            adjusted_request = await make_forecaster_adjuster(
+                client=client,
+                location_uuid=target_uuid_str,
+                init_time_utc=init_time_utc,
+                forecast_values=forecast_values,
+                model_tag=model_tag,
+                forecaster=forecaster,
+                observer_name=observer_name,
+                energy_source=energy_source,
+            )
+            await client.create_forecast(adjusted_request)
+            log.info(f"Adjusted forecast submitted for {client_location_name!r}")
+        except Exception:
+            log.exception(
+                f"Failed to save adjusted forecast to Data Platform for {client_location_name!r}",
+            )
