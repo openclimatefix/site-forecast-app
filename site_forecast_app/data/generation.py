@@ -20,8 +20,10 @@ from site_forecast_app.save.data_platform import (
     fetch_dp_location_map,
     get_dataplatform_client,
 )
-from site_forecast_app.save.save import determine_energy_source
-from site_forecast_app.save.utils import ensure_timezone_aware
+from site_forecast_app.save.utils import (
+    determine_energy_source,
+    ensure_timezone_aware,
+)
 
 log = logging.getLogger(__name__)
 

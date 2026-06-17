@@ -17,6 +17,7 @@ from site_forecast_app.save.data_platform import (
     save_to_dataplatform,
 )
 from site_forecast_app.save.database import write_forecast_to_db
+from site_forecast_app.save.utils import determine_energy_source
 
 log = logging.getLogger(__name__)
 
@@ -34,14 +35,6 @@ def determine_location_type(site: LocationSQL, model_config: Model) -> dp.Locati
         return dp.LocationType.STATE
 
     return dp.LocationType.SITE
-
-
-def determine_energy_source(site: LocationSQL) -> dp.EnergySource:
-    """Determine the Data Platform EnergySource based on site asset type."""
-    asset_type = site.asset_type.name if hasattr(site.asset_type, "name") else str(site.asset_type)
-    if asset_type.lower() == "wind":
-        return dp.EnergySource.WIND
-    return dp.EnergySource.SOLAR
 
 
 def save_forecast_for_site_group(
@@ -167,6 +160,7 @@ def save_forecast(
     # Persist adjuster forecast to DB
     if use_adjuster_database and ml_model_name is not None:
         from site_forecast_app.save.database import adjust_and_save_forecast
+
         adjust_and_save_forecast(
             db_session,
             forecast_meta,

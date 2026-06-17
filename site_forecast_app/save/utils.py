@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pandas as pd
+from dp_sdk.ocf import dp
+from pvsite_datamodel.sqlmodels import LocationSQL  # noqa: TC002
 
 
 def add_or_convert_to_utc(timestamp: object) -> pd.Timestamp:
@@ -38,3 +40,11 @@ def limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: fl
         delta_fraction = -max_delta_absolute
 
     return delta_fraction
+
+
+def determine_energy_source(site: LocationSQL) -> dp.EnergySource:
+    """Determine the Data Platform EnergySource based on site asset type."""
+    asset_type = site.asset_type.name if hasattr(site.asset_type, "name") else str(site.asset_type)
+    if asset_type.lower() == "wind":
+        return dp.EnergySource.WIND
+    return dp.EnergySource.SOLAR
