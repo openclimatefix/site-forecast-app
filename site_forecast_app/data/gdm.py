@@ -42,7 +42,6 @@ RELEVANT_SLICE_FGN = {
     "time": slice(None, np.timedelta64(84, "h")),
 }
 
-
 def slice_relevant(ds: xr.Dataset, provider: str = "gencast") -> xr.Dataset:
     """Drop variables and slice to relevant data."""
     if provider == "gencast":
@@ -51,7 +50,6 @@ def slice_relevant(ds: xr.Dataset, provider: str = "gencast") -> xr.Dataset:
         return ds[WEATHER_VARS].sel(**RELEVANT_SLICE_FGN)
     else:
         raise ValueError(f"Unknown provider: {provider}")
-
 
 def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     """Returns the latest 6-hourly init time string in a specified format.
@@ -246,8 +244,6 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
 def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
     """Get FGN (WeatherNext2) data sliced to region of interest for most recent init time.
 
-    Model information: https://developers.google.com/weathernext/guides/models
-
     Fetches the latest available FGN forecast and reshapes
     into the required format for ocf-data-sampler.
 
@@ -269,18 +265,20 @@ def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
     try:
         zarr_path = f"{gcs_bucket_path}{last_expected_init_time}_01_preds/predictions.zarr"
 
-        # Grab GCS bucket token path
-        gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON")
-        if not gcs_token_string:
-            raise RuntimeError(
-                "GCLOUD_SERVICE_ACCOUNT_JSON not set; required to read from the GDM GCS bucket",
-            )
+        # Grab GCS token path and only use it if it exists
+        gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
+
+        if gcs_token_string is None:
+            storage_option = None
+        else:
+            token_dict = json.loads(gcs_token_string)
+            storage_option = {"token": token_dict}
 
         ds = xr.open_zarr(
             zarr_path,
             decode_timedelta=True,
             chunks="auto",
-            storage_options={"token": json.loads(gcs_token_string)},
+            storage_options=storage_option,
         )
 
         # Promote scalar init_time to a length-1 dimension right away
