@@ -37,7 +37,7 @@ def test_app(
     sites,  # noqa: ARG001
     nwp_data,
     nwp_mo_global_data_nl,
-    generation_db_values,   # noqa: ARG001
+    generation_db_values,  # noqa: ARG001
     satellite_data,
     mock_da_prices,
     monkeypatch,
@@ -61,8 +61,8 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    fv_per_hour = 4 # 15 min resolution = 4 values per hour
-    n_forecasts = 11 + 12*9
+    fv_per_hour = 4  # 15 min resolution = 4 values per hour
+    n_forecasts = 11 + 12 * 9
     n_models = 11
     # 2 national models times 1 site = 2
     # 9 regional models times 1 national summation site = 9
@@ -86,11 +86,11 @@ def test_app(
 @freeze_time(now)
 def test_app_ad(
     db_session,
-    sites, # noqa: ARG001
+    sites,  # noqa: ARG001
     nwp_data_india,
     nwp_mo_global_data_india,
     nwp_data_fgn,
-    generation_db_values, # noqa: ARG001
+    generation_db_values,  # noqa: ARG001
     satellite_data,
     monkeypatch,
 ):
@@ -117,11 +117,13 @@ def test_app_ad(
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
     # 4 forecasts (n-2) with 16 forecast steps and 2 with 192 forecast steps
-    assert len(forecast_values) == init_n_forecast_values + ((n-2) * 2 * 16) + (2 * 2 * 192)
+    assert len(forecast_values) == init_n_forecast_values + ((n - 2) * 2 * 16) + (2 * 2 * 192)
 
 
 @freeze_time(now)
-def test_app_no_pv_data(db_session, sites, nwp_data_india, satellite_data, nwp_data_fgn, monkeypatch):  # noqa: ARG001
+def test_app_no_pv_data(
+    db_session, sites, nwp_data_india, satellite_data, nwp_data_fgn, monkeypatch, # noqa: ARG001
+):
     """Test for running app from command line"""
 
     monkeypatch.setenv("CLIENT_NAME", "ad")
@@ -143,13 +145,19 @@ def test_app_no_pv_data(db_session, sites, nwp_data_india, satellite_data, nwp_d
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
     # 4 forecasts (n-2) with 16 forecast steps and 2 with 192 forecast steps
-    assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + ((n-2) * 2 * 16) + (2 * 2 * 192)
-
+    assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (
+        (n - 2) * 2 * 16
+    ) + (2 * 2 * 192)
 
 
 @freeze_time(now)
 def test_app_ruvnl(
-    db_session, sites, nwp_data_india, nwp_data_gencast, generation_db_values, monkeypatch, # noqa: ARG001
+    db_session,
+    sites, # noqa: ARG001
+    nwp_data_india,
+    nwp_data_gencast,
+    generation_db_values, # noqa: ARG001
+    monkeypatch,
 ):
     """Test for running app from command line"""
 
