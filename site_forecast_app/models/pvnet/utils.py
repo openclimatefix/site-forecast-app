@@ -13,6 +13,7 @@ from ocf_data_sampler.config.save import save_yaml_configuration
 from .consts import (
     generation_path,
     nwp_ecmwf_path,
+    nwp_fgn_path,
     nwp_gencast_path,
     nwp_mo_global_path,
     satellite_path,
@@ -37,6 +38,7 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
             "ecmwf": nwp_ecmwf_path,
             "mo_global": nwp_mo_global_path,
             "gencast": nwp_gencast_path,
+            "fgn": nwp_fgn_path,
         },
         "satellite": {"filepath": satellite_path},
     }

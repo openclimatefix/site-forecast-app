@@ -53,7 +53,7 @@ def test_get_sites_with_model_config(db_session, sites):
     sites = get_sites(db_session, model_config=model_config)
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
-    assert len(sites) == 15
+    assert len(sites) == 16
     for site in sites:
         assert isinstance(site.location_uuid, uuid.UUID)
         assert sites[0].asset_type.name == "pv"

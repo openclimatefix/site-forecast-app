@@ -21,7 +21,7 @@ from pvnet.utils import validate_batch_against_config
 from pvnet_summation.data.datamodule import construct_sample as construct_sum_sample
 from pvnet_summation.models.base_model import BaseModel as SummationBaseModel
 
-from site_forecast_app.data.gencast import pull_gencast_data
+from site_forecast_app.data.gdm import pull_fgn_data, pull_gencast_data
 from site_forecast_app.data.generation import format_generation_data
 from site_forecast_app.data.nwp import NWPProcessAndCacheConfig, process_and_cache_nwp
 from site_forecast_app.data.satellite import download_satellite_data
@@ -29,6 +29,7 @@ from site_forecast_app.data.satellite import download_satellite_data
 from .consts import (
     generation_path,
     nwp_ecmwf_path,
+    nwp_fgn_path,
     nwp_gencast_path,
     nwp_mo_global_path,
     root_data_path,
@@ -370,6 +371,18 @@ class PVNetModel:
                         source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
                         dest_nwp_path=nwp_gencast_path,
                         source="gencast",
+                    ),
+                )
+            if "fgn" in nwp_keys:
+                pull_fgn_data(
+                    gcs_bucket_path=os.environ["NWP_GENCAST_GCS_BUCKET_PATH"],
+                    output_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+                )
+                nwp_configs.append(
+                    NWPProcessAndCacheConfig(
+                        source_nwp_path=os.environ["NWP_GENCAST_ZARR_PATH"],
+                        dest_nwp_path=nwp_fgn_path,
+                        source="fgn",
                     ),
                 )
         # Remove local cached zarr if already exists

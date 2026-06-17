@@ -28,7 +28,7 @@ from sqlalchemy import create_engine
 from testcontainers.postgres import PostgresContainer
 
 from site_forecast_app.blend.config import BlendConfig, load_blend_config
-from site_forecast_app.data.gencast import get_latest_6hr_init_time
+from site_forecast_app.data.gdm import get_latest_6hr_init_time
 
 log = logging.getLogger(__name__)
 
@@ -121,16 +121,28 @@ def sites(db_session):
         db_session.add(site)
         sites.append(site)
 
-    # Although this site is an india site,
-    # we want it to be in the test data so we adjust the lat and lon
     site = LocationSQL(
         client_location_id=1,
         client_location_name="test_site_ad",
-        latitude=52,
-        longitude=5,
+        latitude=23,
+        longitude=72,
         capacity_kw=20000,
         ml_id=1,
         asset_type="pv",
+        country="india",
+    )
+    db_session.add(site)
+    sites.append(site)
+
+    # also add a wind site for india
+    site = LocationSQL(
+        client_location_id=2,
+        client_location_name="test_site_ad_wind",
+        latitude=23,
+        longitude=72,
+        capacity_kw=20000,
+        ml_id=2,
+        asset_type="wind",
         country="india",
     )
     db_session.add(site)
@@ -560,6 +572,58 @@ def nwp_data_gencast(tmp_path_factory):
     ds2.to_zarr(f"{temp_nwp_path_gencast_raw}{string_path2}_01_preds/predictions.zarr")
 
     return {"bucket": temp_nwp_path_gencast_raw, "zarr" : temp_nwp_path_gencast}
+
+@pytest.fixture(scope="session")
+def nwp_data_fgn(tmp_path_factory):
+    """Dummy NWP raw FGN data"""
+
+    # Create init time for FGN data
+    string_path = get_latest_6hr_init_time()
+    init_time = pd.to_datetime(string_path, format="%Y%m%d_%Hhr").to_numpy()
+
+    # ensemble members
+    sample = np.arange(64, dtype=np.int64)
+    # time: 6-hourly timedeltas from 6 hours to 4 days (inclusive)
+    time = pd.to_timedelta(np.arange(6, 97, 6), unit="h")
+
+    # lat / lon, in 0.25 degree steps
+    lat = np.array([6.0 + i * 0.25 for i in range(100)], dtype=np.float32)
+    lon = np.array([67.0 + i * 0.25 for i in range(100)], dtype=np.float32)
+
+    variables = [
+        "100m_u_component_of_wind",
+        "100m_v_component_of_wind",
+        "10m_u_component_of_wind",
+        "10m_v_component_of_wind",
+        "2m_temperature",
+    ]
+
+    shape = (sample.size, time.size, lat.size, lon.size)
+
+    data_vars = {
+        var: (("sample", "time", "lat", "lon"), np.zeros(shape, dtype=np.float32))
+        for var in variables
+    }
+
+    # Create two datasets with different init times, 6 hours apart
+    ds = xr.Dataset(
+        data_vars=data_vars,
+        coords={
+            "sample": sample,
+            "time": time,
+            "lat": lat,
+            "lon": lon,
+            "init_time": init_time,
+        },
+    )
+
+    # Set path to raw data and path where processed data will be saved/loaded to/from
+    temp_nwp_path_fgn_raw = f"{tmp_path_factory.mktemp('data_raw')}/fgn/"
+    temp_nwp_path_fgn = f"{tmp_path_factory.mktemp('data')}/nwp_fgn.zarr"
+
+    ds.to_zarr(f"{temp_nwp_path_fgn_raw}{string_path}_01_preds/predictions.zarr")
+
+    return {"bucket": temp_nwp_path_fgn_raw, "zarr" : temp_nwp_path_fgn}
 
 
 @pytest.fixture(scope="session")
