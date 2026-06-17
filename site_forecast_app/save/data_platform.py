@@ -89,6 +89,7 @@ async def save_to_dataplatform(
     model_tag = ml_model_name if ml_model_name else "default-model"
     init_time_utc = forecast_meta["timestamp_utc"]
     capacity_kw = forecast_meta.get("capacity_kw")
+    energy_source = dp.EnergySource.WIND if "wind" in model_tag.lower() else dp.EnergySource.SOLAR
 
     log.info(
         "Starting DP save | "
@@ -113,6 +114,7 @@ async def save_to_dataplatform(
                 location_map=location_map,
                 use_adjuster=use_adjuster,
                 observer_name=observer_name,
+                energy_source=energy_source,
             )
         log.info(f"Save complete for location={client_location_name!r}")
     except Exception as e:
@@ -128,6 +130,7 @@ async def make_forecaster_adjuster(
     model_tag: str,
     forecaster: dp.Forecaster,
     observer_name: str | None = None,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> dp.CreateForecastRequest:
     """Build an adjusted forecast request using week-average deltas from the Data Platform.
 
@@ -144,6 +147,7 @@ async def make_forecaster_adjuster(
         forecaster: The base forecaster object (used to fetch deltas).
         observer_name: The name of the observer to use for the adjuster
             (defaults to env var OBSERVER_NAME or "nednl").
+        energy_source: Energy source (SOLAR or WIND) of the location.
 
     Returns:
         A ``CreateForecastRequest`` for the adjusted forecast.
@@ -153,7 +157,7 @@ async def make_forecaster_adjuster(
 
     deltas_request = dp.GetWeekAverageDeltasRequest(
         location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
+        energy_source=energy_source,
         pivot_timestamp_utc=init_time_utc.replace(tzinfo=UTC),
         forecaster=forecaster,
         observer_name=observer_name,
@@ -168,7 +172,7 @@ async def make_forecaster_adjuster(
     location = await client.get_location(
         dp.GetLocationRequest(
             location_uuid=location_uuid,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             include_geometry=False,
         ),
     )
@@ -205,7 +209,7 @@ async def make_forecaster_adjuster(
     return dp.CreateForecastRequest(
         forecaster=adjuster_forecaster,
         location_uuid=location_uuid,
-        energy_source=dp.EnergySource.SOLAR,
+        energy_source=energy_source,
         init_time_utc=init_time_utc.replace(tzinfo=UTC),
         values=adjusted_values,
     )
@@ -241,12 +245,13 @@ async def resolve_target_uuid(
 async def get_location_capacity(
     client: DataPlatformClient,
     target_uuid_str: str,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> int:
     """Fetch effective capacity (watts) for an existing DP location."""
     location = await client.get_location(
         dp.GetLocationRequest(
             location_uuid=target_uuid_str,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             include_geometry=False,
         ),
     )
@@ -261,6 +266,7 @@ async def create_new_location(
     longitude: float | None,
     init_time_utc: datetime,
     location_type: dp.LocationType = dp.LocationType.SITE,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> str:
     """Create a new location in the Data Platform and return its UUID."""
     log.warning(
@@ -275,7 +281,7 @@ async def create_new_location(
     try:
         create_req = dp.CreateLocationRequest(
             location_name=client_location_name,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             geometry_wkt=wkt,
             effective_capacity_watts=capacity_watts,
             location_type=location_type,
@@ -391,6 +397,7 @@ async def save_forecast_to_dataplatform(
     location_map: dict[str, str] | None = None,
     use_adjuster: bool = True,
     observer_name: str | None = None,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> None:
     """Save forecast to the Data Platform."""
     app_version = version("site-forecast-app")
@@ -431,12 +438,17 @@ async def save_forecast_to_dataplatform(
             longitude,
             init_time_utc,
             location_type=location_type,
+            energy_source=energy_source,
         )
         log.info(f"created location uuid={target_uuid_str}")
     else:
         log.info(f"location already exists uuid={target_uuid_str}")
 
-    capacity_watts = await get_location_capacity(client=client, target_uuid_str=target_uuid_str)
+    capacity_watts = await get_location_capacity(
+        client=client,
+        target_uuid_str=target_uuid_str,
+        energy_source=energy_source,
+    )
     log.info(
         f"capacity_watts={capacity_watts:,}  ({capacity_watts / 1000:,.1f} kW)",
     )
@@ -470,7 +482,7 @@ async def save_forecast_to_dataplatform(
     base_request = dp.CreateForecastRequest(
         forecaster=forecaster,
         location_uuid=target_uuid_str,
-        energy_source=dp.EnergySource.SOLAR,
+        energy_source=energy_source,
         init_time_utc=init_time_utc,
         values=forecast_values,
         metadata=Struct(fields={"app_version": Value(string_value=app_version)}),
@@ -495,6 +507,7 @@ async def save_forecast_to_dataplatform(
                 model_tag=model_tag,
                 forecaster=forecaster,
                 observer_name=observer_name,
+                energy_source=energy_source,
             )
             await client.create_forecast(adjusted_request)
             log.info(f"Adjusted forecast submitted for {client_location_name!r}")

@@ -17,6 +17,7 @@ async def verify_forecast_in_dp(
     init_time: dt.datetime,
     forecast_end_time: dt.datetime,
     forecaster_name: str = "test_model",
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> dp.GetForecastAsTimeseriesResponse:
     """Verifies the forecast in the Data Platform."""
     async with get_dataplatform_client() as client:
@@ -32,7 +33,7 @@ async def verify_forecast_in_dp(
 
         get_forecast_request = dp.GetForecastAsTimeseriesRequest(
             location_uuid=location_uuid,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             time_window=dp.TimeWindow(
                 start_timestamp_utc=query_start,
                 end_timestamp_utc=query_end,
@@ -48,6 +49,7 @@ async def setup_test_location_in_dp(
     capacity_kw: float,
     latitude: float,
     longitude: float,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> str:
     """Gets or creates a test location in the Data Platform, returning its UUID.
 
@@ -69,6 +71,7 @@ async def setup_test_location_in_dp(
             longitude=longitude,
             init_time_utc=dt.datetime(2020, 1, 1, tzinfo=dt.UTC),
             location_type=dp.LocationType.SITE,
+            energy_source=energy_source,
         )
 
 
@@ -249,3 +252,78 @@ def test_save_adjuster_forecast_to_dataplatform(
     assert len(adjuster_resp.values) == len(forecast["values"]), (
         "Adjuster forecast values count mismatch in Data Platform"
     )
+
+
+@pytest.mark.integration
+def test_save_wind_forecast_integration(
+    monkeypatch, db_session, sites, forecast_values, dp_address,
+):
+    """Test that a wind forecast is saved with dp.EnergySource.WIND.
+
+    Identified by 'wind' in ml_model_name.
+    """
+    host, port = dp_address
+    monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
+    monkeypatch.setenv("DATA_PLATFORM_HOST", host)
+    monkeypatch.setenv("DATA_PLATFORM_PORT", str(port))
+
+    # 1. Create a Wind Location in DP
+    site = sites[0]
+    site_name = "test_wind_site"
+
+    dp_location_uuid = asyncio.run(
+        setup_test_location_in_dp(
+            site_name,
+            site.capacity_kw,
+            site.latitude,
+            site.longitude,
+            energy_source=dp.EnergySource.WIND,
+        ),
+    )
+
+    # 2. Prepare forecast data
+    init_time = forecast_values["start_utc"][0]
+    forecast = {
+        "meta": {
+            "location_uuid": site.location_uuid,
+            "version": "0.0.0-test",
+            "timestamp": init_time,
+            "client_location_name": site_name,
+            "capacity_kw": site.capacity_kw,
+        },
+        "values": [
+            {
+                "start_utc": s,
+                "end_utc": e,
+                "forecast_power_kw": p,
+            }
+            for s, e, p in zip(
+                forecast_values["start_utc"],
+                forecast_values["end_utc"],
+                forecast_values["forecast_power_kw"],
+                strict=False,
+            )
+        ],
+    }
+
+    # 3. Save forecast (orchestrates DB + DP, with "wind" in model name)
+    save_forecast(
+        db_session,
+        forecast,
+        write_to_db=False,
+        ml_model_name="test-wind-model",
+        ml_model_version="0.0.0-test",
+        use_adjuster_database=False,
+    )
+
+    # 4. Verify in DP with dp.EnergySource.WIND
+    forecast_resp = asyncio.run(
+        verify_forecast_in_dp(
+            dp_location_uuid,
+            init_time,
+            forecast["values"][-1]["end_utc"],
+            forecaster_name="test_wind_model",
+            energy_source=dp.EnergySource.WIND,
+        ),
+    )
+    assert len(forecast_resp.values) == len(forecast["values"])
