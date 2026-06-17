@@ -126,8 +126,8 @@ def sites(db_session):
     site = LocationSQL(
         client_location_id=1,
         client_location_name="test_site_ad",
-        latitude=52,
-        longitude=5,
+        latitude=23,
+        longitude=72,
         capacity_kw=20000,
         ml_id=1,
         asset_type="pv",
@@ -140,8 +140,8 @@ def sites(db_session):
     site = LocationSQL(
         client_location_id=2,
         client_location_name="test_site_ad_wind",
-        latitude=52,
-        longitude=5,
+        latitude=23,
+        longitude=72,
         capacity_kw=20000,
         ml_id=2,
         asset_type="wind",

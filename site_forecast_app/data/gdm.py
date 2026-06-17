@@ -74,11 +74,11 @@ def get_latest_6hr_init_time(now: dt.datetime | None = None) -> str:
     return cycle_time.strftime("%Y%m%d_%Hhr")
 
 
-def compute_ensemble_statistics(ds: xr.Dataset) -> xr.Dataset:
+def compute_ensemble_statistics(ds: xr.Dataset, median_name: str = "median") -> xr.Dataset:
     """Compute statistics using Numpy for speed on in-memory datasets."""
     quantiles = [0.5, 0.10, 0.25, 0.75, 0.90]
     # Match the order of concatenation below
-    stat_names = ["mean", "std", "P50", "P10", "P25", "P75", "P90"]
+    stat_names = ["mean", "std", median_name, "P10", "P25", "P75", "P90"]
 
     data_vars = {}
 
@@ -300,7 +300,7 @@ def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
     log.info("Loaded FGN data into memory.")
 
     # Compute ensemble statistics
-    ds_ens_stats = compute_ensemble_statistics(ds_sliced)
+    ds_ens_stats = compute_ensemble_statistics(ds_sliced, "P50")
 
     da_merged = ds_ens_stats.to_array(name="fgn_data")
 

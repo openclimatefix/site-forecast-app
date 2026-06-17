@@ -87,7 +87,7 @@ def test_app(
 def test_app_ad(
     db_session,
     sites, # noqa: ARG001
-    nwp_data,
+    nwp_data_india,
     nwp_mo_global_data_india,
     nwp_data_fgn,
     generation_db_values, # noqa: ARG001
@@ -98,7 +98,7 @@ def test_app_ad(
 
     monkeypatch.setenv("CLIENT_NAME", "ad")
     monkeypatch.setenv("COUNTRY", "india")
-    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data_india)
     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_india)
     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
     monkeypatch.setenv("NWP_GENCAST_GCS_BUCKET_PATH", nwp_data_fgn["bucket"])
@@ -112,22 +112,24 @@ def test_app_ad(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 6  # 2 sites, 6 models
+    n = 6  # 6 models across 2 sites
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n * 2
     assert db_session.query(MLModelSQL).count() == n * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
     # 4 forecasts (n-2) with 16 forecast steps and 2 with 192 forecast steps
-    assert len(forecast_values) == init_n_forecast_values + ((n - 2) * 2 * 16) + (2 * 2 * 192)
+    assert len(forecast_values) == init_n_forecast_values + ((n-2) * 2 * 16) + (2 * 2 * 192)
 
 
 @freeze_time(now)
-def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data, monkeypatch):  # noqa: ARG001
+def test_app_no_pv_data(db_session, sites, nwp_data_india, satellite_data, nwp_data_fgn, monkeypatch):  # noqa: ARG001
     """Test for running app from command line"""
 
     monkeypatch.setenv("CLIENT_NAME", "ad")
     monkeypatch.setenv("COUNTRY", "india")
-    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data_india)
     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+    monkeypatch.setenv("NWP_GENCAST_GCS_BUCKET_PATH", nwp_data_fgn["bucket"])
+    monkeypatch.setenv("NWP_GENCAST_ZARR_PATH", nwp_data_fgn["zarr"])
 
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
@@ -137,10 +139,12 @@ def test_app_no_pv_data(db_session, sites, nwp_data, satellite_data, monkeypatch
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    n = 4  # 1 site, 4 models
+    n = 6  # 1 site, 4 models
 
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + 2 * n
-    assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + (2 * n * 16)
+    # 4 forecasts (n-2) with 16 forecast steps and 2 with 192 forecast steps
+    assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values + ((n-2) * 2 * 16) + (2 * 2 * 192)
+
 
 
 @freeze_time(now)
