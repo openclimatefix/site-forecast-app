@@ -96,6 +96,9 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
+    # save the uncurtailed values too
+    save_uncurtailed: true
+    observer_name_uncurtailed_adjuster: nednl_no_curtailment
     # Uncurtailed model below
   - name: nl_regional_ecmwf_mo_sat
     type: pvnet
@@ -177,6 +180,29 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
+    is_critical: false
+  - name: nl_regional_pv_ecmwf_mo9_sat
+    # This model is trained on generation data where we have removed the curtailment
+    # Also only 9 MO variables have been used, these have been removed:
+    # - downward_shortwave_radiation_flux_gl
+    # - visibility_sl
+    # - snow_depth_gl
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 82f11b7c5afedea5900791a60f3753a1df1f5ebe
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: 8ee6c227a163a394045568d335a14d24c5f33552
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl
+    curtailment: true
     is_critical: false
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
