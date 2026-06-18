@@ -266,6 +266,7 @@ def app_run(
                     satellite_scaling_method=model_config.satellite_scaling_method,
                     summation_version=model_config.summation_version,
                     summation_repo = model_config.summation_id,
+                    asset_type=model_config.asset_type,
                 )
 
                 log.info(f"{ml_model.site_uuid} model loaded")
