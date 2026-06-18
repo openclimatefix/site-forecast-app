@@ -1,4 +1,5 @@
 """Functions for working with site generation data."""
+
 import asyncio
 import datetime as dt
 import logging
@@ -19,7 +20,10 @@ from site_forecast_app.save.data_platform import (
     fetch_dp_location_map,
     get_dataplatform_client,
 )
-from site_forecast_app.save.utils import ensure_timezone_aware
+from site_forecast_app.save.utils import (
+    determine_energy_source,
+    ensure_timezone_aware,
+)
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +33,7 @@ async def fetch_generation_from_dp(
     start: datetime,
     end: datetime,
     observer_name: str | None = None,
+    energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
 ) -> list[tuple[datetime, float]]:
     """Fetch generation (observation) data from the Data Platform."""
     if not site_name:
@@ -46,7 +51,7 @@ async def fetch_generation_from_dp(
 
         req = dp.GetObservationsAsTimeseriesRequest(
             location_uuid=loc_uuid,
-            energy_source=dp.EnergySource.SOLAR,
+            energy_source=energy_source,
             observer_name=actual_observer_name,
             time_window=dp.TimeWindow(
                 start_timestamp_utc=ensure_timezone_aware(start).to_pydatetime()
@@ -77,8 +82,10 @@ async def fetch_generation_from_dp(
 
 
 def get_generation_data(
-        db_session: Session, sites: list[LocationSQL], timestamp: pd.Timestamp,
-        observer_name: str | None = None,
+    db_session: Session,
+    sites: list[LocationSQL],
+    timestamp: pd.Timestamp,
+    observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
 
@@ -120,7 +127,9 @@ def get_generation_data(
 
 
 async def _get_site_generation_data(
-    db_session: Session, site: LocationSQL, timestamp: pd.Timestamp,
+    db_session: Session,
+    site: LocationSQL,
+    timestamp: pd.Timestamp,
     observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Gets generation data values for a single site.
@@ -152,17 +161,23 @@ async def _get_site_generation_data(
             f"Reading from Data Platform for the location {site.client_location_name} "
             f"from {start} to {end}",
         )
+        energy_source = determine_energy_source(site)
         dp_data = await fetch_generation_from_dp(
-            site.client_location_name, start, end, observer_name,
+            site.client_location_name,
+            start,
+            end,
+            observer_name,
+            energy_source=energy_source,
         )
         formatted_data = [(t, p, system_id) for t, p in dp_data]
     else:
         generation_data = get_pv_generation_by_sites(
-            session=db_session, site_uuids=[site.location_uuid], start_utc=start, end_utc=end,
+            session=db_session,
+            site_uuids=[site.location_uuid],
+            start_utc=start,
+            end_utc=end,
         )
-        formatted_data = [
-            (g.start_utc, g.generation_power_kw, system_id) for g in generation_data
-        ]
+        formatted_data = [(g.start_utc, g.generation_power_kw, system_id) for g in generation_data]
 
     if len(formatted_data) == 0:
         log.warning(f"No generation found for site {site.location_uuid}")
@@ -280,8 +295,8 @@ def filter_on_sun_elevation(generation_df: pd.DataFrame, site: LocationSQL) -> p
     generation_df = generation_df[~mask]
     return generation_df
 
-def format_generation_data(generation_xr: xr.Dataset,
-                            metadata_df: pd.DataFrame) -> xr.Dataset:
+
+def format_generation_data(generation_xr: xr.Dataset, metadata_df: pd.DataFrame) -> xr.Dataset:
     """Format generation data to schema pvnet expects.
 
     Args:
@@ -302,8 +317,7 @@ def format_generation_data(generation_xr: xr.Dataset,
     """
     # Clean and prepare metadata
     metadata = (
-        metadata_df
-        .assign(
+        metadata_df.assign(
             capacity_mwp=lambda df: df["capacity_kwp"] / 1000,
         )
         .drop(columns=["capacity_kwp"])
@@ -311,11 +325,7 @@ def format_generation_data(generation_xr: xr.Dataset,
     )
 
     # Prepare generation data, convert to MW
-    generation = (
-        generation_xr
-        .rename({"generation_kw": "generation_mw"})
-        / 1000
-    )
+    generation = generation_xr.rename({"generation_kw": "generation_mw"}) / 1000
 
     # Capacity: align to generation_xr
     capacity = metadata["capacity_mwp"].to_xarray().broadcast_like(generation)

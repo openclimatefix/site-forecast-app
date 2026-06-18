@@ -17,6 +17,7 @@ from site_forecast_app.save.data_platform import (
     save_to_dataplatform,
 )
 from site_forecast_app.save.database import write_forecast_to_db
+from site_forecast_app.save.utils import determine_energy_source
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ def save_forecast_for_site_group(
                 "latitude": site.latitude,
                 "longitude": site.longitude,
                 "location_type": determine_location_type(site, model_config),
+                "energy_source": determine_energy_source(site),
             },
             "values": forecast_values[site.ml_id],
         }
@@ -137,6 +139,7 @@ def save_forecast(
         "latitude": forecast["meta"].get("latitude"),
         "longitude": forecast["meta"].get("longitude"),
         "location_type": forecast["meta"].get("location_type"),
+        "energy_source": forecast["meta"].get("energy_source", dp.EnergySource.SOLAR),
     }
 
     forecast_values_df = pd.DataFrame(forecast["values"])
@@ -157,6 +160,7 @@ def save_forecast(
     # Persist adjuster forecast to DB
     if use_adjuster_database and ml_model_name is not None:
         from site_forecast_app.save.database import adjust_and_save_forecast
+
         adjust_and_save_forecast(
             db_session,
             forecast_meta,
