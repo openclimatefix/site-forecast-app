@@ -26,7 +26,7 @@ now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
 def test_get_sites(db_session, sites):
     """Test for correct site ids"""
 
-    sites = get_sites(db_session)
+    sites = get_sites(db_session, client_name="nl", country="nl")
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
     assert len(sites) == 13
@@ -50,7 +50,7 @@ def test_get_sites_with_model_config(db_session, sites):
     model_config.client = None
     model_config.site_group_uuid = location_group.location_group_uuid
 
-    sites = get_sites(db_session, model_config=model_config)
+    sites = get_sites(db_session, model_config=model_config, client_name="nl", country="nl")
     sites = sorted(sites, key=lambda s: s.client_location_id)
 
     assert len(sites) == 16
@@ -85,6 +85,7 @@ def test_get_model(
         name="test",
         site_uuid=str(gen_sites[0].location_uuid),
         asset_type="pv",
+        client_name="nl",
     )
 
     assert hasattr(model, "version")
@@ -121,6 +122,7 @@ def test_run_model(
         name="test",
         site_uuid=str(uuid.uuid4()),
         asset_type="pv",
+        client_name="nl",
     )
     forecast = run_model(model=model, timestamp=init_timestamp)
 

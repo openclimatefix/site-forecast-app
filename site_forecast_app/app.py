@@ -50,9 +50,9 @@ sentry_sdk.set_tag("version", __version__)
 
 def get_sites(
     db_session: Session,
+    country: str,
+    client_name: str,
     model_config: Model | None = None,
-    country: str = "nl",
-    client_name: str = "nl",
 ) -> list[LocationSQL]:
     """Gets all available sites.
 
@@ -61,6 +61,7 @@ def get_sites(
             model_config: The model configuration to use
             country: The country to get sites for
             client_name: The client name to get sites for
+            model_config: The model configuration to use
 
     Returns:
             A list of LocationSQL objects
@@ -178,7 +179,11 @@ def app_run(
     logging.basicConfig(stream=sys.stdout, level=getattr(logging, log_level.upper()))
 
     log.info(f"Running site forecast app:{version}")
-    client_name = os.getenv("CLIENT_NAME", "nl")
+
+    # Get environment variables
+    url = os.environ["DB_URL"]
+    client_name = os.environ["CLIENT_NAME"]
+    country = os.environ["COUNTRY"]
     save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
 
     if timestamp is None:
@@ -190,11 +195,7 @@ def app_run(
         timestamp = pd.Timestamp(timestamp).floor("15min")
 
     # 0. Initialise DB connection
-    url = os.environ["DB_URL"]
     db_conn = DatabaseConnection(url, echo=False)
-    country = os.environ.get("COUNTRY", None)
-    if country is None:
-        raise ValueError("COUNTRY environment variable must be set")
 
     log.info(f"Country {country}...")
     log.info(f"write_to_db {write_to_db}...")
@@ -203,7 +204,7 @@ def app_run(
         # 1. Load data/models
         run_critical_only = os.getenv("RUN_CRITICAL_MODELS_ONLY", "false").lower() == "true"
         all_model_configs = get_all_models(
-            client_abbreviation=os.getenv("CLIENT_NAME", "nl"),
+            client_abbreviation=client_name,
             get_critical_only=run_critical_only,
         )
         successful_runs = 0
@@ -270,6 +271,7 @@ def app_run(
                     summation_version=model_config.summation_version,
                     summation_repo = model_config.summation_id,
                     asset_type=model_config.asset_type,
+                    client_name=client_name,
                 )
 
                 log.info(f"{ml_model.site_uuid} model loaded")

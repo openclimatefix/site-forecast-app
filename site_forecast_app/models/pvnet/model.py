@@ -61,6 +61,7 @@ class PVNetModel:
         name: str,
         site_uuid: str,
         asset_type: str,
+        client_name: str,
         satellite_scaling_method: str = "constant",
         summation_repo: str | None = None,
         summation_version: str | None = None,
@@ -75,10 +76,10 @@ class PVNetModel:
         self.summation_repo = summation_repo
         self.summation_version = summation_version
         self.asset_type = asset_type
+        self.client_name = client_name
 
         log.info(f"Model initialised at t0={self.t0}")
 
-        self.client = os.getenv("CLIENT_NAME", "nl")
         self.hf_token = os.getenv("HUGGINGFACE_TOKEN", None)
 
         if self.hf_token is not None:
