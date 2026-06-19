@@ -233,7 +233,7 @@ def check_model_satellite_inputs_available(
                 interval_end_minutes,
                 np.array(input_config.satellite.dropout_timedeltas_minutes).min(),
             )
-
+        # assume all European satellite data used in this app is 5min here 
         frequency = "15min" if country == "india" else "5min"
 
         expected_datetimes = pd.date_range(

@@ -277,6 +277,7 @@ def app_run(
                     data_config_filename=ml_model.populated_data_config_filename,
                     t0=timestamp,
                     sat_datetimes=get_valid_satellite_times(satellite_path),
+                    country=country,
                 ):
                     log.warning(
                         f"Skipping model {model_config.name} for site_group_uuid="

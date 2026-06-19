@@ -83,8 +83,8 @@ def test_check_model_satellite_inputs_available(config_filename) -> None:
     sat_datetime_4 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("30min")])
     sat_datetime_5 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("60min")])
 
-    assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_1)
-    assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_2)
-    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_3)
-    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_4)
-    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_5)
+    assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_1, country="nl")
+    assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_2, country="nl")
+    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_3, country="nl")
+    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_4, country="nl")
+    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_5, country="nl")
