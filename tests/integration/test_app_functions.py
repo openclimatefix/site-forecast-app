@@ -84,6 +84,7 @@ def test_get_model(
         hf_repo=ml_model.id,
         name="test",
         site_uuid=str(gen_sites[0].location_uuid),
+        asset_type="pv",
     )
 
     assert hasattr(model, "version")
@@ -119,6 +120,7 @@ def test_run_model(
         hf_repo=ml_model.id,
         name="test",
         site_uuid=str(uuid.uuid4()),
+        asset_type="pv",
     )
     forecast = run_model(model=model, timestamp=init_timestamp)
 
