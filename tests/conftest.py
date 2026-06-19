@@ -42,6 +42,11 @@ def config_filename() -> str:
     """Path to the test data config yaml."""
     return f"{test_data_dir}/test.yaml"
 
+@pytest.fixture(scope="session")
+def config_india_sat_filename() -> str:
+    """Path to the test data config yaml."""
+    return f"{test_data_dir}/test_india_sat.yaml"
+
 
 @pytest.fixture(scope="session")
 def engine():

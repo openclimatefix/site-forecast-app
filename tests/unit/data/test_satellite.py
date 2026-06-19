@@ -62,7 +62,7 @@ def test_satellite_download_backup(small_satellite_data,
                                 satellite_backup_source_file_path=local_satellite_backup_path)
 
 
-def test_check_model_satellite_inputs_available(config_filename) -> None:
+def test_check_model_satellite_inputs_available(config_filename, config_india_sat_filename) -> None:
     """Check satellite availability across full coverage, delay, and gap scenarios."""
     t0 = pd.Timestamp("2023-01-01 00:00")
     sat_datetime_1 = pd.date_range(
@@ -77,20 +77,29 @@ def test_check_model_satellite_inputs_available(config_filename) -> None:
     )
     sat_datetime_3 = pd.date_range(
         t0 - pd.Timedelta("120min"),
+        t0 - pd.Timedelta("30min"),
+        freq="15min",
+    )
+    sat_datetime_4 = pd.date_range(
+        t0 - pd.Timedelta("120min"),
         t0 - pd.Timedelta("35min"),
         freq="5min",
     )
-    sat_datetime_4 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("30min")])
-    sat_datetime_5 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("60min")])
+
+    sat_datetime_5 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("30min")])
+    sat_datetime_6 = pd.to_datetime([t for t in sat_datetime_1 if t != t0 - pd.Timedelta("60min")])
 
     assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_1, country="nl")
     assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_2, country="nl")
-    assert not check_model_satellite_inputs_available(
-        config_filename, t0, sat_datetime_3, country="nl",
+    assert check_model_satellite_inputs_available(
+        config_india_sat_filename, t0, sat_datetime_3, country="india",
     )
     assert not check_model_satellite_inputs_available(
         config_filename, t0, sat_datetime_4, country="nl",
     )
     assert not check_model_satellite_inputs_available(
         config_filename, t0, sat_datetime_5, country="nl",
+    )
+    assert not check_model_satellite_inputs_available(
+        config_filename, t0, sat_datetime_6, country="nl",
     )
