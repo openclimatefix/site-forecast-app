@@ -307,7 +307,7 @@ class PVNetModel:
         # Remove negative values
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
 
-        if self.asset_type == "wind" and self.client == "ruvnl":
+        if self.asset_type == "wind" and self.client_name == "ruvnl":
             log.info("Feathering the forecast to the lastest value of generation")
             values_df = feather_forecast(
                 values_df,
