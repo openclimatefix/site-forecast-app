@@ -192,7 +192,10 @@ def app_run(
     # 0. Initialise DB connection
     url = os.environ["DB_URL"]
     db_conn = DatabaseConnection(url, echo=False)
-    country = os.environ.get("COUNTRY", "nl")
+    country = os.environ.get("COUNTRY", None)
+    if country is None:
+        raise ValueError("COUNTRY environment variable must be set")
+
     log.info(f"Country {country}...")
     log.info(f"write_to_db {write_to_db}...")
 

@@ -60,10 +60,10 @@ class PVNetModel:
         hf_version: str,
         name: str,
         site_uuid: str,
+        asset_type: str,
         satellite_scaling_method: str = "constant",
         summation_repo: str | None = None,
         summation_version: str | None = None,
-        asset_type: str = "pv",
     ) -> None:
         """Initializer for the model."""
         self.id = hf_repo
