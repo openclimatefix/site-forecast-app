@@ -85,6 +85,12 @@ def test_check_model_satellite_inputs_available(config_filename) -> None:
 
     assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_1, country="nl")
     assert check_model_satellite_inputs_available(config_filename, t0, sat_datetime_2, country="nl")
-    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_3, country="nl")
-    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_4, country="nl")
-    assert not check_model_satellite_inputs_available(config_filename, t0, sat_datetime_5, country="nl")
+    assert not check_model_satellite_inputs_available(
+        config_filename, t0, sat_datetime_3, country="nl",
+    )
+    assert not check_model_satellite_inputs_available(
+        config_filename, t0, sat_datetime_4, country="nl",
+    )
+    assert not check_model_satellite_inputs_available(
+        config_filename, t0, sat_datetime_5, country="nl",
+    )
