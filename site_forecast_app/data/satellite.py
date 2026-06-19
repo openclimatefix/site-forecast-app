@@ -188,6 +188,7 @@ def check_model_satellite_inputs_available(
     data_config_filename: str,
     t0: pd.Timestamp,
     sat_datetimes: pd.DatetimeIndex | None,
+    country: str,
 ) -> bool:
     """Checks whether the model can be run given the current satellite delay.
 
@@ -195,6 +196,7 @@ def check_model_satellite_inputs_available(
         data_config_filename: Path to the data configuration file
         t0: The init-time of the forecast
         sat_datetimes: The available satellite timestamps
+        country: The country for which the model is being run
 
     Returns:
         bool: Whether the satellite data satisfies that specified in the config
@@ -232,10 +234,12 @@ def check_model_satellite_inputs_available(
                 np.array(input_config.satellite.dropout_timedeltas_minutes).min(),
             )
 
+        frequency = "15min" if country == "india" else "5min"
+
         expected_datetimes = pd.date_range(
             t0 + pd.Timedelta(f"{int(interval_start_minutes)}min"),
             t0 + pd.Timedelta(f"{int(interval_end_minutes)}min"),
-            freq="5min",
+            freq=frequency,
         )
 
         # Check if any of the expected datetimes are missing
