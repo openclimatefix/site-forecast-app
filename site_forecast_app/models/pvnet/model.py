@@ -60,10 +60,11 @@ class PVNetModel:
         hf_version: str,
         name: str,
         site_uuid: str,
+        asset_type: str,
+        client_name: str,
         satellite_scaling_method: str = "constant",
         summation_repo: str | None = None,
         summation_version: str | None = None,
-        asset_type: str = "pv",
     ) -> None:
         """Initializer for the model."""
         self.id = hf_repo
@@ -75,10 +76,10 @@ class PVNetModel:
         self.summation_repo = summation_repo
         self.summation_version = summation_version
         self.asset_type = asset_type
+        self.client_name = client_name
 
         log.info(f"Model initialised at t0={self.t0}")
 
-        self.client = os.getenv("CLIENT_NAME", "nl")
         self.hf_token = os.getenv("HUGGINGFACE_TOKEN", None)
 
         if self.hf_token is not None:
@@ -306,7 +307,7 @@ class PVNetModel:
         # Remove negative values
         values_df["forecast_power_kw"] = values_df["forecast_power_kw"].clip(lower=0.0)
 
-        if self.asset_type == "wind" and self.client == "ruvnl":
+        if self.asset_type == "wind" and self.client_name == "ruvnl":
             log.info("Feathering the forecast to the lastest value of generation")
             values_df = feather_forecast(
                 values_df,
