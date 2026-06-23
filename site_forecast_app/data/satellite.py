@@ -4,6 +4,7 @@ import os
 import tempfile
 from datetime import UTC, timedelta
 
+import icechunk
 import fsspec
 import numpy as np
 import pandas as pd
@@ -13,6 +14,48 @@ import zarr
 from ocf_data_sampler.config.load import load_yaml_configuration
 
 log = logging.getLogger(__name__)
+
+
+def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None:
+    """Open the satellite data from the given s3 icechunk path.
+
+    Args:
+        s3_icechunk_path: The s3 path to the icechunk containing the satellite
+        region: The s3 region where the icechunk is stored
+    """
+    bucket, _, path = s3_icechunk_path.removeprefix("s3://").partition("/")
+
+    store = icechunk.s3_storage(
+        bucket=bucket,
+        prefix=path,
+        from_env=True,
+        region=region,
+    )
+
+    try:
+        repo = icechunk.Repository.open(store)
+        session = repo.readonly_session("main")
+        ds = xr.open_zarr(session.store)
+
+        # rename channel to variable
+        ds = ds.rename({"channel": "variable"})
+
+        # Slice and load into memory for processing
+        ds = (
+            ds
+            .sortby("time")
+            .drop_duplicates("time", keep="last")
+            # .sel(time=slice(self.t0 - self.time_window, self.t0))
+            .load()
+        )
+
+    except icechunk.IcechunkError as e:
+        log.error(f"Error opening icechunk repository: {e}")
+        ds = None
+
+    return ds
+
+
 
 def check_and_order_time_increasing(ds: xr.Dataset) -> xr.Dataset:
     """Check that the time dimension is increasing."""
@@ -71,7 +114,9 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
 def download_satellite_data(satellite_source_file_path: str,
                             local_satellite_path: str,
                             scaling_method: str = "constant",
-                            satellite_backup_source_file_path: None | str = None) -> None:
+                            satellite_backup_source_file_path: None | str = None,
+                            satellite_ice_chunk: None | str = None,
+                            satellite_ice_chunk_back_up: None | str = None) -> None:
     """Download the sat data."""
     if os.path.exists(local_satellite_path):
         log.info(f"File already exists at {local_satellite_path}")
@@ -83,7 +128,10 @@ def download_satellite_data(satellite_source_file_path: str,
         # we need this to download from s3 and save locally.
         temp_zarr_zip = f"{temporary_satellite_data}.zip"
 
-        ds = download_and_unzip(file_zip=satellite_source_file_path,
+        if satellite_ice_chunk:
+            ds = open_satellite_data(satellite_ice_chunk, region="eu-west-1")
+        else:
+            ds = download_and_unzip(file_zip=satellite_source_file_path,
                                 file=temporary_satellite_data,
                                 temp_zarr_zip=temp_zarr_zip)
 
@@ -115,9 +163,12 @@ def download_satellite_data(satellite_source_file_path: str,
                 f"downloading backup from {satellite_backup_source_file_path}")
 
             temporary_satellite_data = f"{tmpdir}/temporary_satellite_backup_data.zarr"
-            ds = download_and_unzip(file_zip=satellite_backup_source_file_path,
-                               file=temporary_satellite_data,
-                               temp_zarr_zip="sat_backup.zarr.zip")
+            if satellite_ice_chunk:
+                ds = open_satellite_data(satellite_ice_chunk_back_up, region="eu-west-1")
+            else:
+                ds = download_and_unzip(file_zip=satellite_backup_source_file_path,
+                                       file=temporary_satellite_data,
+                                       temp_zarr_zip="sat_backup.zarr.zip")
 
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}, before resampling to 5 min")
@@ -135,7 +186,8 @@ def download_satellite_data(satellite_source_file_path: str,
             scale_factor = int(os.environ.get("SATELLITE_SCALE_FACTOR", 1023))
             log.info(f"Scaling satellite data by {scale_factor} to be between 0 and 1")
 
-            ds = ds / scale_factor
+            if scale_factor != 1:
+                ds = ds / scale_factor
         elif scaling_method == "minmax":
             log.info("Scaling satellite data to [0,1] range via min-max scaling")
             # scale the dataset to min-max

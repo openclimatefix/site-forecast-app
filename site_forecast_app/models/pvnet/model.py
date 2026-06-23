@@ -341,6 +341,8 @@ class PVNetModel:
         use_satellite = os.getenv("USE_SATELLITE", "true").lower() == "true"
         satellite_source_file_path = os.getenv("SATELLITE_ZARR_PATH", None)
         satellite_backup_source_file_path = os.getenv("SATELLITE_BACKUP_ZARR_PATH", None)
+        satellite_ice_chunk = os.getenv("SATELLITE_ICECHUNK_PATH_5", None)
+        satellite_ice_chunk_back_up = os.getenv("SATELLITE_ICECHUNK_PATH_15", None)
 
         # only load nwp that we need
         nwp_configs = []
@@ -396,6 +398,8 @@ class PVNetModel:
                 satellite_path,
                 self.satellite_scaling_method,
                 satellite_backup_source_file_path,
+                satellite_ice_chunk=satellite_ice_chunk,
+                satellite_ice_chunk_back_up=satellite_ice_chunk_back_up
             )
 
         log.info("Preparing generation data sources")
