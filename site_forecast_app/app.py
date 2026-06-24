@@ -203,9 +203,11 @@ def app_run(
     with db_conn.get_session() as session:
         # 1. Load data/models
         run_critical_only = os.getenv("RUN_CRITICAL_MODELS_ONLY", "false").lower() == "true"
+        satellite_archive_version = os.getenv("SATELLITE_ARCHIVE_VERSION", "v0").lower()
         all_model_configs = get_all_models(
             client_abbreviation=client_name,
             get_critical_only=run_critical_only,
+            satellite_archive_version=satellite_archive_version,
         )
         successful_runs = 0
         runs = 0

@@ -118,6 +118,14 @@ class Model(BaseModel):
         "fetch from the DP use for the uncurtailed adjuster",
     )
 
+    # We have v0 and v1 satellite
+    # most models work off v0 satellite archive, but one works on v1
+    satellite_archive_version: Literal["v0", "v1"] = Field(
+        "v0",
+        title="Satellite Archive",
+        description="The version of the satellite archive to use.",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""
@@ -130,6 +138,7 @@ class Models(BaseModel):
 def get_all_models(
     client_abbreviation: str | None = None,
     get_critical_only: bool = False,
+    satellite_archive_version:str = "v0",
 ) -> Models:
     """Returns all the models for a given client."""
     import os
@@ -145,5 +154,9 @@ def get_all_models(
 
     if get_critical_only:
         models.models = [model for model in models.models if model.is_critical]
+
+    # filter by satellite archive version
+    models.models = [model for model in models.models
+                     if model.satellite_archive_version == satellite_archive_version]
 
     return models
