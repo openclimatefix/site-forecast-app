@@ -4,8 +4,8 @@ import os
 import tempfile
 from datetime import UTC, timedelta
 
-import icechunk
 import fsspec
+import icechunk
 import numpy as np
 import pandas as pd
 import xarray as xr

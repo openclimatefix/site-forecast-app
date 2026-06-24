@@ -399,7 +399,7 @@ class PVNetModel:
                 self.satellite_scaling_method,
                 satellite_backup_source_file_path,
                 satellite_ice_chunk=satellite_ice_chunk,
-                satellite_ice_chunk_back_up=satellite_ice_chunk_back_up
+                satellite_ice_chunk_back_up=satellite_ice_chunk_back_up,
             )
 
         log.info("Preparing generation data sources")
