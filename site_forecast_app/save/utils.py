@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 
 import pandas as pd
 from dp_sdk.ocf import dp
 from pvsite_datamodel.sqlmodels import LocationSQL  # noqa: TC002
 
+adjuster_limit_fraction = os.environ.get("ADJUSTER_LIMIT_FRACTION", 0.1)
+adjuster_limit_mw = os.environ.get("ADJUSTER_LIMIT_MW", 1000.0)
 
 def add_or_convert_to_utc(timestamp: object) -> pd.Timestamp:
     """Ensure a timestamp is a timezone-aware UTC pd.Timestamp."""
@@ -26,14 +29,14 @@ def ensure_timezone_aware(dt: datetime) -> datetime:
 def limit_adjuster(delta_fraction: float, value_fraction: float, capacity_mw: float) -> float:
     """Limit the adjuster to 10% of forecast and max 1000 MW."""
     # limit adjusted fractions to 10% of fv.p50_fraction
-    max_delta = 0.1 * value_fraction
+    max_delta = adjuster_limit_fraction * value_fraction
     if delta_fraction > max_delta:
         delta_fraction = max_delta
     elif delta_fraction < -max_delta:
         delta_fraction = -max_delta
 
     # limit adjust to 1000 MW
-    max_delta_absolute = 1000.0 / capacity_mw
+    max_delta_absolute = adjuster_limit_mw / capacity_mw
     if delta_fraction > max_delta_absolute:
         delta_fraction = max_delta_absolute
     elif delta_fraction < -max_delta_absolute:
