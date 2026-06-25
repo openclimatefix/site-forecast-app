@@ -23,6 +23,7 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
         s3_icechunk_path: The s3 path to the icechunk containing the satellite
         region: The s3 region where the icechunk is stored
     """
+    log.info(f"Opening satellite data from {s3_icechunk_path} in region {region}")
     bucket, _, path = s3_icechunk_path.removeprefix("s3://").partition("/")
 
     store = icechunk.s3_storage(
@@ -35,23 +36,29 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
     try:
         repo = icechunk.Repository.open(store)
         session = repo.readonly_session("main")
-        ds = xr.open_zarr(session.store)
+        ds = xr.open_zarr(session.store, consolidated=False)
 
         # rename channel to variable
         ds = ds.rename({"channel": "variable"})
 
         # Slice and load into memory for processing
+        t0 = ds.time.max().values
         ds = (
             ds
             .sortby("time")
             .drop_duplicates("time", keep="last")
-            # .sel(time=slice(self.t0 - self.time_window, self.t0))
-            .load()
+            .sel(time=slice(t0 - pd.Timedelta(hours=3), t0))
         )
+
+        log.info(f"Satellite data timestamps: {ds.time.values}, now loading")
+        ds = ds.load()
 
     except icechunk.IcechunkError as e:
         log.error(f"Error opening icechunk repository: {e}")
         ds = None
+
+    # there are lots of data variables, but lets just keep 'data'
+    ds = ds[["data"]]
 
     return ds
 
