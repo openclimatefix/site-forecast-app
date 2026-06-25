@@ -9,8 +9,8 @@ import pandas as pd
 from dp_sdk.ocf import dp
 from pvsite_datamodel.sqlmodels import LocationSQL  # noqa: TC002
 
-adjuster_limit_fraction_default = os.environ.get("ADJUSTER_LIMIT_FRACTION", 0.1)
-adjuster_limit_mw_default = os.environ.get("ADJUSTER_LIMIT_MW", 1000.0)
+adjuster_limit_fraction_default = float(os.environ.get("ADJUSTER_LIMIT_FRACTION", 0.1))
+adjuster_limit_mw_default = float(os.environ.get("ADJUSTER_LIMIT_MW", 1000.0))
 
 def add_or_convert_to_utc(timestamp: object) -> pd.Timestamp:
     """Ensure a timestamp is a timezone-aware UTC pd.Timestamp."""
