@@ -164,8 +164,6 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
         gcs_bucket_path: Path to where GenCast data is stored.
         output_path: Path to save the processed GenCast data.
 
-    Returns:
-        An xarray Dataset containing the GenCast data in the format required for ocf-data-sampler.
     """
     # check if data already exists at output path and if so, skip processing
     if os.path.exists(output_path):
@@ -240,59 +238,55 @@ def pull_gencast_data(gcs_bucket_path: str, output_path: str) -> None:
     data_combined.to_zarr(output_path, mode="w")
     log.info("Successfully saved processed GenCast data to zarr path.")
 
-
 def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
     """Get FGN (WeatherNext2) data sliced to region of interest for most recent init time.
 
     Fetches the latest available FGN forecast and reshapes
     into the required format for ocf-data-sampler.
+    Dataset/model info: https://developers.google.com/weathernext/guides/models
 
     Args:
         gcs_bucket_path: Path to where FGN data is stored.
         output_path: Path to save the processed FGN data.
-
-    Returns:
-        An xarray Dataset containing the FGN data in the format required for ocf-data-sampler.
     """
     # check if data already exists at output path and if so, skip processing
     if os.path.exists(output_path):
         log.info(f"File already exists at {output_path}, skipping FGN data pull.")
         return
 
-    # Get latest initialised forecast
-    last_expected_init_time = get_latest_6hr_init_time()
+    # Grab GCS token path and only use it if it exists
+    gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON")
+    storage_option = {"token": json.loads(gcs_token_string)} if gcs_token_string else None
 
-    try:
-        zarr_path = f"{gcs_bucket_path}{last_expected_init_time}_01_preds/predictions.zarr"
-
-        # Grab GCS token path and only use it if it exists
-        gcs_token_string = os.getenv("GCLOUD_SERVICE_ACCOUNT_JSON", None)
-
-        if gcs_token_string is None:
-            storage_option = None
-        else:
-            token_dict = json.loads(gcs_token_string)
-            storage_option = {"token": token_dict}
-
-        ds = xr.open_zarr(
+    def open_fgn_init(init_time: str) -> xr.Dataset:
+        zarr_path = f"{gcs_bucket_path}{init_time}_01_preds/predictions.zarr"
+        return xr.open_zarr(
             zarr_path,
             decode_timedelta=True,
             chunks="auto",
             storage_options=storage_option,
         )
 
-        # Promote scalar init_time to a length-1 dimension right away
-        if "init_time" not in ds.dims:
-            ds = ds.drop_vars("init_time").expand_dims(
-                init_time=ds.init_time.values.reshape(1),
-            )
-
+    # Get latest initialised forecast, falling back to the previous init time
+    try:
+        ds = open_fgn_init(get_latest_6hr_init_time())
         log.info("Successfully opened FGN data from GCS (lazily).")
-
     except Exception as e:
-        raise RuntimeError(
-            f"Error loading FGN data from {gcs_bucket_path}",
-        ) from e
+        log.warning(
+            f"Error {e} loading FGN data from {gcs_bucket_path}. "
+            "Attempting to load previous init time instead.",
+        )
+        previous_init_time = get_latest_6hr_init_time(
+            now=dt.datetime.now(tz=dt.UTC) - dt.timedelta(hours=6),
+        )
+        ds = open_fgn_init(previous_init_time)
+        log.info("Successfully opened previous FGN data from GCS (lazily).")
+
+    # Promote scalar init_time to a length-1 dimension
+    if "init_time" not in ds.dims:
+        ds = ds.drop_vars("init_time").expand_dims(
+            init_time=ds.init_time.values.reshape(1),
+        )
 
     # Load into memory for quicker processing
     ds_sliced = slice_relevant(ds, provider="fgn")
@@ -301,7 +295,6 @@ def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
 
     # Compute ensemble statistics
     ds_ens_stats = compute_ensemble_statistics(ds_sliced, "P50")
-
     da_merged = ds_ens_stats.to_array(name="fgn_data")
 
     # Stack ensemble statistics and variables into single channel dimension
@@ -316,9 +309,9 @@ def pull_fgn_data(gcs_bucket_path: str, output_path: str) -> None:
             "init_time": "init_time_utc",
         },
     )
+
     # Save to zarr path
-    data_combined = data_combined.drop_encoding()
-    data_combined = data_combined.astype("float32")
+    data_combined = data_combined.drop_encoding().astype("float32")
     data_combined = data_combined.chunk(data_combined.shape)
 
     data_combined.to_zarr(output_path, mode="w")
