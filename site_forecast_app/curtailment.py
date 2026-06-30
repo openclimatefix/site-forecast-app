@@ -37,7 +37,7 @@ class Curtailment:
             data = client.query_day_ahead_prices(country_code, start=start, end=end)
         except NoMatchingDataError:
             log.warning("No matching data found.")
-            data = pd.DataFrame(columns=["target_datetime_utc", "NL_day_ahead_prices_euros_per_mwh"])
+            data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"])
         except Exception as e:
             log.error(f"Error fetching data: {e}")
             raise e
@@ -51,7 +51,8 @@ class Curtailment:
             log.warning("Data contains NaNs.")
 
         # make sure timezone is utc
-        data.index = data.index.tz_convert("UTC")
+        if not data.empty:
+            data.index = data.index.tz_convert("UTC")
 
         # convert to dataframe with columns ['target_datetime_utc', 'price']
         data = data.reset_index()
