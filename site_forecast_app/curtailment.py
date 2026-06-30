@@ -6,6 +6,7 @@ import os
 
 import pandas as pd
 from entsoe import EntsoePandasClient
+from entsoe.exceptions import NoMatchingDataError
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,14 @@ class Curtailment:
         # methods that return Pandas Series
         log.info(f"Fetching day-ahead prices from ENTSOE API for {country_code} \
                  from {start} to {end}")
-        data = client.query_day_ahead_prices(country_code, start=start, end=end)
+        try:
+            data = client.query_day_ahead_prices(country_code, start=start, end=end)
+        except NoMatchingDataError:
+            log.warning("No matching data found.")
+            data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"])
+        except Exception as e:
+            log.error(f"Error fetching data: {e}")
+            raise e
 
         # validate data
         if data.empty:
@@ -43,7 +51,8 @@ class Curtailment:
             log.warning("Data contains NaNs.")
 
         # make sure timezone is utc
-        data.index = data.index.tz_convert("UTC")
+        if not data.empty:
+            data.index = data.index.tz_convert("UTC")
 
         # convert to dataframe with columns ['target_datetime_utc', 'price']
         data = data.reset_index()
