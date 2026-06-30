@@ -31,7 +31,7 @@ class Curtailment:
         end = start + pd.Timedelta(days=2)  # fetch a 2 days of data
 
         # methods that return Pandas Series
-        print(f"Fetching day-ahead prices from ENTSOE API for {country_code} \
+        log.info(f"Fetching day-ahead prices from ENTSOE API for {country_code} \
                  from {start} to {end}")
         try:
             data = client.query_day_ahead_prices(country_code, start=start, end=end)
