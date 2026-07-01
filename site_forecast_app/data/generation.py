@@ -39,6 +39,8 @@ async def fetch_generation_from_dp(
     if not site_name:
         return []
 
+    site_name = site_name.lower()
+
     async with get_dataplatform_client() as client:
         loc_map = await fetch_dp_location_map(client)
         loc_uuid = loc_map.get(site_name)
