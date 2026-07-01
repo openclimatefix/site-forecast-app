@@ -403,6 +403,8 @@ async def save_forecast_to_dataplatform(
         log.error("client_location_name is None/empty — cannot save")
         raise ValueError("client_location_name is required to save to the Data Platform")
 
+    client_location_name = client_location_name.lower()
+
     init_time_utc = ensure_timezone_aware(init_time_utc)
     log.info(
         f"location={client_location_name!r}  "
