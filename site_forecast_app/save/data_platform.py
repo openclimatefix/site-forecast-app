@@ -271,6 +271,7 @@ async def create_new_location(
     lon, lat = longitude or 0.0, latitude or 0.0
     wkt = f"POINT ({lon} {lat})"
     capacity_watts = int(capacity_kw * 1000)
+    client_location_name = client_location_name.lower().replace("-", "_")
 
     try:
         create_req = dp.CreateLocationRequest(
