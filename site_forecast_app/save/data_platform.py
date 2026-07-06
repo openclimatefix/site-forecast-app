@@ -223,6 +223,7 @@ async def resolve_target_uuid(
     Returns the UUID string if found, or None if the location does not exist yet.
     Raises on unexpected gRPC errors.
     """
+    client_location_name = client_location_name.replace("-", "_").lower()
     if location_map is None:
         resp = await client.list_locations(dp.ListLocationsRequest())
         location_map = {loc.location_name: loc.location_uuid for loc in resp.locations}
