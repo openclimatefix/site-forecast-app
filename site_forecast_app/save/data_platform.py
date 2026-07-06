@@ -271,6 +271,7 @@ async def create_new_location(
     lon, lat = longitude or 0.0, latitude or 0.0
     wkt = f"POINT ({lon} {lat})"
     capacity_watts = int(capacity_kw * 1000)
+    client_location_name = client_location_name.lower().replace("-", "_")
 
     try:
         create_req = dp.CreateLocationRequest(
@@ -402,6 +403,8 @@ async def save_forecast_to_dataplatform(
     if not client_location_name:
         log.error("client_location_name is None/empty — cannot save")
         raise ValueError("client_location_name is required to save to the Data Platform")
+
+    client_location_name = client_location_name.lower()
 
     init_time_utc = ensure_timezone_aware(init_time_utc)
     log.info(
