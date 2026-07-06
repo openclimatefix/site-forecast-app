@@ -7,7 +7,7 @@ RUN apt-get update && \
 
 
 # --- Build dependencies --- #
-FROM python:3.11 AS build-deps
+FROM python:3.12 AS build-deps
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY --from=build-venv /app/.venv /app/.venv
