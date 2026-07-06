@@ -70,7 +70,8 @@ The following environment variables are required to run the app:
 Here are some temporary ones
 - `MO_GLOBAL_SCALE_CLOUDS`: The scale factor for the Met Office global clouds, this is used to scale the clouds in the Met Office NWP data
 - `MO_GLOBAL_ZERO_TOTAL_CLOUD_COVER`: Whether to set the total cloud cover to zero in the Met Office global NWP data, this is used to set the total cloud cover to zero in the Met Office global NWP data
-
+- `SATELLITE_ARCHIVE_VERSION`: The scaled satellite is v0 (default) and the new icechunk unscaled satellite version is v1
+ 
 ## Linting and formatting
 
 Lint with:
