@@ -204,7 +204,7 @@ models:
     observer_name_adjuster: nednl
     curtailment: true
     is_critical: false
-    satellite_archive: v1
+    satellite_archive_version: v1
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
