@@ -372,7 +372,7 @@ def app_run(
             f"Completed forecasts for {successful_runs} runs for "
             f"{runs} model runs.",
         )
-        if run_blend_service:
+        if run_blend_service and save_to_data_platform:
             # Run the generic blend pipeline automatically after site forecasts complete.
             # Blend writes to the Data Platform, so only run when DP saves are enabled.
             # The config is loaded here (where country context lives) and passed into

@@ -47,7 +47,7 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
             ds
             .sortby("time")
             .drop_duplicates("time", keep="last")
-            .sel(time=slice(t0 - pd.Timedelta(hours=3), t0))
+            .sel(time=slice(t0 - pd.Timedelta(hours=3), None))
         )
 
         log.info(f"Satellite data timestamps: {ds.time.values}, now loading")
@@ -55,7 +55,7 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
 
     except icechunk.IcechunkError as e:
         log.error(f"Error opening icechunk repository: {e}")
-        ds = None
+        return None
 
     # there are lots of data variables, but lets just keep 'data'
     ds = ds[["data"]]
@@ -138,8 +138,7 @@ def download_satellite_data(satellite_source_file_path: str,
         if satellite_ice_chunk:
             ds = open_satellite_data(satellite_ice_chunk, region="eu-west-1")
         else:
-            ds = download_and_unzip(file_zip=satellite_source_file_path,
-                                file=temporary_satellite_data,
+            ds = download_and_open_zip(file_zip=satellite_source_file_path,
                                 temp_zarr_zip=temp_zarr_zip)
 
         use_backup = False
@@ -173,8 +172,7 @@ def download_satellite_data(satellite_source_file_path: str,
             if satellite_ice_chunk:
                 ds = open_satellite_data(satellite_ice_chunk_back_up, region="eu-west-1")
             else:
-                ds = download_and_unzip(file_zip=satellite_backup_source_file_path,
-                                       file=temporary_satellite_data,
+                ds = download_and_open_zip(file_zip=satellite_backup_source_file_path,
                                        temp_zarr_zip="sat_backup.zarr.zip")
 
             times = ds.time.values
@@ -312,11 +310,12 @@ def check_model_satellite_inputs_available(
     return available
 
 
-def download_and_unzip(file_zip:str, file:str, temp_zarr_zip:str="sat_min.zarr.zip") -> None:
+def download_and_open_zip(file_zip:str, temp_zarr_zip:str="sat_min.zarr.zip") -> None | xr.Dataset:
     """Download and unzip the satellite data.
 
-    :param file_zip: The path to the zip file containing the satellite data.
-    :param file: The path to the directory where the data should be extracted.
+    Args:
+        file_zip: The path to the zip file containing the satellite data.
+        temp_zarr_zip: The path to the temporary zarr zip file.
     """
     # download satellite data
     fs = fsspec.open(file_zip).fs
@@ -326,9 +325,9 @@ def download_and_unzip(file_zip:str, file:str, temp_zarr_zip:str="sat_min.zarr.z
             f"to {temp_zarr_zip}",
         )
         fs.get(file_zip, temp_zarr_zip)
-        log.info(f"Unzipping {temp_zarr_zip} to {file}")
+        log.info(f"Openening zipped zarr {temp_zarr_zip}")
 
         store = zarr.storage.ZipStore(path=temp_zarr_zip, mode="r")
-        return xr.open_zarr(store)
+        return xr.open_zarr(store).load()
     else:
         log.error(f"Could not find satellite data at {file_zip}")

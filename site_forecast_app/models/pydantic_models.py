@@ -1,6 +1,7 @@
 """A pydantic model for the ML models."""
 
 
+import os
 from typing import Literal
 
 import fsspec
@@ -121,7 +122,7 @@ class Model(BaseModel):
     # We have v0 and v1 satellite
     # most models work off v0 satellite archive, but one works on v1
     satellite_archive_version: Literal["v0", "v1"] = Field(
-        "v0",
+        ...,
         title="Satellite Archive",
         description="The version of the satellite archive to use.",
     )
@@ -141,9 +142,8 @@ def get_all_models(
     satellite_archive_version:str = "v0",
 ) -> Models:
     """Returns all the models for a given client."""
-    import os
-
     filename = os.path.dirname(os.path.abspath(__file__)) + "/all_models.yaml"
+    assert satellite_archive_version in ["v0", "v1"]
 
     with fsspec.open(filename, mode="r") as stream:
         models = parse_config(data=stream)
