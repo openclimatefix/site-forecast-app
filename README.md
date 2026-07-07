@@ -65,7 +65,8 @@ The following environment variables are required to run the app:
 - `SATELLITE_BACKUP_ZARR_PATH`: Back up satellite data source. Defaults to None 
 - `READ_FROM_DATA_PLATFORM`: Whether to fetch generation data from the Data Platform instead of the database. Defaults to `false`.
 - `ADJUSTER_LIMIT_FRACTION`: The limit of the adjuster in a fraction of the capacity. Default is 0.1
-- `ADJUSTER_LIMIT_MW`: The limit of the adjuster in MW. Defaulty in 1000 MW
+- `ADJUSTER_LIMIT_MW`: The limit of the adjuster in MW. Default in 1000 MW
+- `RUN_BLEND_SERVICE`: Option to run the blend service or not. Default is true. 
 
 Here are some temporary ones
 - `MO_GLOBAL_SCALE_CLOUDS`: The scale factor for the Met Office global clouds, this is used to scale the clouds in the Met Office NWP data
