@@ -143,7 +143,9 @@ def get_all_models(
 ) -> Models:
     """Returns all the models for a given client."""
     filename = os.path.dirname(os.path.abspath(__file__)) + "/all_models.yaml"
-    assert satellite_archive_version in ["v0", "v1"]
+    if satellite_archive_version not in ["v0", "v1"]:
+        raise ValueError(f"Invalid satellite archive version: {satellite_archive_version}. "
+                         "Should be in v0 or v1")
 
     with fsspec.open(filename, mode="r") as stream:
         models = parse_config(data=stream)
