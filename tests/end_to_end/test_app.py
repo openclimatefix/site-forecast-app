@@ -61,14 +61,15 @@ def test_app(
     result = run_click_script(app, args)
     assert result.exit_code == 0
 
-    fv_per_hour = 4 # 15 min resolution = 4 values per hour
-    n_forecasts = 13 + 12*11 # 13 national models + 11 regional models times 12 regional sites
-    n_models = 13
-    # 2 national models times 1 site = 2
-    # 11 regional models times 1 national summation site = 11
-    # 11 regional models times 12 regional sites = 132
-    # average number of forecast is:
-    n_fv = ((36 * n_forecasts) / n_forecasts) * fv_per_hour
+    fv_per_hour = 4  # 15 min resolution = 4 values per hour
+    n_national_models = 2
+    n_regional_models = 11  # includes nl_regional_sat_only_v1
+    n_uncurtailed_saves = 1  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
+    # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
+    n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13  # 158
+    n_models = n_national_models + n_regional_models + n_uncurtailed_saves  # 14
+    # each forecast has 36 hours of values
+    n_fv = 36 * fv_per_hour
 
     if write_to_db:
         assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
