@@ -149,6 +149,23 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
+  # New archive single source sat model below  
+  - name: nl_regional_sat_only_v1
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 27bd2420aec9f0d1f8bb56ed0ffd5d8c1ae63657
+    summation_id: openclimatefix-models/pvnet_nl
+    summation_version: caff9d58ca222ebae2ebc82537d8feeb2dbe25ac
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    curtailment: true
+    observer_name: nednl_no_curtailment
+    observer_name_adjuster: nednl
+    is_critical: false
   - name: nl_regional_ecmwf_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
