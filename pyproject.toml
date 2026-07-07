@@ -65,9 +65,6 @@ repository = "https://github.com/openclimatefix/site-forecast-app"
 [tool.setuptools]
 license-files = []
 
- [tool.uv.extra-build-dependencies]
-pyproj = ["pkg_resources"]
-
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["test*"]
