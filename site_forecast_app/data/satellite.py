@@ -118,8 +118,8 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     return scaled_ds
 
 
-def download_satellite_data(satellite_source_file_path: str,
-                            local_satellite_path: str,
+def download_satellite_data(local_satellite_path: str,
+                            satellite_source_file_path: str | None = None,
                             scaling_method: str = "constant",
                             satellite_backup_source_file_path: None | str = None,
                             satellite_ice_chunk: None | str = None,
@@ -128,6 +128,13 @@ def download_satellite_data(satellite_source_file_path: str,
     if os.path.exists(local_satellite_path):
         log.info(f"File already exists at {local_satellite_path}")
         return
+
+    # make sure we have only set one and only one
+    if (satellite_ice_chunk is not None and satellite_source_file_path is not None) \
+            or (satellite_ice_chunk is None and satellite_source_file_path is None):
+        raise Exception("Only one of satellite_ice_chunk or "
+                        "satellite_source_file_path should be set.")
+
 
     with tempfile.TemporaryDirectory() as tmpdir:
 
