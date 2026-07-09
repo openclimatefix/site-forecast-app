@@ -46,7 +46,7 @@ def test_get_sites_with_model_config(db_session, sites):
     db_session.commit()
     location_group.locations = sites
 
-    model_config = get_all_models().models[0]
+    model_config = get_all_models(satellite_archive_version="v0").models[0]
     model_config.client = None
     model_config.site_group_uuid = location_group.location_group_uuid
 
@@ -73,7 +73,7 @@ def test_get_model(
     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
     monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
 
-    all_models = get_all_models()
+    all_models = get_all_models(satellite_archive_version="v0")
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
@@ -110,7 +110,7 @@ def test_run_model(
     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
 
-    all_models = get_all_models()
+    all_models = get_all_models(satellite_archive_version="v0")
     ml_model = all_models.models[0]
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
