@@ -328,6 +328,6 @@ def download_and_open_zip(file_zip:str, temp_zarr_zip:str="sat_min.zarr.zip") ->
         log.info(f"Openening zipped zarr {temp_zarr_zip}")
 
         store = zarr.storage.ZipStore(path=temp_zarr_zip, mode="r")
-        return xr.open_zarr(store).load()
+        return xr.open_zarr(store)
     else:
         log.error(f"Could not find satellite data at {file_zip}")
