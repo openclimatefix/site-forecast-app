@@ -137,9 +137,9 @@ class Models(BaseModel):
 
 
 def get_all_models(
+    satellite_archive_version: str,
     client_abbreviation: str | None = None,
     get_critical_only: bool = False,
-    satellite_archive_version:str = "v0",
 ) -> Models:
     """Returns all the models for a given client."""
     filename = os.path.dirname(os.path.abspath(__file__)) + "/all_models.yaml"
