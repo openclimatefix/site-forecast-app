@@ -130,8 +130,7 @@ def download_satellite_data(local_satellite_path: str,
         return
 
     # make sure we have only set one and only one
-    if (satellite_ice_chunk is not None and satellite_source_file_path is not None) \
-            or (satellite_ice_chunk is None and satellite_source_file_path is None):
+    if (satellite_ice_chunk is not None and satellite_source_file_path is not None):
         raise Exception("Only one of satellite_ice_chunk or "
                         "satellite_source_file_path should be set.")
 
