@@ -62,8 +62,8 @@ def test_app(
     assert result.exit_code == 0
 
     fv_per_hour = 4 # 15 min resolution = 4 values per hour
-    n_forecasts = 13 + 12*11 # 13 national models + 11 regional models times 12 regional sites
-    n_models = 13
+    n_forecasts = 12 + 12*10 # 12 national models + 10 regional models times 12 regional sites
+    n_models = 12
     # 2 national models times 1 site = 2
     # 11 regional models times 1 national summation site = 11
     # 11 regional models times 12 regional sites = 132

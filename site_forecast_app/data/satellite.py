@@ -5,6 +5,7 @@ import tempfile
 from datetime import UTC, timedelta
 
 import fsspec
+import icechunk
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -13,6 +14,55 @@ import zarr
 from ocf_data_sampler.config.load import load_yaml_configuration
 
 log = logging.getLogger(__name__)
+
+
+def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None:
+    """Open the satellite data from the given s3 icechunk path.
+
+    Args:
+        s3_icechunk_path: The s3 path to the icechunk containing the satellite
+        region: The s3 region where the icechunk is stored
+    """
+    log.info(f"Opening satellite data from {s3_icechunk_path} in region {region}")
+    bucket, _, path = s3_icechunk_path.removeprefix("s3://").partition("/")
+
+    store = icechunk.s3_storage(
+        bucket=bucket,
+        prefix=path,
+        from_env=True,
+        region=region,
+    )
+
+    try:
+        repo = icechunk.Repository.open(store)
+        session = repo.readonly_session("main")
+        ds = xr.open_zarr(session.store, consolidated=False)
+
+        # rename channel to variable
+        ds = ds.rename({"channel": "variable"})
+
+        # Slice and load into memory for processing
+        t0 = ds.time.max().values
+        ds = (
+            ds
+            .sortby("time")
+            .drop_duplicates("time", keep="last")
+            .sel(time=slice(t0 - pd.Timedelta(hours=3), None))
+        )
+
+        log.info(f"Satellite data timestamps: {ds.time.values}, now loading")
+        ds = ds.load()
+
+    except icechunk.IcechunkError as e:
+        log.error(f"Error opening icechunk repository: {e}")
+        return None
+
+    # there are lots of data variables, but lets just keep 'data'
+    ds = ds[["data"]]
+
+    return ds
+
+
 
 def check_and_order_time_increasing(ds: xr.Dataset) -> xr.Dataset:
     """Check that the time dimension is increasing."""
@@ -68,14 +118,22 @@ def satellite_scale_minmax(ds: xr.Dataset) -> xr.Dataset:
     return scaled_ds
 
 
-def download_satellite_data(satellite_source_file_path: str,
-                            local_satellite_path: str,
+def download_satellite_data(local_satellite_path: str,
+                            satellite_source_file_path: str | None = None,
                             scaling_method: str = "constant",
-                            satellite_backup_source_file_path: None | str = None) -> None:
+                            satellite_backup_source_file_path: None | str = None,
+                            satellite_ice_chunk: None | str = None,
+                            satellite_ice_chunk_back_up: None | str = None) -> None:
     """Download the sat data."""
     if os.path.exists(local_satellite_path):
         log.info(f"File already exists at {local_satellite_path}")
         return
+
+    # make sure we have only set one and only one
+    if (satellite_ice_chunk is not None and satellite_source_file_path is not None):
+        raise Exception("Only one of satellite_ice_chunk or "
+                        "satellite_source_file_path should be set.")
+
 
     with tempfile.TemporaryDirectory() as tmpdir:
 
@@ -83,8 +141,10 @@ def download_satellite_data(satellite_source_file_path: str,
         # we need this to download from s3 and save locally.
         temp_zarr_zip = f"{temporary_satellite_data}.zip"
 
-        ds = download_and_unzip(file_zip=satellite_source_file_path,
-                                file=temporary_satellite_data,
+        if satellite_ice_chunk:
+            ds = open_satellite_data(satellite_ice_chunk, region="eu-west-1")
+        else:
+            ds = download_and_open_zip(file_zip=satellite_source_file_path,
                                 temp_zarr_zip=temp_zarr_zip)
 
         use_backup = False
@@ -115,9 +175,11 @@ def download_satellite_data(satellite_source_file_path: str,
                 f"downloading backup from {satellite_backup_source_file_path}")
 
             temporary_satellite_data = f"{tmpdir}/temporary_satellite_backup_data.zarr"
-            ds = download_and_unzip(file_zip=satellite_backup_source_file_path,
-                               file=temporary_satellite_data,
-                               temp_zarr_zip="sat_backup.zarr.zip")
+            if satellite_ice_chunk:
+                ds = open_satellite_data(satellite_ice_chunk_back_up, region="eu-west-1")
+            else:
+                ds = download_and_open_zip(file_zip=satellite_backup_source_file_path,
+                                       temp_zarr_zip="sat_backup.zarr.zip")
 
             times = ds.time.values
             log.info(f"Satellite data timestamps: {times}, before resampling to 5 min")
@@ -135,7 +197,8 @@ def download_satellite_data(satellite_source_file_path: str,
             scale_factor = int(os.environ.get("SATELLITE_SCALE_FACTOR", 1023))
             log.info(f"Scaling satellite data by {scale_factor} to be between 0 and 1")
 
-            ds = ds / scale_factor
+            if scale_factor != 1:
+                ds = ds / scale_factor
         elif scaling_method == "minmax":
             log.info("Scaling satellite data to [0,1] range via min-max scaling")
             # scale the dataset to min-max
@@ -253,11 +316,12 @@ def check_model_satellite_inputs_available(
     return available
 
 
-def download_and_unzip(file_zip:str, file:str, temp_zarr_zip:str="sat_min.zarr.zip") -> None:
+def download_and_open_zip(file_zip:str, temp_zarr_zip:str="sat_min.zarr.zip") -> None | xr.Dataset:
     """Download and unzip the satellite data.
 
-    :param file_zip: The path to the zip file containing the satellite data.
-    :param file: The path to the directory where the data should be extracted.
+    Args:
+        file_zip: The path to the zip file containing the satellite data.
+        temp_zarr_zip: The path to the temporary zarr zip file.
     """
     # download satellite data
     fs = fsspec.open(file_zip).fs
@@ -267,7 +331,7 @@ def download_and_unzip(file_zip:str, file:str, temp_zarr_zip:str="sat_min.zarr.z
             f"to {temp_zarr_zip}",
         )
         fs.get(file_zip, temp_zarr_zip)
-        log.info(f"Unzipping {temp_zarr_zip} to {file}")
+        log.info(f"Openening zipped zarr {temp_zarr_zip}")
 
         store = zarr.storage.ZipStore(path=temp_zarr_zip, mode="r")
         return xr.open_zarr(store)

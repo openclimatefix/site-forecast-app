@@ -14,6 +14,7 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
+    satellite_archive_version: v0
   - name: nl_national_pv_ecmwf_sat_small
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -28,6 +29,7 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
+    satellite_archive_version: v0
   - name: nl_regional_pv_ecmwf_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -45,6 +47,7 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
+    satellite_archive_version: v0
   - name: nl_regional_48h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -62,6 +65,7 @@ models:
     observer_name: nednl_no_curtailment 
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
+    satellite_archive_version: v0
   - name: nl_regional_2h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -79,6 +83,7 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
+    satellite_archive_version: v0
   - name: nl_regional_pv_ecmwf_mo_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -99,6 +104,7 @@ models:
     # save the uncurtailed values too
     save_uncurtailed: true
     observer_name_uncurtailed_adjuster: nednl_no_curtailment
+    satellite_archive_version: v0
     # Uncurtailed model below
   - name: nl_regional_ecmwf_mo_sat
     type: pvnet
@@ -116,6 +122,7 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl_no_curtailment
+    satellite_archive_version: v0
     # Single source NL Models below
   - name: nl_regional_pv_only
     type: pvnet
@@ -133,6 +140,7 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
+    satellite_archive_version: v0
   - name: nl_regional_sat_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -149,6 +157,7 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
+    satellite_archive_version: v0
   - name: nl_regional_ecmwf_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -165,6 +174,7 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
+    satellite_archive_version: v0
   - name: nl_regional_mo_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -181,17 +191,19 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
+    satellite_archive_version: v0
   - name: nl_regional_pv_ecmwf_mo9_sat
     # This model is trained on generation data where we have removed the curtailment
     # Also only 9 MO variables have been used, these have been removed:
     # - downward_shortwave_radiation_flux_gl
     # - visibility_sl
     # - snow_depth_gl
+    # Also trained on new satellite archive
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 82f11b7c5afedea5900791a60f3753a1df1f5ebe
+    version: e940d1d0eef4eabc55f098645be9287a75d58860
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 8ee6c227a163a394045568d335a14d24c5f33552
+    summation_version: a266aaa4e6f59f9246a77b1ae9ec9ef662cdd7fd
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -204,6 +216,7 @@ models:
     observer_name_adjuster: nednl
     curtailment: true
     is_critical: false
+    satellite_archive_version: v1
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
@@ -213,6 +226,7 @@ models:
     asset_type: pv
     satellite_scaling_method: minmax
     location_type: site
+    satellite_archive_version: v0
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history_dropout
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -221,6 +235,7 @@ models:
     asset_type: pv
     satellite_scaling_method: minmax
     location_type: site
+    satellite_archive_version: v0
   - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_short
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -229,6 +244,7 @@ models:
     asset_type: pv
     satellite_scaling_method: minmax
     location_type: site
+    satellite_archive_version: v0
   - name: pvnet_extra_ad_sites_ecmwf_satellite_pv_long
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
@@ -237,6 +253,7 @@ models:
     asset_type: pv
     satellite_scaling_method: minmax
     location_type: site
+    satellite_archive_version: v0
   - name: windnet_ad_sites_ecmwf_weathernext2
     type: pvnet
     id: openclimatefix-models/windnet_ad_sites
@@ -244,6 +261,7 @@ models:
     client: ad
     asset_type: wind
     location_type: site
+    satellite_archive_version: v0
   - name: windnet_ad_sites_ecmwf_weathernext2_lagged_generation
     type: pvnet
     id: openclimatefix-models/windnet_ad_sites
@@ -251,20 +269,24 @@ models:
     client: ad
     asset_type: wind
     location_type: site
+    satellite_archive_version: v0
   - name: windnet_gencast_ecmwf_v0
     type: pvnet
     id: openclimatefix-models/windnet_india
     version: ff50642bc8032c11f762d619dad0bb3f66b8a70b
     client: ruvnl
+    satellite_archive_version: v0
   - name: windnet_gencast_ecmwf_v1
     type: pvnet
     id: openclimatefix-models/windnet_india
     version: 76142c4828a0c5bd04e7648059fe2976bb2cfa40
     client: ruvnl
     asset_type: wind
+    satellite_archive_version: v0
   - name: windnet_ecmwf_v0
     type: pvnet
     id: openclimatefix-models/windnet_india
     version: 70e00da617d1a78f4d6c0fa8441993532fab0edd
     client: ruvnl
     asset_type: wind
+    satellite_archive_version: v0
