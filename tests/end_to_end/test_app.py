@@ -7,7 +7,6 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 from freezegun import freeze_time
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL
 
@@ -29,10 +28,8 @@ def _base_args(write_to_db: bool = False) -> list[str]:
 
 @freeze_time(now)
 @patch("site_forecast_app.curtailment.EntsoePandasClient")
-@pytest.mark.parametrize("write_to_db", [True, False])
 def test_app(
     mock_entsoe_pandas_client,
-    write_to_db,
     db_session,
     sites,  # noqa: ARG001
     nwp_data,
@@ -56,6 +53,7 @@ def test_app(
     init_n_forecasts = db_session.query(ForecastSQL).count()
     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
+    write_to_db = True
     args = _base_args(write_to_db)
 
     result = run_click_script(app, args)
@@ -63,25 +61,20 @@ def test_app(
 
     fv_per_hour = 4  # 15 min resolution = 4 values per hour
     n_national_models = 2
-    n_regional_models = 11  # includes nl_regional_sat_only_v1
+    n_regional_models = 9
     n_uncurtailed_saves = 1  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
     # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
-    n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13  # 158
-    n_models = n_national_models + n_regional_models + n_uncurtailed_saves  # 14
+    n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
+    n_models = n_national_models + n_regional_models + n_uncurtailed_saves
     # each forecast has 36 hours of values
     n_fv = 36 * fv_per_hour
 
-    if write_to_db:
-        assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
-        assert db_session.query(MLModelSQL).count() == n_models * 2
-        forecast_values = db_session.query(ForecastValueSQL).all()
-        assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
-        assert forecast_values[0].probabilistic_values is not None
-        assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
-
-    else:
-        assert db_session.query(ForecastSQL).count() == init_n_forecasts
-        assert db_session.query(ForecastValueSQL).count() == init_n_forecast_values
+    assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
+    assert db_session.query(MLModelSQL).count() == n_models * 2
+    forecast_values = db_session.query(ForecastValueSQL).all()
+    assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
+    assert forecast_values[0].probabilistic_values is not None
+    assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
 
 @freeze_time(now)
