@@ -1,6 +1,7 @@
 """A pydantic model for the ML models."""
 
 
+import os
 from typing import Literal
 
 import fsspec
@@ -118,6 +119,14 @@ class Model(BaseModel):
         "fetch from the DP use for the uncurtailed adjuster",
     )
 
+    # We have v0 and v1 satellite
+    # most models work off v0 satellite archive, but one works on v1
+    satellite_archive_version: Literal["v0", "v1"] = Field(
+        ...,
+        title="Satellite Archive",
+        description="The version of the satellite archive to use.",
+    )
+
 
 class Models(BaseModel):
     """A group of ml models."""
@@ -128,13 +137,15 @@ class Models(BaseModel):
 
 
 def get_all_models(
+    satellite_archive_version: str,
     client_abbreviation: str | None = None,
     get_critical_only: bool = False,
 ) -> Models:
     """Returns all the models for a given client."""
-    import os
-
     filename = os.path.dirname(os.path.abspath(__file__)) + "/all_models.yaml"
+    if satellite_archive_version not in ["v0", "v1"]:
+        raise ValueError(f"Invalid satellite archive version: {satellite_archive_version}. "
+                         "Should be in v0 or v1")
 
     with fsspec.open(filename, mode="r") as stream:
         models = parse_config(data=stream)
@@ -145,5 +156,9 @@ def get_all_models(
 
     if get_critical_only:
         models.models = [model for model in models.models if model.is_critical]
+
+    # filter by satellite archive version
+    models.models = [model for model in models.models
+                     if model.satellite_archive_version == satellite_archive_version]
 
     return models
