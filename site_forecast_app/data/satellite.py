@@ -54,7 +54,6 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
         )
 
         log.info(f"Satellite data timestamps: {ds.time.values}, now loading")
-        ds = ds.load()
 
     except icechunk.IcechunkError as e:
         log.error(f"Error opening icechunk repository: {e}")
