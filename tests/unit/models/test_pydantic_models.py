@@ -11,7 +11,7 @@ def test_get_all_models():
 def test_get_all_models_satellite_v1():
     """Test for getting all models"""
     models = get_all_models(satellite_archive_version="v1")
-    assert len(models.models) == 1
+    assert len(models.models) == 2
 
 def test_site_group_uuid():
     """Test for setting site_group_uuid"""

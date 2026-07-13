@@ -24,22 +24,25 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
         region: The s3 region where the icechunk is stored
     """
     log.info(f"Opening satellite data from {s3_icechunk_path} in region {region}")
-    bucket, _, path = s3_icechunk_path.removeprefix("s3://").partition("/")
+    if "s3://" in s3_icechunk_path:
+        bucket, _, path = s3_icechunk_path.removeprefix("s3://").partition("/")
 
-    store = icechunk.s3_storage(
-        bucket=bucket,
-        prefix=path,
-        from_env=True,
-        region=region,
-    )
+        store = icechunk.s3_storage(
+            bucket=bucket,
+            prefix=path,
+            from_env=True,
+            region=region,
+        )
+    else:
+        store = icechunk.local_filesystem_storage(path=s3_icechunk_path)
 
     try:
         repo = icechunk.Repository.open(store)
         session = repo.readonly_session("main")
         ds = xr.open_zarr(session.store, consolidated=False)
 
-        # rename channel to variable
-        ds = ds.rename({"channel": "variable"})
+        if "channel" in ds.dims:
+            ds = ds.rename({"channel": "variable"})
 
         # Slice and load into memory for processing
         t0 = ds.time.max().values
@@ -51,7 +54,6 @@ def open_satellite_data(s3_icechunk_path: str, region: str) -> xr.Dataset | None
         )
 
         log.info(f"Satellite data timestamps: {ds.time.values}, now loading")
-        ds = ds.load()
 
     except icechunk.IcechunkError as e:
         log.error(f"Error opening icechunk repository: {e}")

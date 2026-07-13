@@ -9,11 +9,13 @@ import random
 import shutil
 from uuid import uuid4
 
+import icechunk as ic
 import numpy as np
 import pandas as pd
 import pytest
 import xarray as xr
 import zarr
+from icechunk.xarray import to_icechunk
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
 from pvsite_datamodel.sqlmodels import (
@@ -631,8 +633,7 @@ def nwp_data_fgn(tmp_path_factory):
     return {"bucket": temp_nwp_path_fgn_raw, "zarr" : temp_nwp_path_fgn}
 
 
-@pytest.fixture(scope="session")
-def satellite_data(tmp_path_factory, init_timestamp):
+def make_satellite_data(init_timestamp):
     """Dummy Satellite data"""
     # Load dataset which only contains coordinates, but no data
     ds = xr.open_zarr(
@@ -668,12 +669,54 @@ def satellite_data(tmp_path_factory, init_timestamp):
     ds.data.attrs = ds.attrs["_data_attrs"]
     del ds.attrs["_data_attrs"]
 
+    return ds
+
+
+@pytest.fixture(scope="session")
+def satellite_data(tmp_path_factory, init_timestamp):
+    """Dummy Satellite data"""
+
+    ds = make_satellite_data(init_timestamp)
+
     # In production sat zarr is zipped
     temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_sat.zarr.zip"
 
     # save out data and set paths as environmental variables
     with zarr.storage.ZipStore(temp_sat_path, mode="x") as store:
         ds.to_zarr(store)
+
+    return temp_sat_path
+
+
+@pytest.fixture(scope="session")
+def satellite_data_icechunk(tmp_path_factory, init_timestamp):
+    """Dummy Satellite data and save as icechunk"""
+    ds = make_satellite_data(init_timestamp)
+
+    # In production sat zarr is zipped
+    temp_sat_path = f"{tmp_path_factory.mktemp('data')}/temp_sat.icechunk"
+
+    # create icechunk and save
+    # 1. Define your Icechunk storage (local or cloud)
+    storage = ic.local_filesystem_storage(temp_sat_path)
+    # Or cloud storage: ic.s3_storage(bucket="my-bucket", prefix="prefix")
+
+    # 2. Create and initialize the Icechunk Repository
+    repo = ic.Repository.create(storage)
+
+    session = repo.writable_session("main")
+    to_icechunk(
+        obj=ds,
+        session=session,
+        mode="w-",
+    )
+
+    # 3. Open a writable session in Icechunk and copy the data
+    session.commit(
+            message="initial commit",
+            rebase_with=ic.ConflictDetector(),
+            rebase_tries=5,
+        )
 
     return temp_sat_path
 
