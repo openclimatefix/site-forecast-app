@@ -81,6 +81,7 @@ def save_forecast_for_site_group(
                 "longitude": site.longitude,
                 "location_type": determine_location_type(site, model_config),
                 "energy_source": determine_energy_source(site),
+                "dp_location_name": model_config.dp_location_name if model_config else None,
             },
             "values": forecast_values[site.ml_id],
         }
@@ -140,6 +141,7 @@ def save_forecast(
         "longitude": forecast["meta"].get("longitude"),
         "location_type": forecast["meta"].get("location_type"),
         "energy_source": forecast["meta"].get("energy_source", dp.EnergySource.SOLAR),
+        "dp_location_name": forecast["meta"].get("dp_location_name"),
     }
 
     forecast_values_df = pd.DataFrame(forecast["values"])

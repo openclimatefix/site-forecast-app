@@ -79,6 +79,14 @@ class Model(BaseModel):
         description="The type of location the model is for (site, state, or nation)",
     )
 
+    dp_location_name: str | None = Field(
+        None,
+        title="Data Platform Location Name",
+        description="The Data Platform location that forecasts are saved to. "
+        "When unset, each site's client_location_name is used. Only set this for "
+        "models that forecast a single location (e.g. a state-level aggregate).",
+    )
+
     summation_location_type: Literal["site", "state", "nation"] | None = Field(
         None,
         title="Summation Location Type",
