@@ -127,9 +127,9 @@ models:
   - name: nl_regional_pv_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 2014b82bdc3b3e4c1ce3c409aa812804f696be69
+    version: e3987dd5dc7bfb0d9bb9ea48ebf656028f1bac4e
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 0caf45f73b6dd4c19b8ddd0444625e592626d18d
+    summation_version: 5e0149e1724ab54431f4a99d1ad9dd818afdd9b1
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -162,9 +162,9 @@ models:
   - name: nl_regional_sat_only_v1
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 27bd2420aec9f0d1f8bb56ed0ffd5d8c1ae63657
+    version: e92b63220cffe21497e23e473f0ce8a1d219ec46
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: caff9d58ca222ebae2ebc82537d8feeb2dbe25ac
+    summation_version: 6f95c6ccd4694553a7fd5389a92eee6db388035b
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -179,9 +179,9 @@ models:
   - name: nl_regional_ecmwf_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 5629171672f83f7e7ea5930141d38e1d43bfd750
+    version: f6dfe7e595f9f83ce925c76091929b84935cc974
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 49e031ad91763b52ffe695e66a2004a4ba073d3c
+    summation_version: decdbcc90e4907ac1fa459f4f49cb87cfdabe0d6
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -196,9 +196,9 @@ models:
   - name: nl_regional_mo_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: bdfc77c5d2702522bae9b601c147f3ff0f7992bf
+    version: 6815348c9d4ced9e4a71bd2b69134a190a18867a
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: a6aa7d20237455c5377f5f9fc8768cca72e4fbcd
+    summation_version: f2b9b22e558f0d3916e05816d12d6001b1b87a05
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -219,9 +219,9 @@ models:
     # Also trained on new satellite archive
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: e940d1d0eef4eabc55f098645be9287a75d58860
+    version: c5c145b413c3fcb2109d6a4d103e040bc9610c0b
     summation_id: openclimatefix-models/pvnet_nl
-    summation_version: a266aaa4e6f59f9246a77b1ae9ec9ef662cdd7fd
+    summation_version: 386fd2b9af20e3d0f6ff10334d8aa6fa21b23ab8
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
