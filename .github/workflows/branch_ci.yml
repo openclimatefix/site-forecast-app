@@ -17,5 +17,5 @@ jobs:
       enable_linting: true
       enable_typechecking: false
       tests_folder: tests
-      tests_conda_deps: "libsqlite esmf esmpy python=3.12"
+      tests_conda_deps: "libsqlite esmf esmpy"
       test_python_versions: '["3.12"]'
