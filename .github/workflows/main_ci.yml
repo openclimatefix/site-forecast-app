@@ -6,6 +6,6 @@ on:
 
 jobs:
   merged-ci:
-    uses: openclimatefix/.github/.github/workflows/default_branch_pr_merged_ci.yml@main
+    uses: openclimatefix/.github/.github/workflows/default_branch_pr_merged_ci.yml@v1.9.0
     secrets: inherit
 
