@@ -10,12 +10,12 @@ on:
 
 jobs:
   branch-ci:
-    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@main
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@fix-resolve-python
     secrets: inherit
     with:
       enable_linting: true
       enable_typechecking: false
       tests_folder: tests
-      tests_conda_deps: "libsqlite esmf esmpy python=3.12"
+      tests_conda_deps: "libsqlite esmf esmpy"
 
 
