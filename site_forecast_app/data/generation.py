@@ -232,7 +232,7 @@ async def _get_site_generation_data(
 
         # Add a final row for t0, and interpolate this row
         generation_df.loc[timestamp] = np.nan
-        generation_df = generation_df.interpolate(method="quadratic", fill_value="extrapolate")
+        generation_df = generation_df.interpolate(method="quadratic", fill_value="extrapolate", limit=4)
 
         # rename column to be generation_kw
         generation_df.columns = ["generation_kw"]

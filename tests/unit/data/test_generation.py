@@ -7,6 +7,37 @@ from site_forecast_app.data.generation import (
 )
 
 
+def test_interpolation_limit_within_one_hour():
+    """Test that the t0 NaN is filled when the gap is within the 1-hour (4-step) limit."""
+    # Create 15-min data with a known value just before t0
+    times = pd.date_range("2024-01-01 00:00", periods=6, freq="15min")
+    df = pd.DataFrame({"value": [1.0, 2.0, 3.0, 4.0, 5.0, np.nan]}, index=times)
+
+    result = df.interpolate(method="quadratic", fill_value="extrapolate", limit=4)
+
+    # The single NaN at the end is within 1 step — it should be filled
+    assert not np.isnan(result["value"].iloc[-1])
+
+
+def test_interpolation_limit_beyond_one_hour():
+    """Test that NaNs beyond the 1-hour (4-step) limit remain NaN after extrapolation."""
+    # Create 15-min data where the last real value is more than 1 hour before t0
+    times = pd.date_range("2024-01-01 00:00", periods=10, freq="15min")
+    values = [1.0, 2.0, 3.0, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+    df = pd.DataFrame({"value": values}, index=times)
+
+    result = df.interpolate(method="quadratic", fill_value="extrapolate", limit=4)
+
+    # Only 4 steps after the last real value should be filled; beyond that remains NaN
+    assert not np.isnan(result["value"].iloc[3])  # 1st NaN (1 step) — filled
+    assert not np.isnan(result["value"].iloc[4])  # 2nd NaN (2 steps) — filled
+    assert not np.isnan(result["value"].iloc[5])  # 3rd NaN (3 steps) — filled
+    assert not np.isnan(result["value"].iloc[6])  # 4th NaN (4 steps) — filled
+    assert np.isnan(result["value"].iloc[7])  # 5th NaN (5 steps) — remains NaN
+    assert np.isnan(result["value"].iloc[8])  # 6th NaN (6 steps) — remains NaN
+    assert np.isnan(result["value"].iloc[9])  # 7th NaN (t0, >1 hr gap) — remains NaN
+
+
 def test_format_generation_data():
     """Test for formatting generation data for pvnet"""
     # --- Input generation data ---
