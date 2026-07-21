@@ -10,7 +10,7 @@ on:
 
 jobs:
   branch-ci:
-    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@main
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@add-set-up-python
     secrets: inherit
     with:
       enable_linting: true
