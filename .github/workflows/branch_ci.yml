@@ -11,7 +11,7 @@ on:
 
 jobs:
   branch-ci:
-    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@main
+    uses: openclimatefix/.github/.github/workflows/branch_ci.yml@v2.0.0
     secrets: inherit
     with:
       enable_linting: true
