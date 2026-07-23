@@ -77,8 +77,8 @@ All tunable parameters live in `config.yaml`:
 
 ## Scorecard
 
-MAE curves in `data/nl_backtest_nmae_comparison_updated.csv` drive candidate selection
-and the crossover point. Scored on the 2024 validation set, national, p50.
+nMAE values in `data/nl_backtest_nmae_comparison_updated.csv`. 
+Scored on the 2024 validation set, national, p50.
 
 | Model | Mean nMAE | 1 h | 36 h |
 |-------|-----------|-----|------|
@@ -88,6 +88,8 @@ and the crossover point. Scored on the 2024 validation set, national, p50.
 | `nl_regional_ecmwf_only` | 1.690% | 1.460% | 2.075% |
 | `nl_regional_pv_ecmwf_sat` | 1.702% | 0.957% | 2.109% |
 | `nl_national_pv_ecmwf_sat_small` | 1.937% | 1.166% | 2.417% |
+
+![nMAE vs forecast horizon](data/nl_blend_nmae_vs_horizon.png)
 
 ## Running independently
 
