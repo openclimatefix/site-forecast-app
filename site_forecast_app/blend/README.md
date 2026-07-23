@@ -73,6 +73,7 @@ All tunable parameters live in `config.yaml`:
 | `nl_regional_pv_ecmwf_mo_sat` | Candidate — ECMWF + Met Office + satellite |
 | `nl_regional_pv_ecmwf_sat` | Candidate — ECMWF + satellite |
 | `nl_national_pv_ecmwf_sat_small` | Candidate — national-scale small model |
+| `nl_regional_ecmwf_only` | Candidate — ECMWF only, no PV or satellite |
 
 ## Running independently
 
