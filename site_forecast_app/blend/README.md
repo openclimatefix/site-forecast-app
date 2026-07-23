@@ -75,6 +75,20 @@ All tunable parameters live in `config.yaml`:
 | `nl_national_pv_ecmwf_sat_small` | Candidate — national-scale small model |
 | `nl_regional_ecmwf_only` | Candidate — ECMWF only, no PV or satellite |
 
+## Scorecard
+
+MAE curves in `data/nl_backtest_nmae_comparison_updated.csv` drive candidate selection
+and the crossover point. Scored on the 2024 validation set, national, p50.
+
+| Model | Mean nMAE | 1 h | 36 h |
+|-------|-----------|-----|------|
+| `nl_regional_pv_ecmwf_mo_sat` | 1.580% | 0.902% | 2.021% |
+| `nl_regional_2h_pv_ecmwf` | 1.660% | 1.259% | 2.025% |
+| `nl_regional_48h_pv_ecmwf` | 1.680% | 1.311% | 2.050% |
+| `nl_regional_ecmwf_only` | 1.690% | 1.460% | 2.075% |
+| `nl_regional_pv_ecmwf_sat` | 1.702% | 0.957% | 2.109% |
+| `nl_national_pv_ecmwf_sat_small` | 1.937% | 1.166% | 2.417% |
+
 ## Running independently
 
 ```bash
