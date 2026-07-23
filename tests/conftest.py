@@ -198,7 +198,7 @@ def sites(db_session):
 def generation_db_values(db_session, sites, init_timestamp):
     """Create some fake generations"""
 
-    n = int(20 * 48)  # 48 hours of readings
+    n = 20 * 48  # 48 hours of readings
     start_times = [init_timestamp - dt.timedelta(minutes=x * 3) for x in range(n)]
 
     # remove some of the most recent readings (to simulate missing timestamps)
