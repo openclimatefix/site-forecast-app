@@ -225,8 +225,8 @@ async def _get_site_generation_data(
         generation_df = generation_df.reindex(contiguous_dt_idx, fill_value=None)
 
         # Interpolate NaNs
-        generation_df = generation_df.interpolate(method="linear", 
-                                                  limit_direction="both", 
+        generation_df = generation_df.interpolate(method="linear",
+                                                  limit_direction="both",
                                                   limit=4)
 
         # Down-sample from 3 min to 15 min intervals
