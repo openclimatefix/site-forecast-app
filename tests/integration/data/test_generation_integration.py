@@ -56,6 +56,7 @@ def test_get_generation_data_dp(mock_fetch, db_session, sites, init_timestamp):
     """Test reading generation data from the data platform via env var."""
     mock_fetch.return_value = [
         (init_timestamp - dt.timedelta(hours=1), 10.5),
+        (init_timestamp - dt.timedelta(hours=0.5), 14.5),
         (init_timestamp, 20.0),
     ]
 

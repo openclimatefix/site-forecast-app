@@ -225,12 +225,16 @@ async def _get_site_generation_data(
         generation_df = generation_df.reindex(contiguous_dt_idx, fill_value=None)
 
         # Interpolate NaNs
-        generation_df = generation_df.interpolate(method="linear", limit_direction="both")
+        # this will do 4 steps, so 12 mins if 3 mins data, or 1 hour if 15 minute data
+        generation_df = generation_df.interpolate(method="linear",
+                                                  limit_direction="both",
+                                                  limit=4)
 
         # Down-sample from 3 min to 15 min intervals
         generation_df = generation_df.resample("15min").mean()
 
         # Add a final row for t0, and interpolate this row
+        # this will do 4 steps, 1 hour if 15 minute data
         generation_df.loc[timestamp] = np.nan
         generation_df = generation_df.interpolate(method="quadratic",
                                                   fill_value="extrapolate",
