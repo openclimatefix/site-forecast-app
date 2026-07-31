@@ -288,24 +288,24 @@ models:
     asset_type: wind
     location_type: site
     satellite_archive_version: v0
-  - name: windnet_gencast_ecmwf_v0
-    type: pvnet
-    id: openclimatefix-models/windnet_india
-    version: ff50642bc8032c11f762d619dad0bb3f66b8a70b
-    client: ruvnl
-    asset_type: wind
-    location_type: state
-    dp_location_name: ruvnl_wind
-    satellite_archive_version: v0
-  - name: windnet_gencast_ecmwf_v1
-    type: pvnet
-    id: openclimatefix-models/windnet_india
-    version: 76142c4828a0c5bd04e7648059fe2976bb2cfa40
-    client: ruvnl
-    asset_type: wind
-    location_type: state
-    dp_location_name: ruvnl_wind
-    satellite_archive_version: v0
+  # - name: windnet_gencast_ecmwf_v0
+  #   type: pvnet
+  #   id: openclimatefix-models/windnet_india
+  #   version: ff50642bc8032c11f762d619dad0bb3f66b8a70b
+  #   client: ruvnl
+  #   asset_type: wind
+  #   location_type: state
+  #   dp_location_name: ruvnl_wind
+  #   satellite_archive_version: v0
+  # - name: windnet_gencast_ecmwf_v1
+  #   type: pvnet
+  #   id: openclimatefix-models/windnet_india
+  #   version: 76142c4828a0c5bd04e7648059fe2976bb2cfa40
+  #   client: ruvnl
+  #   asset_type: wind
+  #   location_type: state
+  #   dp_location_name: ruvnl_wind
+  #   satellite_archive_version: v0
   - name: windnet_ecmwf_v0
     type: pvnet
     id: openclimatefix-models/windnet_india

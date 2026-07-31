@@ -6,7 +6,7 @@ from site_forecast_app.models.pydantic_models import Model, get_all_models
 def test_get_all_models():
     """Test for getting all models"""
     models = get_all_models(satellite_archive_version="v0")
-    assert len(models.models) == 20
+    assert len(models.models) == 18
 
 def test_get_all_models_satellite_v1():
     """Test for getting all models"""
