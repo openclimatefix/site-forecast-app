@@ -17,6 +17,7 @@ blends:
       - nl_regional_pv_ecmwf_sat
       - nl_national_pv_ecmwf_sat_small
       - nl_regional_ecmwf_only
+      - nl_regional_mo_only
 
     # Candidate models for regional blends (subset of national candidates).
     regional_candidate_models:
@@ -24,6 +25,7 @@ blends:
       - nl_regional_pv_ecmwf_mo_sat
       - nl_regional_pv_ecmwf_sat
       - nl_regional_ecmwf_only
+      - nl_regional_mo_only
 
     # ------------------------------------------------------------------ #
     # Blending parameters                                                  #

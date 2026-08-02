@@ -191,7 +191,7 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
-    is_critical: false
+    is_critical: true
     satellite_archive_version: v0
   - name: nl_regional_mo_only
     type: pvnet
@@ -208,7 +208,7 @@ models:
     curtailment: true
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
-    is_critical: false
+    is_critical: true
     satellite_archive_version: v0
   - name: nl_regional_pv_ecmwf_mo9_sat
     # This model is trained on generation data where we have removed the curtailment
