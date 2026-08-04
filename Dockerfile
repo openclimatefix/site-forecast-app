@@ -40,4 +40,4 @@ COPY --from=build-app /app/site_forecast_app /app/site_forecast_app
 # This is just a check to make sure it works, we've had problems with this in the past
 ENV PATH="/app/.venv/bin:${PATH}"
 
-ENTRYPOINT ["python","app/site_forecast_app/app.py", "--write-to-db"]
+ENTRYPOINT ["python","app/site_forecast_app/app.py"]

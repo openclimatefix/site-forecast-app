@@ -64,6 +64,8 @@ The following environment variables are required to run the app:
 - `SATELLITE_SCALE_FACTOR`: The scale factor for the satellite data. Defaults to 1023 
 - `SATELLITE_BACKUP_ZARR_PATH`: Back up satellite data source. Defaults to None 
 - `READ_FROM_DATA_PLATFORM`: Whether to fetch generation data from the Data Platform instead of the database. Defaults to `false`.
+- `SAVE_TO_DATA_PLATFORM`: Whether to save forecasts to the Data Platform. Defaults to `false`.
+- `WRITE_TO_DB`: Whether to save forecasts to the site database. Defaults to `true`.
 - `ADJUSTER_LIMIT_FRACTION`: The limit of the adjuster in a fraction of the capacity. Default is 0.1
 - `ADJUSTER_LIMIT_MW`: The limit of the adjuster in MW. Default in 1000 MW
 - `RUN_BLEND_SERVICE`: Option to run the blend service or not. Default is true. 
@@ -107,9 +109,15 @@ DB_URL={DB_URL} poetry run seeder
 ```
 ⚠️ Note this is a destructive script and will drop all tables before recreating them to ensure a clean slate. DO NOT RUN IN PRODUCTION ENVIRONMENTS
 
-This example runs the application and writes the results to stdout
+This example runs the application and writes the results to the database
 ```
 DB_URL={DB_URL} NWP_ZARR_PATH={NWP_ZARR_PATH} poetry run app
+```
+
+⚠️ Writing to the database is the default. Pass `--no-write-to-db` (or set `WRITE_TO_DB=false`)
+to run without saving anything, which is what you usually want when pointing at a real database.
+```
+DB_URL={DB_URL} NWP_ZARR_PATH={NWP_ZARR_PATH} poetry run app --no-write-to-db
 ```
 
 To save batches, you need to set the `SAVE_BATCHES_DIR` environment variable to directory. 

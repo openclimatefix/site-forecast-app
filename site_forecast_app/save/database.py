@@ -83,8 +83,17 @@ def write_forecast_to_db(
 ) -> None:
     """Write a forecast dataframe to DB when enabled."""
     if not write_to_db:
+        log.info(
+            f"Not saving {ml_model_name} forecast for "
+            f"location_id={forecast_meta['location_uuid']} to the site database, "
+            "write_to_db is False",
+        )
         return
 
+    log.info(
+        f"Saving {ml_model_name} forecast for "
+        f"location_id={forecast_meta['location_uuid']} to the site database",
+    )
     insert_forecast_values(
         db_session,
         forecast_meta,
