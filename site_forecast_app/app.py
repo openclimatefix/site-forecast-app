@@ -139,10 +139,11 @@ def run_model(model: PVNetModel, timestamp: pd.Timestamp) -> dict | None:
 Format should be YYYY-MM-DD-HH-mm. Defaults to "now".',
 )
 @click.option(
-    "--write-to-db",
-    is_flag=True,
-    default=False,
-    help="Set this flag to actually write the results to the database.",
+    "--write-to-db/--no-write-to-db",
+    default=True,
+    help="Whether to write the results to the site database.",
+    show_default=True,
+    envvar="WRITE_TO_DB",
 )
 @click.option(
     "--log-level",
@@ -171,7 +172,7 @@ def app(timestamp: dt.datetime | None,
 
 def app_run(
     timestamp: dt.datetime | None,
-    write_to_db: bool = False,
+    write_to_db: bool = True,
     log_level: str = "info",
     use_adjuster_database: bool = True,
 ) -> None:
@@ -200,6 +201,13 @@ def app_run(
 
     log.info(f"Country {country}...")
     log.info(f"write_to_db {write_to_db}...")
+    log.info(f"save_to_data_platform {save_to_data_platform}...")
+
+    if not write_to_db and not save_to_data_platform:
+        log.warning(
+            "Both WRITE_TO_DB and SAVE_TO_DATA_PLATFORM are false, "
+            "so forecasts will not be saved anywhere.",
+        )
 
     with db_conn.get_session() as session:
         # 1. Load data/models

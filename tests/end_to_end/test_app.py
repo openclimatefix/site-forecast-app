@@ -18,11 +18,10 @@ from tests.end_to_end._utils import run_click_script
 now = pd.Timestamp.now().floor("15min") + pd.Timedelta(minutes=1)
 
 
-def _base_args(write_to_db: bool = False) -> list[str]:
+def _base_args(write_to_db: bool = True) -> list[str]:
     """Build common CLI args for app tests."""
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
-    if write_to_db:
-        args.append("--write-to-db")
+    args.append("--write-to-db" if write_to_db else "--no-write-to-db")
     return args
 
 

@@ -64,6 +64,8 @@ The following environment variables are required to run the app:
 - `SATELLITE_SCALE_FACTOR`: The scale factor for the satellite data. Defaults to 1023 
 - `SATELLITE_BACKUP_ZARR_PATH`: Back up satellite data source. Defaults to None 
 - `READ_FROM_DATA_PLATFORM`: Whether to fetch generation data from the Data Platform instead of the database. Defaults to `false`.
+- `SAVE_TO_DATA_PLATFORM`: Whether to save forecasts to the Data Platform. Defaults to `false`.
+- `WRITE_TO_DB`: Whether to save forecasts to the site database. Defaults to `true`.
 - `ADJUSTER_LIMIT_FRACTION`: The limit of the adjuster in a fraction of the capacity. Default is 0.1
 - `ADJUSTER_LIMIT_MW`: The limit of the adjuster in MW. Default in 1000 MW
 - `RUN_BLEND_SERVICE`: Option to run the blend service or not. Default is true. 
