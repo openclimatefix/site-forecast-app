@@ -109,15 +109,9 @@ DB_URL={DB_URL} poetry run seeder
 ```
 ⚠️ Note this is a destructive script and will drop all tables before recreating them to ensure a clean slate. DO NOT RUN IN PRODUCTION ENVIRONMENTS
 
-This example runs the application and writes the results to the database
+This example runs the application and writes the results to stdout
 ```
 DB_URL={DB_URL} NWP_ZARR_PATH={NWP_ZARR_PATH} poetry run app
-```
-
-⚠️ Writing to the database is the default. Pass `--no-write-to-db` (or set `WRITE_TO_DB=false`)
-to run without saving anything, which is what you usually want when pointing at a real database.
-```
-DB_URL={DB_URL} NWP_ZARR_PATH={NWP_ZARR_PATH} poetry run app --no-write-to-db
 ```
 
 To save batches, you need to set the `SAVE_BATCHES_DIR` environment variable to directory. 
