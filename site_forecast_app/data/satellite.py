@@ -168,7 +168,9 @@ def download_satellite_data(local_satellite_path: str,
             if satellite_delay > timedelta(minutes=30):
                 use_backup = True
 
-        if use_backup and satellite_backup_source_file_path is None:
+        if (use_backup and \
+            (satellite_backup_source_file_path is None and not satellite_ice_chunk)) \
+                or (satellite_ice_chunk_back_up is None and satellite_ice_chunk):
             log.warning("No backup satellite source file path provided.")
             use_backup = False
 
