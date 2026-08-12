@@ -65,7 +65,7 @@ models:
     observer_name: nednl_no_curtailment 
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
-    satellite_archive_version: v0
+    satellite_archive_version: v1
   - name: nl_regional_2h_pv_ecmwf
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -83,29 +83,30 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
-    satellite_archive_version: v0
-  - name: nl_regional_pv_ecmwf_mo_sat
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: 570c62524ba46bac02eaef451ed83382bc997283
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: f40884b26ebd91f4613374fe04b453d2cf60256d
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    # save the uncurtailed values too
-    save_uncurtailed: true
-    observer_name_uncurtailed_adjuster: nednl_no_curtailment
-    satellite_archive_version: v0
-    # Uncurtailed model below
+    satellite_archive_version: v1
+  # old model trained on v0 satellite
+  # - name: nl_regional_pv_ecmwf_mo_sat
+  #   type: pvnet
+  #   id: openclimatefix-models/pvnet_nl
+  #   version: 570c62524ba46bac02eaef451ed83382bc997283
+  #   summation_id: openclimatefix-models/pvnet_nl
+  #   summation_version: f40884b26ebd91f4613374fe04b453d2cf60256d
+  #   client: nl
+  #   asset_type: pv
+  #   satellite_scaling_method: constant
+  #   site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+  #   location_type: state
+  #   summation_location_type: nation
+  #   curtailment: true
+  #   # the generation data that is loaded
+  #   observer_name: nednl_no_curtailment
+  #   # the generation data used for the adjuster
+  #   observer_name_adjuster: nednl
+  #   # save the uncurtailed values too
+  #   save_uncurtailed: true
+  #   observer_name_uncurtailed_adjuster: nednl_no_curtailment
+  #   satellite_archive_version: v0
+  #   # Uncurtailed model below
   - name: nl_regional_ecmwf_mo_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -140,7 +141,7 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: false
-    satellite_archive_version: v0
+    satellite_archive_version: v1
   - name: nl_regional_sat_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -192,7 +193,7 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: true
-    satellite_archive_version: v0
+    satellite_archive_version: v1
   - name: nl_regional_mo_only
     type: pvnet
     id: openclimatefix-models/pvnet_nl
@@ -209,8 +210,8 @@ models:
     observer_name: nednl_no_curtailment
     observer_name_adjuster: nednl
     is_critical: true
-    satellite_archive_version: v0
-  - name: nl_regional_pv_ecmwf_mo9_sat
+    satellite_archive_version: v1
+  - name: nl_regional_pv_ecmwf_mo_sat
     # This model is trained on generation data where we have removed the curtailment
     # Also only 9 MO variables have been used, these have been removed:
     # - downward_shortwave_radiation_flux_gl
