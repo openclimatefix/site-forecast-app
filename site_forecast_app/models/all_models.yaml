@@ -234,8 +234,11 @@ models:
     # the generation data used for the adjuster
     observer_name_adjuster: nednl
     curtailment: true
-    is_critical: false
+    is_critical: true
     satellite_archive_version: v1
+    # save the uncurtailed values too
+    save_uncurtailed: true
+    observer_name_uncurtailed_adjuster: nednl_no_curtailment
     # India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
