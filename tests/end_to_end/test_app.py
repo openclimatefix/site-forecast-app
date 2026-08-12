@@ -27,7 +27,7 @@ def _base_args(write_to_db: bool = True) -> list[str]:
 
 @freeze_time(now)
 @patch("site_forecast_app.curtailment.EntsoePandasClient")
-def test_app(
+def test_app_sat_v0(
     mock_entsoe_pandas_client,
     db_session,
     sites,  # noqa: ARG001
@@ -60,8 +60,8 @@ def test_app(
 
     fv_per_hour = 4  # 15 min resolution = 4 values per hour
     n_national_models = 2
-    n_regional_models = 9
-    n_uncurtailed_saves = 1  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
+    n_regional_models = 3
+    n_uncurtailed_saves = 0  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
     # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
     n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
     n_models = n_national_models + n_regional_models + n_uncurtailed_saves
@@ -112,8 +112,8 @@ def test_app_sat_v1(
 
     fv_per_hour = 4  # 15 min resolution = 4 values per hour
     n_national_models = 0
-    n_regional_models = 2
-    n_uncurtailed_saves = 0  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
+    n_regional_models = 7
+    n_uncurtailed_saves = 1  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
     # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
     n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
     n_models = n_national_models + n_regional_models + n_uncurtailed_saves
