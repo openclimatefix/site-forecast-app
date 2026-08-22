@@ -14,7 +14,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
 
     Steps:
     1. Create the nl_national location.
-    2. Seed fake source-model forecasts (backup + one candidate) so the
+    2. Seed fake source-model forecasts (backup + candidates) so the
        blender has real data to work with.
     3. Run run_blend_app().
     4. Verify that blend wrote forecast values to the Data Platform.
@@ -44,7 +44,10 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
     # Floor to 15-min boundary to match the blend app's own t0 calculation.
     t0 = datetime.now(tz=UTC)
     t0 = t0.replace(minute=(t0.minute // 15) * 15, second=0, microsecond=0)
-    for model_name in ("nl_regional_2h_pv_ecmwf", "nl_regional_48h_pv_ecmwf"):
+    source_models = dict.fromkeys(
+        [blend_config.backup_model, *blend_config.national_candidate_models],
+    )
+    for model_name in source_models:
         await _seed_source_model_forecast(
             client=client,
             location_uuid=location_uuid,

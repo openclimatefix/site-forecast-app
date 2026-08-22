@@ -10,6 +10,11 @@ from site_forecast_app.blend.weights import get_blend_weights
 # Tests for get_blend_weights
 # ---------------------------------------------------------------------------
 
+def _national_models(config: BlendConfig) -> list[str]:
+    """All national models (backup first), de-duplicated, order preserved."""
+    return list(dict.fromkeys([config.backup_model, *config.national_candidate_models]))
+
+
 @pytest.mark.asyncio
 async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     """Verify weights fallback to penalty logic when models missing."""
@@ -17,13 +22,16 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     location_uuid = "test-uuid"
     max_horizon = pd.Timedelta("48h")
 
-    # Create MAE scorecard where nl_regional_2h_pv_ecmwf is better than nl_regional_pv_ecmwf_mo_sat
-    horizons = [pd.Timedelta("30min"), pd.Timedelta("1h")]
+    backup = blend_config.backup_model
+    # The one candidate we will give a recent init time to.
+    fresh_candidate = next(m for m in blend_config.national_candidate_models if m != backup)
+
+    # Create MAE scorecard where every candidate is better than the backup.
+    horizons = pd.timedelta_range("15min", "3h", freq="15min")
     df_mae = pd.DataFrame(
         {
-            "nl_regional_2h_pv_ecmwf": [1.0, 1.5],
-            "nl_regional_pv_ecmwf_mo_sat": [2.0, 2.5],
-            "backup_blend": [5.0, 5.0],
+            model: [5.0] * len(horizons) if model == backup else [1.0] * len(horizons)
+            for model in _national_models(blend_config)
         },
         index=horizons,
     )
@@ -34,9 +42,9 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     with patch(
         "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
     ) as mock_fetch:
-        # only nl_regional_2h_pv_ecmwf has a recent init_time
+        # only fresh_candidate has a recent init_time
         mock_fetch.return_value = {
-            "nl_regional_2h_pv_ecmwf": pd.Timestamp("2024-06-01 11:30", tz="UTC"),
+            fresh_candidate: pd.Timestamp("2024-06-01 11:30", tz="UTC"),
         }
 
         weights_df = await get_blend_weights(
@@ -49,10 +57,12 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
         )
 
     assert weights_df is not None
-    assert "nl_regional_2h_pv_ecmwf" in weights_df.columns
-    # nl_regional_pv_ecmwf_mo_sat has penalty and is worse, so maybe only backup shows up.
-    # Check that at least the fallback is there.
     assert len(weights_df) > 0 # At least 1 valid horizon after shifting
+
+    # The backup gets delay=0 and the fresh candidate is cheaper, so both take weight.
+    # Every other candidate is penalised out of the shifted scorecard entirely.
+    assert fresh_candidate in weights_df.columns
+    assert set(weights_df.columns) <= {fresh_candidate, backup}
 
     # The weight sum at the row should be close to 1.0
     weight_sum = weights_df.sum(axis=1)
@@ -63,12 +73,16 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
 async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
     """Verify fallback when no initialisation times exist (everything falls back)."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
-    df_mae = pd.DataFrame({"nl_regional_2h_pv_ecmwf": [1.0]}, index=[pd.Timedelta("30min")])
+    backup = blend_config.backup_model
+    df_mae = pd.DataFrame(
+        {model: [1.0] for model in _national_models(blend_config)},
+        index=[pd.Timedelta("30min")],
+    )
 
     with patch(
         "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
     ) as mock_fetch:
-        # No init times found -> delays are 1000 days
+        # No init times found -> candidates get the max penalty delay, backup gets 0
         mock_fetch.return_value = {}
 
         weights_df = await get_blend_weights(
@@ -80,6 +94,6 @@ async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
             config=blend_config,
         )
         assert len(weights_df) == 1
-        # It still computes weights evenly or heavily shifts since they both have huge penalties.
-        # Just ensure the DF isn't empty.
+        # Every candidate is penalised out, so the backup takes the full weight.
         assert not weights_df.empty
+        assert list(weights_df.columns) == [backup]
