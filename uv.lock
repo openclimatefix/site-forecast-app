@@ -1757,6 +1757,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-durations"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/85/7c/e8c05c44a0322f1580a2fca4de67fa521b6eae02746331fd33bd4f95ed41/pytest_durations-1.9.0.tar.gz", hash = "sha256:248ac89d9f926fc119508f20ce54c14a0622dbe496d128e18548db948edcdf93", size = 18251, upload-time = "2026-08-14T07:27:48.183Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/de/393d09e6038aaf96a17e14a01aca469e0395367a79b6608734c34be4ffc2/pytest_durations-1.9.0-py3-none-any.whl", hash = "sha256:9ec7c373635abf9747ab84872dd11795e05e7aa0e050e68c01166fc5b9afa0d1", size = 19425, upload-time = "2026-08-14T07:27:46.728Z" },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -2093,6 +2105,7 @@ dev = [
     { name = "freezegun" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-durations" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff" },
@@ -2132,6 +2145,7 @@ dev = [
     { name = "freezegun" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-durations" },
     { name = "python-lsp-ruff" },
     { name = "python-lsp-server" },
     { name = "ruff", specifier = ">=0.9.2" },
