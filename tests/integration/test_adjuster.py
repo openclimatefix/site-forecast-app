@@ -59,7 +59,8 @@ def test_get_me_values_15(db_session, sites, generation_db_values, forecasts, in
         average_minutes=60,
     )
 
-    assert len(me_df_15) != 0
+    assert len(me_df_15) != 0, f"Expected ME values for 15 minutes, \
+        found {len(me_df_15)}, we used {now=}"
     assert len(me_df_15) >= 95
     assert me_df_15["me_kw"].sum() != 0
     assert me_df_15["horizon_minutes"][0] == 0
