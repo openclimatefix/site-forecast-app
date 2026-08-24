@@ -417,8 +417,15 @@ class PVNetModel:
             freq="15min",
         )
 
+        # this adds any missing timestamps, but nans stay as nans
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
-        log.info(forecast_timesteps)
+
+        # reduce generation data to only whats needed
+        start_generation_time = self.t0 - pd.Timedelta(
+            minutes=self.config["input_data"]["generation"]["interval_start_minutes"]
+        ) - pd.Timedelta(minutes=1)
+        log.info(f"Reducing generation data to only what's needed: from {start_generation_time} onwards")
+        generation_xr = generation_xr.sel(time_utc=(generation_xr.time_utc >= start_generation_time))
 
         # Save generation data & metadata as a single zarr file
         generation_xr_with_meta = format_generation_data(
