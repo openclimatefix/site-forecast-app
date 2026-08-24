@@ -424,12 +424,12 @@ class PVNetModel:
 
         # reduce generation data to only whats needed
         start_generation_time = self.t0 - pd.Timedelta(
-            minutes=self.config["input_data"]["generation"]["interval_start_minutes"],
+            minutes=abs(self.config["input_data"]["generation"]["interval_start_minutes"]),
         ) - pd.Timedelta(minutes=1)
-        log.info(f"Reducing generation data to only what's needed: \
-                    from {start_generation_time} onwards")
-        generation_xr = generation_xr.sel(time_utc=
-                                          (generation_xr.time_utc >= start_generation_time))
+        log.info("Reducing generation data to only what's needed: "
+                 f"from {start_generation_time} onwards")
+        generation_xr = generation_xr.sel(
+            time_utc=(generation_xr.time_utc >= start_generation_time))
 
         # Save generation data & metadata as a single zarr file
         generation_xr_with_meta = format_generation_data(
