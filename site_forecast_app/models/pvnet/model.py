@@ -239,11 +239,11 @@ class PVNetModel:
                 if not available.
         """
         try:
-            batch = self.dataset._get_sample(t0=timestamp)
+            batch = self.dataset.get_sample(t0=timestamp)
             sample_t0 = timestamp
         except Exception:
             sample_t0 = self.dataset.valid_t0_times[-1]
-            batch = self.dataset._get_sample(t0=sample_t0)
+            batch = self.dataset.get_sample(t0=sample_t0)
             log.warning(
                 "Timestamp different from the one in the batch: "
                 f"{timestamp} != {sample_t0} (batch)"
