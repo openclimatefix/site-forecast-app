@@ -241,14 +241,8 @@ class PVNetModel:
         try:
             batch = self.dataset.get_sample(t0=timestamp)
             sample_t0 = timestamp
-        except Exception:
-            sample_t0 = self.dataset.valid_t0_times[-1]
-            batch = self.dataset.get_sample(t0=sample_t0)
-            log.warning(
-                "Timestamp different from the one in the batch: "
-                f"{timestamp} != {sample_t0} (batch)"
-                f"The other timestamps are: {self.dataset.valid_t0_times}",
-            )
+        except Exception as e:
+            raise Exception(f"Could not not get batch for {timestamp}") from e
 
         sample_location_id = batch["location_id"]
 
