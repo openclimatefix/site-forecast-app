@@ -30,10 +30,10 @@ def _base_args(write_to_db: bool = True) -> list[str]:
 def test_app_sat_v0(
     mock_entsoe_pandas_client,
     db_session,
-    sites,
+    sites,  # noqa: ARG001
     nwp_data,
     nwp_mo_global_data_nl,
-    generation_db_values,
+    generation_db_values,  # noqa: ARG001
     satellite_data,
     mock_da_prices,
     monkeypatch,
