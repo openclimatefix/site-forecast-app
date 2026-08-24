@@ -25,55 +25,55 @@ def _base_args(write_to_db: bool = True) -> list[str]:
     return args
 
 
-# @freeze_time(now)
-# @patch("site_forecast_app.curtailment.EntsoePandasClient")
-# def test_app_sat_v0(
-#     mock_entsoe_pandas_client,
-#     db_session,
-#     sites,
-#     nwp_data,
-#     nwp_mo_global_data_nl,
-#     generation_db_values,
-#     satellite_data,
-#     mock_da_prices,
-#     monkeypatch,
-# ):
-#     """Test for running app from command line"""
-#     monkeypatch.setenv("CLIENT_NAME", "nl")
-#     monkeypatch.setenv("COUNTRY", "nl")
-#     monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
-#     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
-#     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+@freeze_time(now)
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
+def test_app_sat_v0(
+    mock_entsoe_pandas_client,
+    db_session,
+    sites,
+    nwp_data,
+    nwp_mo_global_data_nl,
+    generation_db_values,
+    satellite_data,
+    mock_da_prices,
+    monkeypatch,
+):
+    """Test for running app from command line"""
+    monkeypatch.setenv("CLIENT_NAME", "nl")
+    monkeypatch.setenv("COUNTRY", "nl")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
+    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
 
-#     mock_entsoe_pandas_client_instance = MagicMock()
-#     mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
-#     mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
+    mock_entsoe_pandas_client_instance = MagicMock()
+    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
 
-#     init_n_forecasts = db_session.query(ForecastSQL).count()
-#     init_n_forecast_values = db_session.query(ForecastValueSQL).count()
+    init_n_forecasts = db_session.query(ForecastSQL).count()
+    init_n_forecast_values = db_session.query(ForecastValueSQL).count()
 
-#     write_to_db = True
-#     args = _base_args(write_to_db)
+    write_to_db = True
+    args = _base_args(write_to_db)
 
-#     result = run_click_script(app, args)
-#     assert result.exit_code == 0
+    result = run_click_script(app, args)
+    assert result.exit_code == 0
 
-#     fv_per_hour = 4  # 15 min resolution = 4 values per hour
-#     n_national_models = 2
-#     n_regional_models = 3
-#     n_uncurtailed_saves = 0  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
-#     # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
-#     n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
-#     n_models = n_national_models + n_regional_models + n_uncurtailed_saves
-#     # each forecast has 36 hours of values
-#     n_fv = 36 * fv_per_hour
+    fv_per_hour = 4  # 15 min resolution = 4 values per hour
+    n_national_models = 2
+    n_regional_models = 3
+    n_uncurtailed_saves = 0  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
+    # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
+    n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
+    n_models = n_national_models + n_regional_models + n_uncurtailed_saves
+    # each forecast has 36 hours of values
+    n_fv = 36 * fv_per_hour
 
-#     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
-#     assert db_session.query(MLModelSQL).count() == n_models * 2
-#     forecast_values = db_session.query(ForecastValueSQL).all()
-#     assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
-#     assert forecast_values[0].probabilistic_values is not None
-#     assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
+    assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
+    assert db_session.query(MLModelSQL).count() == n_models * 2
+    forecast_values = db_session.query(ForecastValueSQL).all()
+    assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
+    assert forecast_values[0].probabilistic_values is not None
+    assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
 
 @freeze_time(now)

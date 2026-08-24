@@ -66,7 +66,7 @@ def process_and_cache_nwp(nwp_config: NWPProcessAndCacheConfig) -> None:
     # MetOffice Global requires extra processing
     if nwp_config.source == "mo_global":
         ds = scale_mo_cloud_variables(ds)
-        ds = regrid_mo_global(ds)
+        # ds = regrid_mo_global(ds)
 
     # Save destination path
     log.info(f"Saving NWP data to {dest_nwp_path}")
