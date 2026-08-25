@@ -376,7 +376,8 @@ def app_run(
                             observer_name=model_config.observer_name_adjuster,
                         )
                     successful_runs_count += 1
-                    successful_runs.append(model_config.name)
+                    successful_runs.append(f"model={model_config.name}, "
+                                       f"site_group_uuid={model_config.site_group_uuid}")
 
         log.info(
             f"Completed forecasts for {successful_runs_count} runs for "
