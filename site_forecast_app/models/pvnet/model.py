@@ -97,9 +97,9 @@ class PVNetModel:
         self._get_config()
 
         try:
+            self.model = self._load_model()
             self._prepare_data_sources()
             self._create_dataloader()
-            self.model = self._load_model()
             if summation_repo and summation_version:
                 self.summation_model = self._load_summation_model()
             else:
@@ -423,6 +423,12 @@ class PVNetModel:
         log.info("Reducing generation data to only what's needed: "
                  f"from {start_generation_time} onwards")
         generation_xr = generation_xr.sel(time_utc=slice(start_generation_time, None))
+
+        if not self.model.include_generation_history:
+            # fill in nans with -2s
+            # This is so valid samples can still be made
+            # This may changed in future versions of ocf-data-sampler
+            generation_xr = generation_xr.fillna(-2)
 
         # Save generation data & metadata as a single zarr file
         generation_xr_with_meta = format_generation_data(
