@@ -397,7 +397,8 @@ def app_run(
         if successful_runs_count == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs_count < runs:
-            raise Exception(f"Some forecasts failed {failed_runs}, some succeeded: {successful_runs}")
+            raise Exception(f"Some forecasts failed {failed_runs}, \
+                            some succeeded: {successful_runs}")
         else:
             raise Exception("All forecasts failed")
 
