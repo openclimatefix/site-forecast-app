@@ -241,16 +241,10 @@ class PVNetModel:
         try:
             batch = self.dataset.get_sample(t0=timestamp)
             sample_t0 = timestamp
-        except Exception:
+        except Exception as e:
             # this can happen if there are still some nans in the generation data
             # PVNetConcurrentDataset was not built to have nans in it
-            sample_t0 = self.dataset.valid_t0_times[-1]
-            batch = self.dataset.get_sample(t0=sample_t0)
-            log.warning(
-                "Timestamp different from the one in the batch: "
-                f"{timestamp} != {sample_t0} (batch)"
-                f"The other timestamps are: {self.dataset.valid_t0_times}",
-            )
+            raise Exception(f"Could not not get batch for {timestamp}") from e
 
         sample_location_id = batch["location_id"]
 
@@ -423,13 +417,12 @@ class PVNetModel:
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
 
         # reduce generation data to only whats needed
-        start_generation_time = self.t0 - pd.Timedelta(
-            minutes=abs(self.config["input_data"]["generation"]["interval_start_minutes"]),
+        start_generation_time = self.t0 + pd.Timedelta(
+            minutes=self.config["input_data"]["generation"]["interval_start_minutes"],
         ) - pd.Timedelta(minutes=1)
         log.info("Reducing generation data to only what's needed: "
                  f"from {start_generation_time} onwards")
-        generation_xr = generation_xr.sel(
-            time_utc=(generation_xr.time_utc >= start_generation_time))
+        generation_xr = generation_xr.sel(time_utc=slice(start_generation_time, None))
 
         # Save generation data & metadata as a single zarr file
         generation_xr_with_meta = format_generation_data(
