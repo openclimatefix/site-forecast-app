@@ -97,9 +97,9 @@ class PVNetModel:
         self._get_config()
 
         try:
+            self.model = self._load_model()
             self._prepare_data_sources()
             self._create_dataloader()
-            self.model = self._load_model()
             if summation_repo and summation_version:
                 self.summation_model = self._load_summation_model()
             else:
@@ -241,14 +241,10 @@ class PVNetModel:
         try:
             batch = self.dataset.get_sample(t0=timestamp)
             sample_t0 = timestamp
-        except Exception:
-            sample_t0 = self.dataset.valid_t0_times[-1]
-            batch = self.dataset.get_sample(t0=sample_t0)
-            log.warning(
-                "Timestamp different from the one in the batch: "
-                f"{timestamp} != {sample_t0} (batch)"
-                f"The other timestamps are: {self.dataset.valid_t0_times}",
-            )
+        except Exception as e:
+            # this can happen if there are still some nans in the generation data
+            # PVNetConcurrentDataset was not built to have nans in it
+            raise Exception(f"Could not not get batch for {timestamp}") from e
 
         sample_location_id = batch["location_id"]
 
@@ -417,8 +413,22 @@ class PVNetModel:
             freq="15min",
         )
 
+        # this adds any missing timestamps, but nans stay as nans
         generation_xr = generation_xr.reindex(time_utc=forecast_timesteps, fill_value=0.00001)
-        log.info(forecast_timesteps)
+
+        # reduce generation data to only whats needed
+        start_generation_time = self.t0 + pd.Timedelta(
+            minutes=self.config["input_data"]["generation"]["interval_start_minutes"],
+        ) - pd.Timedelta(minutes=1)
+        log.info("Reducing generation data to only what's needed: "
+                 f"from {start_generation_time} onwards")
+        generation_xr = generation_xr.sel(time_utc=slice(start_generation_time, None))
+
+        if not self.model.include_generation_history:
+            # fill in nans with -2s
+            # This is so valid samples can still be made
+            # This may changed in future versions of ocf-data-sampler
+            generation_xr = generation_xr.fillna(-2)
 
         # Save generation data & metadata as a single zarr file
         generation_xr_with_meta = format_generation_data(
