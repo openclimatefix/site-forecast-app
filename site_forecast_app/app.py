@@ -218,9 +218,10 @@ def app_run(
             get_critical_only=run_critical_only,
             satellite_archive_version=satellite_archive_version,
         )
-        successful_runs = 0
+        successful_runs_count = 0
         runs = 0
         failed_runs = []
+        successful_runs = []
 
         # Pre-fetch the DP location map once so _resolve_target_uuid doesn't call
         # list_locations on every individual forecast save.
@@ -374,10 +375,11 @@ def app_run(
                             model_name=model_config.name,
                             observer_name=model_config.observer_name_adjuster,
                         )
-                    successful_runs += 1
+                    successful_runs_count += 1
+                    successful_runs.append(model_config.name)
 
         log.info(
-            f"Completed forecasts for {successful_runs} runs for "
+            f"Completed forecasts for {successful_runs_count} runs for "
             f"{runs} model runs.",
         )
         if run_blend_service and save_to_data_platform:
@@ -391,10 +393,10 @@ def app_run(
                 log.info(f"Starting {app_config.client_name} blend pipeline...")
                 asyncio.run(run_blend_app(config=app_config))
                 log.info(f"{app_config.client_name} blend pipeline completed.")
-        if successful_runs == runs:
+        if successful_runs_count == runs:
             log.info("All forecasts completed successfully")
-        elif 0 < successful_runs < runs:
-            raise Exception(f"Some forecasts failed {failed_runs}")
+        elif 0 < successful_runs_count < runs:
+            raise Exception(f"Some forecasts failed {failed_runs}, some succeeded: {successful_runs}")
         else:
             raise Exception("All forecasts failed")
 
