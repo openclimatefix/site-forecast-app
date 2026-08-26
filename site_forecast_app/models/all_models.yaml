@@ -298,7 +298,7 @@ models:
     client: ruvnl
     asset_type: wind
     location_type: state
-    dp_location_name: ruvnl_wind
+    dp_location_name: ruvnl
     satellite_archive_version: v0
   - name: windnet_gencast_ecmwf_v1
     type: pvnet
@@ -307,7 +307,7 @@ models:
     client: ruvnl
     asset_type: wind
     location_type: state
-    dp_location_name: ruvnl_wind
+    dp_location_name: ruvnl
     satellite_archive_version: v0
   - name: windnet_ecmwf_v0
     type: pvnet
@@ -316,5 +316,5 @@ models:
     client: ruvnl
     asset_type: wind
     location_type: state
-    dp_location_name: ruvnl_wind
+    dp_location_name: ruvnl
     satellite_archive_version: v0
