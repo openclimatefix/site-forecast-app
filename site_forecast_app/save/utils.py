@@ -49,9 +49,25 @@ def limit_adjuster(delta_fraction: float,
     return delta_fraction
 
 
+def energy_source_for_asset_type(asset_type: str) -> dp.EnergySource:
+    """Determine the Data Platform EnergySource for an asset type.
+
+    A Data Platform location can carry more than one energy source, each with its own
+    capacity, so the energy source is what separates the solar and wind halves of a
+    shared location such as the ruvnl state.
+
+    Args:
+            asset_type: The model or site asset type, "pv" or "wind"
+
+    Returns:
+            The matching Data Platform EnergySource
+    """
+    if str(asset_type).lower() == "wind":
+        return dp.EnergySource.WIND
+    return dp.EnergySource.SOLAR
+
+
 def determine_energy_source(site: LocationSQL) -> dp.EnergySource:
     """Determine the Data Platform EnergySource based on site asset type."""
     asset_type = site.asset_type.name if hasattr(site.asset_type, "name") else str(site.asset_type)
-    if asset_type.lower() == "wind":
-        return dp.EnergySource.WIND
-    return dp.EnergySource.SOLAR
+    return energy_source_for_asset_type(asset_type)

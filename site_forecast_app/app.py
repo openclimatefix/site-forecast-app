@@ -27,6 +27,7 @@ from site_forecast_app.data.satellite import (
     check_model_satellite_inputs_available,
     get_valid_satellite_times,
 )
+from site_forecast_app.data_platform import get_sites_from_data_platform
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pvnet.consts import root_data_path, satellite_path
 from site_forecast_app.models.pydantic_models import Model
@@ -66,8 +67,15 @@ def get_sites(
     Returns:
             A list of LocationSQL objects
     """
+    if os.getenv("LOAD_SITES_FROM_DATA_PLATFORM", "false").lower() == "true":
+        if model_config is None:
+            raise ValueError(
+                "LOAD_SITES_FROM_DATA_PLATFORM is set but no model_config was given, "
+                "so there is nothing to say which locations to load",
+            )
+        sites = asyncio.run(get_sites_from_data_platform(model_config))
     # if model.site_group_uuid is provided, filter sites by that too
-    if model_config is not None and model_config.site_group_uuid is not None:
+    elif model_config is not None and model_config.site_group_uuid is not None:
         log.info(f"Getting sites for site_group_uuid: {model_config.site_group_uuid}")
         site_group = (
             db_session.query(LocationGroupSQL)
