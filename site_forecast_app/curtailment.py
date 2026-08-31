@@ -39,8 +39,13 @@ class Curtailment:
             log.warning("No matching data found.")
             data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"])
         except Exception as e:
-            log.error(f"Error fetching data: {e}")
-            raise e
+            # ENTSOE being unavailable should not fail the whole forecast run,
+            # we carry on with no prices, which means no curtailment is applied.
+            log.error(
+                f"Error fetching data: {e}. "
+                f"Carrying on without prices, no curtailment will be applied.",
+            )
+            data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"])
 
         # validate data
         if data.empty:
@@ -73,6 +78,12 @@ class Curtailment:
             return forecast_values
 
         if len(forecast_values) == 0:
+            return forecast_values
+
+        # if we have no prices (e.g. ENTSOE is down), we can not apply curtailment,
+        # so return the forecast values unchanged
+        if self.prices_df.empty:
+            log.warning("No day-ahead prices available, not applying curtailment.")
             return forecast_values
 
         # make into dataframe and merge with prices
