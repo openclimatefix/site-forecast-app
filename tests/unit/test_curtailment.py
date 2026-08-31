@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from requests.exceptions import HTTPError
 
 from site_forecast_app.curtailment import Curtailment
 
@@ -69,3 +70,35 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
     # check the negative prices are all zero
     assert (potential_generation.loc[negative_prices_idx, "forecast_power_kw"]== 1/1.11).all()
     assert (potential_generation.loc[~negative_prices_idx, "forecast_power_kw"]== 1).all()
+
+
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
+def test_curtailment_when_entsoe_is_down(mock_entsoe_pandas_client):
+    """If ENTSOE is down, we should not fail, and just not apply curtailment."""
+    start = pd.Timestamp("2026-05-12").tz_localize("UTC")
+    end = pd.Timestamp("2026-05-13").tz_localize("UTC")
+
+    mock_entsoe_pandas_client_instance = MagicMock()
+    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.side_effect = HTTPError(
+        "503 Server Error: Service Unavailable",
+    )
+
+    curtailment = Curtailment(now=start)
+    assert curtailment.prices_df.empty
+
+    data = pd.DataFrame({
+        "target_datetime_utc": pd.date_range(start=start, end=end, freq="15min"),
+        "forecast_power_kw": [1] * 97,
+        "p10": [0.8] * 97,
+        "p90": [1.2] * 97,
+    })
+    data["probabilistic_values"] = data[["p10", "p90"]].apply(
+            lambda row: json.dumps(row.to_dict()),
+            axis=1,
+        )
+    data = data[["target_datetime_utc", "forecast_power_kw", "probabilistic_values"]]
+    forecast_values = data.to_dict("records")
+
+    # forecast values come back unchanged
+    assert curtailment.apply_curtailment(forecast_values=forecast_values) == forecast_values
