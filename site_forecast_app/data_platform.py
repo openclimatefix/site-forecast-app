@@ -14,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 async def get_sites_from_data_platform(model_config: Model) -> list[LocationSQL]:
-    """Gets the locations to make forecasts
+    """Gets the locations to make forecasts.
 
     The model config sets which location type to load. Summation models also load their summation
     location, which is the location the summed forecast is saved to.
