@@ -22,6 +22,7 @@ from site_forecast_app import __version__
 from site_forecast_app.blend.app import run_blend_app
 from site_forecast_app.blend.config import load_blend_config
 from site_forecast_app.curtailment import Curtailment
+from site_forecast_app.data_platform import get_locations_filtered
 from site_forecast_app.data.generation import get_generation_data
 from site_forecast_app.data.satellite import (
     check_model_satellite_inputs_available,
@@ -243,16 +244,33 @@ def app_run(
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
-            sites = get_sites(db_session=session,
-                              country=country,
-                              model_config=model_config,
-                              client_name=client_name)
+            # sites = get_sites(db_session=session,
+            #                   country=country,
+            #                   model_config=model_config,
+            #                   client_name=client_name)
+
+
+            sites = asyncio.run(get_locations_filtered([]))
+            log.info(f"Found {len(sites)} sites")
+            sites = [site for site in sites if site.location_name.startswith("de_")]
+
             log.info(f"Found {len(sites)} sites")
 
-            # reduce to only pv or wind, depending on the model
-            sites_for_model = [
-                site for site in sites if site.asset_type.name == model_config.asset_type
-            ]
+
+            # TODO this is a horrible hack to get data-platform lcoations looking like LocationSQL
+            sites_for_model = []
+            for i, site in enumerate(sites):
+                l = LocationSQL(
+                    location_uuid=site.location_uuid,
+                    client_location_name=site.location_name,
+                    asset_type="solar",
+                    ml_id=i,
+                    capacity_kw=site.effective_capacity_watts / 1000,
+                    latitude=site.latlng.latitude,
+                    longitude=site.latlng.longitude,
+                )
+                sites_for_model.append(l)
+            
 
             if model_config.summation_version:
                 # Summation model provided, run the model concurrently on all sites
