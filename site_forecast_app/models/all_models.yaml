@@ -318,3 +318,15 @@ models:
     location_type: state
     dp_location_name: ruvnl
     satellite_archive_version: v0
+# de
+  - name: de_pv_only
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: a12b093a56105ca84fa4fbf4f2483c583d1008bc
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: cbe1ae0adb48f321165ff166b2600d4ff992a374
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    satellite_archive_version: v1
