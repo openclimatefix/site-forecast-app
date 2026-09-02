@@ -6,6 +6,7 @@ import uuid
 import betterproto
 from betterproto.lib.google.protobuf import Struct
 from dp_sdk.ocf import dp
+
 # TODO: when we drop pvsite_datamodel, replace these with small local data classes
 # (perhaps as pydantic objects).
 from pvsite_datamodel.sqlmodels import LocationAssetType, LocationSQL
