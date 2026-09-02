@@ -2,12 +2,14 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from betterproto.lib.google.protobuf import Struct, Value
 from dp_sdk.ocf import dp
 
 from site_forecast_app.app import get_sites
 from site_forecast_app.data_platform import (
     get_sites_from_data_platform,
     location_name_matches,
+    ml_id_for_location,
 )
 from site_forecast_app.models.pydantic_models import Model
 
@@ -18,6 +20,7 @@ def _make_location(
     energy_source: dp.EnergySource = dp.EnergySource.SOLAR,
     effective_capacity_watts: int = 5_000_000,
     location_uuid: str | None = None,
+    metadata: dict | None = None,
 ) -> dp.ListLocationsResponseLocationSummary:
     """Makes a Data Platform location.
 
@@ -31,6 +34,17 @@ def _make_location(
         energy_source=energy_source,
         effective_capacity_watts=effective_capacity_watts,
         latlng=dp.LatLng(latitude=52.0, longitude=5.0),
+        metadata=_metadata(metadata or {}),
+    )
+
+
+def _metadata(values: dict) -> Struct:
+    """Makes a Data Platform metadata struct."""
+    return Struct(
+        fields={
+            key: Value(string_value=value) if isinstance(value, str) else Value(number_value=value)
+            for key, value in values.items()
+        },
     )
 
 
@@ -73,9 +87,9 @@ def _model_config(**kwargs) -> Model:
 async def test_get_sites_from_data_platform():
     """Test loading the NL states, and the national location, from the Data Platform."""
     locations = [
-        _make_location("nl_groningen", dp.LocationType.STATE),
-        _make_location("nl_drenthe", dp.LocationType.STATE),
-        _make_location("de_bayern", dp.LocationType.STATE),
+        _make_location("nl_groningen", dp.LocationType.STATE, metadata={"region_id": 2}),
+        _make_location("nl_drenthe", dp.LocationType.STATE, metadata={"region_id": 1}),
+        _make_location("de_bayern", dp.LocationType.STATE, metadata={"region_id": 1}),
         _make_location("nl_national", dp.LocationType.NATION),
     ]
 
@@ -173,3 +187,56 @@ def test_get_sites_needs_a_model_config_to_load_from_the_data_platform(monkeypat
 
     with pytest.raises(ValueError, match="LOAD_SITES_FROM_DATA_PLATFORM"):
         get_sites(db_session=None, country="nl", client_name="nl")
+
+
+def test_ml_id_is_zero_for_the_national_location():
+    """The national location keeps ml_id 0, whatever its metadata says."""
+    location = _make_location("nl_national", dp.LocationType.NATION, metadata={"region_id": 9})
+
+    assert ml_id_for_location(location) == 0
+
+
+def test_ml_id_comes_from_region_id_before_ml_id():
+    """region_id wins when a location carries both."""
+    location = _make_location(
+        "nl_drenthe",
+        dp.LocationType.STATE,
+        metadata={"region_id": 3, "ml_id": 7},
+    )
+
+    assert ml_id_for_location(location) == 3
+
+
+def test_ml_id_falls_back_to_ml_id_metadata():
+    """A location without a region_id uses its ml_id metadata."""
+    location = _make_location("ad_site_1", dp.LocationType.SITE, metadata={"ml_id": 7})
+
+    assert ml_id_for_location(location) == 7
+
+
+def test_ml_id_reads_a_metadata_value_written_as_a_string():
+    """Metadata values can arrive as strings rather than numbers."""
+    location = _make_location("ad_site_1", dp.LocationType.SITE, metadata={"ml_id": "7"})
+
+    assert ml_id_for_location(location) == 7
+
+
+def test_ml_id_defaults_to_one_without_metadata():
+    """Locations that carry no id at all fall back to 1."""
+    location = _make_location("ruvnl", dp.LocationType.STATE)
+
+    assert ml_id_for_location(location) == 1
+
+
+def test_ml_id_defaults_to_one_when_the_metadata_is_not_a_number():
+    """A metadata value that is not a whole number is ignored rather than raising."""
+    location = _make_location("ad_site_1", dp.LocationType.SITE, metadata={"ml_id": "not a number"})
+
+    assert ml_id_for_location(location) == 1
+
+
+def test_ml_id_metadata_of_zero_is_used():
+    """A metadata id of 0 is a real value, not a missing one."""
+    location = _make_location("ad_site_1", dp.LocationType.SITE, metadata={"ml_id": 0})
+
+    assert ml_id_for_location(location) == 0
