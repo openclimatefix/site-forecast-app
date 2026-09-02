@@ -15,6 +15,8 @@ import pandas as pd
 import pytest
 import xarray as xr
 import zarr
+from betterproto.lib.google.protobuf import Struct, Value
+from dp_sdk.ocf import dp
 from icechunk.xarray import to_icechunk
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
@@ -224,6 +226,39 @@ def generation_db_values(db_session, sites, init_timestamp):
     db_session.commit()
 
     return all_generations
+
+
+DE_LOCATIONS = [
+    ("019ff614-daf4-7768-b533-6712b2485fb0", "de_national", 0, 103_259_510, 51.1, 10.4),
+    ("019ff614-f374-7aba-8fcf-e4372f65a31f", "de_50hertz", 1, 25_235_000, 52.4, 13.1),
+    ("019ff614-f9a4-7972-9e88-c5cc4b6cf481", "de_amprion", 2, 24_487_000, 51.2, 7.0),
+    ("019ff615-0079-7766-8d28-88f8bddd090a", "de_tennet", 3, 40_139_910, 52.4, 9.7),
+    ("019ff615-0733-7858-bb92-d108e2ce3dcf", "de_transnetbw", 4, 13_397_600, 48.8, 9.2),
+]
+
+
+@pytest.fixture()
+def de_dp_locations():
+    """The DE locations as the Data Platform returns them, four zones and the nation."""
+    locations = []
+    for location_uuid, location_name, ml_id, capacity_kw, latitude, longitude in DE_LOCATIONS:
+        metadata = {"country": Value(string_value="de")}
+        if ml_id != 0:
+            metadata["region_id"] = Value(number_value=ml_id)
+
+        locations.append(
+            dp.ListLocationsResponseLocationSummary(
+                location_uuid=location_uuid,
+                location_name=location_name,
+                location_type=dp.LocationType.NATION if ml_id == 0 else dp.LocationType.STATE,
+                energy_source=dp.EnergySource.SOLAR,
+                effective_capacity_watts=int(capacity_kw * 1000),
+                latlng=dp.LatLng(latitude=latitude, longitude=longitude),
+                metadata=Struct(fields=metadata),
+            ),
+        )
+
+    return locations
 
 
 @pytest.fixture()
