@@ -231,7 +231,12 @@ def test_app_sat_v1(
 
 
 @freeze_time(now)
-def test_app_de(db_session, de_dp_locations, monkeypatch):  # noqa: ARG001
+def test_app_de(
+    db_session,  # noqa: ARG001
+    de_dp_locations,
+    satellite_data_icechunk,
+    monkeypatch,
+):
     """Test for running the DE app, which uses the Data Platform throughout."""
     monkeypatch.setenv("CLIENT_NAME", "de")
     monkeypatch.setenv("COUNTRY", "de")
@@ -239,6 +244,8 @@ def test_app_de(db_session, de_dp_locations, monkeypatch):  # noqa: ARG001
     monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
     monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
     monkeypatch.setenv("SATELLITE_ARCHIVE_VERSION", "v1")
+    # de_sat_only takes satellite as an input
+    monkeypatch.setenv("SATELLITE_ICECHUNK_PATH_5", satellite_data_icechunk)
     # DE adjusts through the Data Platform, not the database
     monkeypatch.setenv("USE_ADJUSTER_DATABASE", "false")
     # DE has no blend config
@@ -271,9 +278,14 @@ def test_app_de(db_session, de_dp_locations, monkeypatch):  # noqa: ARG001
     assert [f.forecaster.forecaster_name for f in forecasts["de_national"]] == [
         "de_pv_only",
         "de_pv_only_adjust",
+        "de_sat_only",
+        "de_sat_only_adjust",
     ]
     for zone in ("de_50hertz", "de_amprion", "de_tennet", "de_transnetbw"):
-        assert [f.forecaster.forecaster_name for f in forecasts[zone]] == ["de_pv_only"]
+        assert [f.forecaster.forecaster_name for f in forecasts[zone]] == [
+            "de_pv_only",
+            "de_sat_only",
+        ]
 
     n_fv = 36 * 4  # 36 hours at 15 minute resolution
     for location_forecasts in forecasts.values():
