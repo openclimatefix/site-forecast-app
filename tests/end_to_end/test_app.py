@@ -2,11 +2,13 @@
 Tests for functions in app.py
 """
 
+import contextlib
 import datetime as dt
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
+from dp_sdk.ocf import dp
 from freezegun import freeze_time
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL
 
@@ -23,6 +25,105 @@ def _base_args(write_to_db: bool = True) -> list[str]:
     args = ["--date", dt.datetime.now(tz=dt.UTC).strftime("%Y-%m-%d-%H-%M")]
     args.append("--write-to-db" if write_to_db else "--no-write-to-db")
     return args
+
+class FakeDataPlatform:
+    """Fake Data Platform that serves locations and generation, and records forecasts."""
+
+    def __init__(self, locations: list):
+        self.locations = locations
+        self.capacity_watts = {
+            location.location_uuid: location.effective_capacity_watts for location in locations
+        }
+        self.forecasts: list[dp.CreateForecastRequest] = []
+
+        self.client = AsyncMock()
+        self.client.list_locations.side_effect = self._list_locations
+        self.client.get_location.side_effect = self._get_location
+        self.client.get_observations_as_timeseries.side_effect = self._get_observations
+        self.client.create_forecaster.side_effect = self._create_forecaster
+        self.client.create_forecast.side_effect = self.forecasts.append
+        # no forecasters exist yet, so each one is created on first use
+        self.client.list_forecasters.return_value = MagicMock(forecasters=[])
+        # no history to adjust against, so the adjusted forecast equals the base one
+        self.client.get_week_average_deltas.return_value = MagicMock(deltas=[])
+
+    @contextlib.contextmanager
+    def patched(self):
+        """Serve this client wherever the app opens a Data Platform connection."""
+        targets = [
+            "site_forecast_app.data_platform.get_dataplatform_client",  # loading locations
+            "site_forecast_app.data.generation.get_dataplatform_client",  # reading generation
+            "site_forecast_app.save.data_platform.get_dataplatform_client",  # saving forecasts
+        ]
+        connection = AsyncMock()
+        connection.__aenter__.return_value = self.client
+
+        with contextlib.ExitStack() as stack:
+            for target in targets:
+                stack.enter_context(patch(target, return_value=connection))
+            yield self
+
+    def forecasts_by_location(self) -> dict[str, list[dp.CreateForecastRequest]]:
+        """Group the submitted forecasts by location name."""
+        names = {location.location_uuid: location.location_name for location in self.locations}
+        grouped: dict[str, list[dp.CreateForecastRequest]] = {}
+        for forecast in self.forecasts:
+            grouped.setdefault(names[forecast.location_uuid], []).append(forecast)
+        return grouped
+
+    def _list_locations(self, request: dp.ListLocationsRequest) -> MagicMock:
+        """Apply whichever filters are set, so state and nation calls get different lists."""
+        locations = self.locations
+        if request.location_type_filter is not None:
+            locations = [
+                location
+                for location in locations
+                if location.location_type == request.location_type_filter
+            ]
+        if request.energy_source_filter is not None:
+            locations = [
+                location
+                for location in locations
+                if location.energy_source == request.energy_source_filter
+            ]
+
+        return MagicMock(locations=locations)
+
+    def _get_location(self, request: dp.GetLocationRequest) -> MagicMock:
+        return MagicMock(effective_capacity_watts=self.capacity_watts[request.location_uuid])
+
+    def _get_observations(
+        self, request: dp.GetObservationsAsTimeseriesRequest,
+    ) -> dp.GetObservationsAsTimeseriesResponse:
+        """Return 15 minutely generation covering the requested window."""
+        capacity_watts = self.capacity_watts[request.location_uuid]
+        start = request.time_window.start_timestamp_utc
+        end = request.time_window.end_timestamp_utc
+
+        values = []
+        timestamp = start
+        while timestamp <= end:
+            values.append(
+                dp.GetObservationsAsTimeseriesResponseValue(
+                    timestamp_utc=timestamp,
+                    value_fraction=0.2,
+                    effective_capacity_watts=capacity_watts,
+                ),
+            )
+            timestamp += dt.timedelta(minutes=15)
+
+        return dp.GetObservationsAsTimeseriesResponse(
+            location_uuid=request.location_uuid,
+            values=values,
+        )
+
+    def _create_forecaster(self, request: dp.CreateForecasterRequest) -> MagicMock:
+        return MagicMock(
+            forecaster=dp.Forecaster(
+                forecaster_name=request.name,
+                forecaster_version=request.version,
+            ),
+        )
 
 
 @freeze_time(now)
@@ -127,6 +228,73 @@ def test_app_sat_v1(
     assert forecast_values[0].probabilistic_values is not None
     assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
 
+
+
+def test_app_de(
+    db_session,  # noqa: ARG001
+    de_dp_locations,
+    satellite_data_icechunk,
+    init_timestamp,
+    monkeypatch,
+):
+    """Test for running the DE app, which uses the Data Platform throughout."""
+    monkeypatch.setenv("CLIENT_NAME", "de")
+    monkeypatch.setenv("COUNTRY", "de")
+    monkeypatch.setenv("LOAD_SITES_FROM_DATA_PLATFORM", "true")
+    monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "true")
+    monkeypatch.setenv("SAVE_TO_DATA_PLATFORM", "true")
+    monkeypatch.setenv("SATELLITE_ARCHIVE_VERSION", "v1")
+    # de_sat_only takes satellite as an input
+    monkeypatch.setenv("SATELLITE_ICECHUNK_PATH_5", satellite_data_icechunk)
+    # DE adjusts through the Data Platform, not the database
+    monkeypatch.setenv("USE_ADJUSTER_DATABASE", "false")
+    # DE has no blend config
+    monkeypatch.setenv("RUN_BLEND_SERVICE", "false")
+    # DE saves to the Data Platform, not the database
+    monkeypatch.setenv("WRITE_TO_DB", "false")
+
+    data_platform = FakeDataPlatform(de_dp_locations)
+
+    args = ["--date", init_timestamp.strftime("%Y-%m-%d-%H-%M")]
+
+    with data_platform.patched():
+        result = run_click_script(app, args)
+
+    assert result.exit_code == 0
+
+    # every location already exists, so none is created
+    data_platform.client.create_location.assert_not_called()
+
+    forecasts = data_platform.forecasts_by_location()
+
+    # every zone is forecast separately, which needs a distinct ml_id per zone
+    assert set(forecasts) == {
+        "de_50hertz",
+        "de_amprion",
+        "de_tennet",
+        "de_transnetbw",
+        "de_national",
+    }
+
+    # only the national forecast is saved a second time with the adjuster applied
+    assert [f.forecaster.forecaster_name for f in forecasts["de_national"]] == [
+        "de_pv_only",
+        "de_pv_only_adjust",
+        "de_sat_only",
+        "de_sat_only_adjust",
+    ]
+    for zone in ("de_50hertz", "de_amprion", "de_tennet", "de_transnetbw"):
+        assert [f.forecaster.forecaster_name for f in forecasts[zone]] == [
+            "de_pv_only",
+            "de_sat_only",
+        ]
+
+    n_fv = 36 * 4  # 36 hours at 15 minute resolution
+    for location_forecasts in forecasts.values():
+        for forecast in location_forecasts:
+            assert len(forecast.values) == n_fv
+            assert all(0 <= value.p50_fraction <= 1 for value in forecast.values)
+            assert all(value.other_statistics_fractions for value in forecast.values)
 
 
 @freeze_time(now)
