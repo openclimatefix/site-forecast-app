@@ -230,11 +230,11 @@ def test_app_sat_v1(
 
 
 
-@freeze_time(now)
 def test_app_de(
     db_session,  # noqa: ARG001
     de_dp_locations,
     satellite_data_icechunk,
+    init_timestamp,
     monkeypatch,
 ):
     """Test for running the DE app, which uses the Data Platform throughout."""
@@ -250,10 +250,12 @@ def test_app_de(
     monkeypatch.setenv("USE_ADJUSTER_DATABASE", "false")
     # DE has no blend config
     monkeypatch.setenv("RUN_BLEND_SERVICE", "false")
+    # DE saves to the Data Platform, not the database
+    monkeypatch.setenv("WRITE_TO_DB", "false")
 
     data_platform = FakeDataPlatform(de_dp_locations)
 
-    args = _base_args(write_to_db=False)
+    args = ["--date", init_timestamp.strftime("%Y-%m-%d-%H-%M")]
 
     with data_platform.patched():
         result = run_click_script(app, args)
