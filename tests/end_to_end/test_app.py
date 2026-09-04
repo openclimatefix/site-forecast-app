@@ -234,6 +234,7 @@ def test_app_de(
     db_session,  # noqa: ARG001
     de_dp_locations,
     satellite_data_icechunk,
+    nwp_mo_global_data_de,
     init_timestamp,
     monkeypatch,
 ):
@@ -246,6 +247,8 @@ def test_app_de(
     monkeypatch.setenv("SATELLITE_ARCHIVE_VERSION", "v1")
     # de_sat_only takes satellite as an input
     monkeypatch.setenv("SATELLITE_ICECHUNK_PATH_5", satellite_data_icechunk)
+    # de_mo_only takes MO Global NWP as an input
+    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_de)
     # DE adjusts through the Data Platform, not the database
     monkeypatch.setenv("USE_ADJUSTER_DATABASE", "false")
     # DE has no blend config
@@ -282,11 +285,14 @@ def test_app_de(
         "de_pv_only_adjust",
         "de_sat_only",
         "de_sat_only_adjust",
+        "de_mo_only",
+        "de_mo_only_adjust",
     ]
     for zone in ("de_50hertz", "de_amprion", "de_tennet", "de_transnetbw"):
         assert [f.forecaster.forecaster_name for f in forecasts[zone]] == [
             "de_pv_only",
             "de_sat_only",
+            "de_mo_only",
         ]
 
     n_fv = 36 * 4  # 36 hours at 15 minute resolution
