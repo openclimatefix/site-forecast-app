@@ -62,8 +62,8 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
                 "interval_end_minutes"
             ]
 
-            if os.getenv("CLIENT_NAME", "nl") == "nl" and nwp_source == "mo_global":
-                # this is only for NL
+            if os.getenv("CLIENT_NAME", "nl") in ["nl", "de"] and nwp_source == "mo_global":
+                # this is only for NL and DE
                 if "wind_u_10m" in nwp_config[nwp_source]["channels"]:
                     nwp_config[nwp_source]["channels"].remove("wind_u_10m")
                     nwp_config[nwp_source]["channels"].append("wind_u_component_10m")

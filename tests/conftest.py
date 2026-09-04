@@ -465,6 +465,11 @@ def nwp_mo_global_data_nl(tmp_path_factory, time_before_present):
     # make new data
     return make_nwp_mo_global_data(tmp_path_factory, time_before_present, 52.0, 4.0)
 
+@pytest.fixture(scope="session")
+def nwp_mo_global_data_de(tmp_path_factory, time_before_present):
+    """Dummy NWP data for germany"""
+    return make_nwp_mo_global_data(tmp_path_factory, time_before_present, 56.0, 4.0)
+
 
 def make_nwp_mo_global_data(tmp_path_factory, time_before_present, center_lat, center_lon):
     """Dummy NWP data"""

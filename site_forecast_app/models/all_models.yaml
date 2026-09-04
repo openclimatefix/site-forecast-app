@@ -341,3 +341,14 @@ models:
     location_type: state
     summation_location_type: nation
     satellite_archive_version: v1
+  - name: de_mo_only
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: 67bb6287e4a556eb57027b8ae97631aa851a4d5f
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: 56e86c4d4e724c5d3b5a8a002da727dce4c2b173
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    satellite_archive_version: v1
