@@ -97,29 +97,35 @@ def scale_mo_cloud_variables(ds: xr.Dataset) -> xr.Dataset:
 
 
 def regrid_mo_global(ds: xr.Dataset) -> xr.Dataset:
-    """Regrid MetOffice Global data for Netherlands.
+    """Regrid MetOffice Global data for the Netherlands and Germany.
 
-    Netherlands models were trained on data using a different grid
+    NL and DE models were trained on data using a different grid
     than what we get in production. This function uses a look-up file
     with training coordinates to transform live data into expected format.
     """
-    if os.getenv("CLIENT_NAME", "nl") == "nl":
+    client = os.getenv("CLIENT_NAME", "nl")
+    target_coords_path = files("site_forecast_app.data").joinpath(
+        f"{client}_mo_target_coords.nc",
+    )
 
-        target_coords_path  = files("site_forecast_app.data").joinpath("nl_mo_target_coords.nc")
+    if not target_coords_path.is_file():
+        log.info(
+            f"No mo_global regrid target grid for {client=}, "
+            "leaving data on the operational grid",
+        )
+        return ds
 
-        ds_target_coords = xr.load_dataset(target_coords_path)
+    ds_target_coords = xr.load_dataset(target_coords_path)
 
-        log.info(f"Regridding mo_global to expected grid from {target_coords_path}")
+    log.info(f"Regridding mo_global to expected grid from {target_coords_path}")
 
-        regridder = xe.Regridder(ds, ds_target_coords, method="bilinear")
+    regridder = xe.Regridder(ds, ds_target_coords, method="bilinear")
 
-        # Iterate over steps to save RAM
-        ds_list = []
-        for step in ds.step:
-            # Copy to make sure the data is C-contiguous for efficient regridding
-            ds_step = ds.sel(step=step).copy(deep=True)
-            ds_list.append(regridder(ds_step))
+    # Iterate over steps to save RAM
+    ds_list = []
+    for step in ds.step:
+        # Copy to make sure the data is C-contiguous for efficient regridding
+        ds_step = ds.sel(step=step).copy(deep=True)
+        ds_list.append(regridder(ds_step))
 
-        ds = xr.concat(ds_list, dim="step")
-
-    return ds
+    return xr.concat(ds_list, dim="step")
