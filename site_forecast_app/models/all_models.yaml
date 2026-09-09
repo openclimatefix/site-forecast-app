@@ -352,3 +352,25 @@ models:
     location_type: state
     summation_location_type: nation
     satellite_archive_version: v1
+  - name:  de_ecmwf_only
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: 0df8db81850ecc6f437147ecda4a1aac238587e3
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: 05dc8abec3f9e3b26ef5faa5f679713438dec07a
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    satellite_archive_version: v1
+  - name:  de_ecmwf_pv_mo_sat
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: 46076e856f873b15ce5023e038adadfab357125b
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: db84a365b235b2ff9ae75a7f490adcd5a9d0643a
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    satellite_archive_version: v1
