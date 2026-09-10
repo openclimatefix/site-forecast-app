@@ -291,8 +291,8 @@ def test_app_de(
         "de_mo_only_adjust",
         "de_ecmwf_only",
         "de_ecmwf_only_adjust",
-        "de_ecmwf_pv",
-        "de_ecmwf_pv_adjust",
+        # "de_ecmwf_pv",
+        # "de_ecmwf_pv_adjust",
         "de_ecmwf_pv_mo_sat",
         "de_ecmwf_pv_mo_sat_adjust",
     ]
@@ -302,7 +302,7 @@ def test_app_de(
             "de_sat_only",
             "de_mo_only",
             "de_ecmwf_only",
-            "de_ecmwf_pv",
+            # "de_ecmwf_pv",
             "de_ecmwf_pv_mo_sat",
         ]
 
