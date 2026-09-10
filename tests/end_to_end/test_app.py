@@ -235,6 +235,7 @@ def test_app_de(
     de_dp_locations,
     satellite_data_icechunk,
     nwp_mo_global_data_de,
+    nwp_data_de,
     init_timestamp,
     monkeypatch,
 ):
@@ -255,6 +256,7 @@ def test_app_de(
     monkeypatch.setenv("RUN_BLEND_SERVICE", "false")
     # DE saves to the Data Platform, not the database
     monkeypatch.setenv("WRITE_TO_DB", "false")
+    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data_de)
 
     data_platform = FakeDataPlatform(de_dp_locations)
 
@@ -287,12 +289,21 @@ def test_app_de(
         "de_sat_only_adjust",
         "de_mo_only",
         "de_mo_only_adjust",
+        "de_ecmwf_only",
+        "de_ecmwf_only_adjust",
+        # "de_ecmwf_pv",
+        # "de_ecmwf_pv_adjust",
+        "de_ecmwf_pv_mo_sat",
+        "de_ecmwf_pv_mo_sat_adjust",
     ]
     for zone in ("de_50hertz", "de_amprion", "de_tennet", "de_transnetbw"):
         assert [f.forecaster.forecaster_name for f in forecasts[zone]] == [
             "de_pv_only",
             "de_sat_only",
             "de_mo_only",
+            "de_ecmwf_only",
+            # "de_ecmwf_pv",
+            "de_ecmwf_pv_mo_sat",
         ]
 
     n_fv = 36 * 4  # 36 hours at 15 minute resolution
