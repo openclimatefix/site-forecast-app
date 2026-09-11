@@ -3,10 +3,11 @@
 import json
 import logging
 import os
+from datetime import time
+from venv import logger
 
 import pandas as pd
 from entsoe import EntsoePandasClient
-from entsoe.exceptions import NoMatchingDataError
 
 log = logging.getLogger(__name__)
 
@@ -33,14 +34,32 @@ class Curtailment:
         # methods that return Pandas Series
         log.info(f"Fetching day-ahead prices from ENTSOE API for {country_code} \
                  from {start} to {end}")
-        try:
-            data = client.query_day_ahead_prices(country_code, start=start, end=end)
-        except NoMatchingDataError:
-            log.warning("No matching data found.")
-            data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"])
-        except Exception as e:
-            log.error(f"Error fetching data: {e}")
-            raise e
+
+        max_retries = 3
+
+        for attempt in range(max_retries):
+            log.info(f"Attempt {attempt + 1}/{max_retries} to fetch data from ENTSOE API.")
+            try:
+                data = client.query_day_ahead_prices(
+                    country_code,
+                    start=start,
+                    end=end,
+                )
+                break
+
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1}/{max_retries} failed: {e}")
+
+                if attempt == max_retries - 1:
+                    # ENTSOE being unavailable should not fail the whole forecast run,
+                    # we carry on with no prices, which means no curtailment is applied.
+                    log.error(
+                        f"Error fetching data: {e}. "
+                        f"Carrying on without prices, no curtailment will be applied.",
+                    )
+                    data = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"])
+
+                time.sleep(2**attempt)
 
         # validate data
         if data.empty:
