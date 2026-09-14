@@ -73,11 +73,10 @@ async def fetch_generation_from_dp(
         if not res.values:
             return []
 
-        cap_w = res.values[0].effective_capacity_watts
         data = []
         for val in res.values:
             t = val.timestamp_utc
-            power_kw = (val.value_fraction * cap_w) / 1000.0
+            power_kw = (val.value_fraction * val.effective_capacity_watts) / 1000.0
             data.append((t, power_kw))
 
         return data
