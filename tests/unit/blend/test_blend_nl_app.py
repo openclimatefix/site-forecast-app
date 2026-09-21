@@ -244,12 +244,11 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
 
     await run_blend_app(config=blend_config)
 
-    # Should run main blend and adjuster for:
-    # 1. nl_national (National pass) -> uses get_blend_weights (2 calls)
-    # 2. nl_groningen (Regional pass) -> uses get_regional_blend_weights (2 calls)
+    # Should run:
+    # 1. nl_national  -> get_blend_weights, main pass + adjuster pass (2 calls)
+    # 2. nl_groningen -> get_regional_blend_weights, main pass only (1 call)
     # taun1 and temp_3 should be filtered out.
-    # Total = 2 locations * 2 passes = 4 blend & save calls
     assert deps["get_blend_weights"].call_count == 2
-    assert deps["get_regional_blend_weights"].call_count == 2
-    assert deps["get_blend_forecast_values_latest"].call_count == 4
-    assert deps["_save_forecasts"].call_count == 4
+    assert deps["get_regional_blend_weights"].call_count == 1
+    assert deps["get_blend_forecast_values_latest"].call_count == 3
+    assert deps["_save_forecasts"].call_count == 3
