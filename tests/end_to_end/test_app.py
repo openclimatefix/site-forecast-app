@@ -42,6 +42,8 @@ class FakeDataPlatform:
         self.client.get_observations_as_timeseries.side_effect = self._get_observations
         self.client.create_forecaster.side_effect = self._create_forecaster
         self.client.create_forecast.side_effect = self.forecasts.append
+        self.client.get_latest_forecasts.side_effect = self._get_latest_forecasts
+        self.client.get_forecast_as_timeseries.side_effect = self._get_forecast_as_timeseries
         # no forecasters exist yet, so each one is created on first use
         self.client.list_forecasters.return_value = MagicMock(forecasters=[])
         # no history to adjust against, so the adjusted forecast equals the base one
@@ -54,6 +56,7 @@ class FakeDataPlatform:
             "site_forecast_app.data_platform.get_dataplatform_client",  # loading locations
             "site_forecast_app.data.generation.get_dataplatform_client",  # reading generation
             "site_forecast_app.save.data_platform.get_dataplatform_client",  # saving forecasts
+            "site_forecast_app.blend.app.get_dataplatform_client",  # blending
         ]
         connection = AsyncMock()
         connection.__aenter__.return_value = self.client
@@ -115,6 +118,76 @@ class FakeDataPlatform:
         return dp.GetObservationsAsTimeseriesResponse(
             location_uuid=request.location_uuid,
             values=values,
+        )
+
+    def _latest_forecast(self, location_uuid: str, forecaster_name: str):
+        """The most recently initialised recorded forecast, or None."""
+        matching = [
+            forecast
+            for forecast in self.forecasts
+            if forecast.location_uuid == location_uuid
+            and forecast.forecaster.forecaster_name == forecaster_name
+        ]
+        return max(matching, key=lambda f: f.init_time_utc, default=None)
+
+    def _get_latest_forecasts(
+        self, request: dp.GetLatestForecastsRequest,
+    ) -> dp.GetLatestForecastsResponse:
+        """One entry per forecaster that has written to this location."""
+        names = {
+            forecast.forecaster.forecaster_name
+            for forecast in self.forecasts
+            if forecast.location_uuid == request.location_uuid
+        }
+        latest = [self._latest_forecast(request.location_uuid, name) for name in sorted(names)]
+
+        return dp.GetLatestForecastsResponse(
+            forecasts=[
+                dp.GetLatestForecastsResponseForecast(
+                    initialization_timestamp_utc=forecast.init_time_utc,
+                    created_timestamp_utc=forecast.init_time_utc,
+                    forecaster=forecast.forecaster,
+                    location_uuid=forecast.location_uuid,
+                )
+                for forecast in latest
+            ],
+        )
+
+    def _get_forecast_as_timeseries(
+        self, request: dp.GetForecastAsTimeseriesRequest,
+    ) -> dp.GetForecastAsTimeseriesResponse:
+        """Expand a recorded forecast's horizons into absolute target times."""
+        forecast = self._latest_forecast(
+            request.location_uuid, request.forecaster.forecaster_name,
+        )
+        if forecast is None:
+            return dp.GetForecastAsTimeseriesResponse(
+                location_uuid=request.location_uuid, location_name="", values=[],
+            )
+
+        capacity_watts = self.capacity_watts[request.location_uuid]
+        values = []
+        for value in forecast.values:
+            target = forecast.init_time_utc + dt.timedelta(minutes=value.horizon_mins)
+            if not (
+                request.time_window.start_timestamp_utc
+                <= target
+                <= request.time_window.end_timestamp_utc
+            ):
+                continue
+            values.append(
+                dp.GetForecastAsTimeseriesResponseValue(
+                    target_timestamp_utc=target,
+                    p50_value_fraction=value.p50_fraction,
+                    effective_capacity_watts=capacity_watts,
+                    initialization_timestamp_utc=forecast.init_time_utc,
+                    created_timestamp_utc=forecast.init_time_utc,
+                    other_statistics_fractions=dict(value.other_statistics_fractions),
+                ),
+            )
+
+        return dp.GetForecastAsTimeseriesResponse(
+            location_uuid=request.location_uuid, location_name="", values=values,
         )
 
     def _create_forecaster(self, request: dp.CreateForecasterRequest) -> MagicMock:
@@ -252,8 +325,7 @@ def test_app_de(
     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_de)
     # DE adjusts through the Data Platform, not the database
     monkeypatch.setenv("USE_ADJUSTER_DATABASE", "false")
-    # DE has no blend config
-    monkeypatch.setenv("RUN_BLEND_SERVICE", "false")
+    monkeypatch.setenv("RUN_BLEND_SERVICE", "true")
     # DE saves to the Data Platform, not the database
     monkeypatch.setenv("WRITE_TO_DB", "false")
     monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data_de)
@@ -281,7 +353,8 @@ def test_app_de(
         "de_national",
     }
 
-    # only the national forecast is saved a second time with the adjuster applied
+    # only the national forecast is saved a second time with the adjuster applied,
+    # and the blend runs last over whatever the models wrote
     assert [f.forecaster.forecaster_name for f in forecasts["de_national"]] == [
         "de_pv_only",
         "de_pv_only_adjust",
@@ -295,6 +368,8 @@ def test_app_de(
         "de_ecmwf_pv_adjust",
         "de_ecmwf_pv_mo_sat",
         "de_ecmwf_pv_mo_sat_adjust",
+        "de_blend",
+        "de_blend_adjust",
     ]
     for zone in ("de_50hertz", "de_amprion", "de_tennet", "de_transnetbw"):
         assert [f.forecaster.forecaster_name for f in forecasts[zone]] == [
@@ -304,11 +379,16 @@ def test_app_de(
             "de_ecmwf_only",
             "de_ecmwf_pv",
             "de_ecmwf_pv_mo_sat",
+            "de_blend",
         ]
 
     n_fv = 36 * 4  # 36 hours at 15 minute resolution
     for location_forecasts in forecasts.values():
         for forecast in location_forecasts:
+            if forecast.forecaster.forecaster_name.startswith("de_blend"):
+                # the blend spans its own horizon range, but must not be empty
+                assert forecast.values
+                continue
             assert len(forecast.values) == n_fv
             assert all(0 <= value.p50_fraction <= 1 for value in forecast.values)
             assert all(value.other_statistics_fractions for value in forecast.values)
