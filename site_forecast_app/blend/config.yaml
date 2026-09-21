@@ -1,4 +1,4 @@
-# NL Blend configuration
+# Blend configuration
 # Values here drive blend/weights.py and blend/app.py.
 blends:
   - client_name: nl
@@ -63,5 +63,36 @@ blends:
     national_location_key: nl_national
 
     # The location type constraint used to filter regional locations from the map.
+    regional_location_type: STATE
+
+  - client_name: de
+    backup_model: de_ecmwf_only
+
+    # de_pv_only excluded: only wins below 1h, and crashes when generation lags t0.
+    national_candidate_models:
+      - de_ecmwf_pv
+      - de_ecmwf_pv_mo_sat
+      - de_mo_only
+      - de_sat_only
+
+    regional_candidate_models:
+      - de_ecmwf_pv
+      - de_ecmwf_pv_mo_sat
+      - de_mo_only
+      - de_sat_only
+
+    blend_kernel:
+      - 0.75
+      - 0.5
+      - 0.25
+
+    min_forecast_horizon_minutes: 15
+    t0_frequency: 15min
+
+    use_adjuster: true
+
+    scorecard_path: data/de_nmae_comparison.csv
+    forecaster_name: de_blend
+    national_location_key: de_national
     regional_location_type: STATE
 

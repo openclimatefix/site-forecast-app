@@ -262,6 +262,12 @@ def de_dp_locations():
 
 
 @pytest.fixture()
+def de_blend_config() -> BlendConfig:
+    """The DE blend configuration from config.yaml."""
+    return load_blend_config(client_name="de")
+
+
+@pytest.fixture()
 def forecast_values():
     """Dummy forecast values"""
 

@@ -43,8 +43,9 @@ async def run_blend_app(config: BlendConfig) -> None:
     6. For each regional location (all non-national keys in the location map):
        - Calculate regional blend weights and run blend
        - Save under {forecaster_name}
-    7. If use_adjuster=True: repeat steps 4-6 using {model}_adjust forecasters
-       and save under {forecaster_name}_adjust
+    7. If use_adjuster=True: repeat steps 4-5 using {model}_adjust forecasters
+       and save under {forecaster_name}_adjust. National only - regional
+       locations never have {model}_adjust forecasters to blend.
     """
     _cfg = config
     logger.info(
@@ -167,19 +168,6 @@ async def run_blend_app(config: BlendConfig) -> None:
                 use_adjuster=True,
                 config=_cfg,
             )
-            for location_key, location_uuid in regional_locations.items():
-                await _run_blend_pass(
-                    client=client,
-                    t0=t0,
-                    location_uuid=location_uuid,
-                    location_key=location_key,
-                    df_mae=df_mae,
-                    max_horizon=max_horizon,
-                    forecaster_name=_cfg.adjuster_forecaster_name,
-                    use_adjuster=True,
-                    use_regional_weights=True,
-                    config=_cfg,
-                )
 
 
 def rename_columns_with_adjuster(weights_df: pd.DataFrame) -> pd.DataFrame:
