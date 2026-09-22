@@ -385,3 +385,28 @@ models:
     location_type: state
     summation_location_type: nation
     satellite_archive_version: v1
+  # DE models retrained with t0 (init time) embedding features
+  - name: de_ecmwf_only_t0
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: 6f1bcd30bb751a127cbf6fa6455cb38be599399a
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: 80ab2d8ea7869c6ea14adc48a22d82074abe55eb
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    is_critical: false
+    satellite_archive_version: v1
+  - name: de_mo_only_t0
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: 1076f4ecf3e1aa45484d395c626d7926b6cf535f
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: b8458a11fc957580342825e43b2a612d89df2dd5
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    is_critical: false
+    satellite_archive_version: v1
