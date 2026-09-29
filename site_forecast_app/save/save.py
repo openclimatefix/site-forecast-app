@@ -21,6 +21,9 @@ from site_forecast_app.save.utils import determine_energy_source
 
 log = logging.getLogger(__name__)
 
+# Clients that get an adjusted forecast for every site, not just ml_id 0
+ADJUST_ALL_SITES_CLIENTS = ("ad", "ruvnl")
+
 
 def determine_location_type(site: LocationSQL, model_config: Model) -> dp.LocationType:
     """Determine the Data Platform LocationType based on site and model properties."""
@@ -93,7 +96,9 @@ def save_forecast_for_site_group(
             ml_model_version=version,
             location_map=location_map,
             use_adjuster_database=use_adjuster_database,
-            use_adjuster=site.ml_id == 0,
+            # Save an adjusted forecast for every ad and ruvnl site, other clients only for ml_id 0
+            use_adjuster=site.ml_id == 0
+            or (model_config is not None and model_config.client in ADJUST_ALL_SITES_CLIENTS),
             observer_name=observer_name,
         )
 
