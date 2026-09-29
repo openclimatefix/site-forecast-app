@@ -22,6 +22,7 @@ classifiers = [
 dependencies = [
     "click==8.1.7",
     "pvsite-datamodel==1.2.0",
+    "sqlalchemy<2.1",
     "pandas==2.2.3",
     "pvnet==5.3.7",
     "pvnet_summation==1.2.1",
