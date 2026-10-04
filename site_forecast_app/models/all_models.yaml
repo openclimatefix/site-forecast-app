@@ -319,12 +319,13 @@ models:
     dp_location_name: ruvnl
     satellite_archive_version: v0
 # de
+# All DE models retrained with t0 (init time) embedding features.
   - name: de_pv_only
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: a12b093a56105ca84fa4fbf4f2483c583d1008bc
+    version: 96d6f91e8c28656fe4d25a544dd930588ce9b768
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: cbe1ae0adb48f321165ff166b2600d4ff992a374
+    summation_version: 05ce54fb808f93bb095b8353b0a982e52edd5291
     client: de
     asset_type: pv
     location_type: state
@@ -333,9 +334,9 @@ models:
   - name: de_sat_only
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: d53f9ab1b415ba90647557a9ac7ddd2f7eebc954
+    version: 7a8ec85cc19e743e8a6e2d4ec2a42e2d5c8d7697
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: f6fa52818a97cd2b40f4f3c25b8ae3795ddc7331
+    summation_version: 6e9a39ce59f2def4d6076de323fcd6e29071cd63
     client: de
     asset_type: pv
     location_type: state
@@ -344,9 +345,9 @@ models:
   - name: de_mo_only
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: 67bb6287e4a556eb57027b8ae97631aa851a4d5f
+    version: 1076f4ecf3e1aa45484d395c626d7926b6cf535f
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: 56e86c4d4e724c5d3b5a8a002da727dce4c2b173
+    summation_version: b8458a11fc957580342825e43b2a612d89df2dd5
     client: de
     asset_type: pv
     location_type: state
@@ -355,9 +356,9 @@ models:
   - name:  de_ecmwf_only
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: 0df8db81850ecc6f437147ecda4a1aac238587e3
+    version: 6f1bcd30bb751a127cbf6fa6455cb38be599399a
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: 05dc8abec3f9e3b26ef5faa5f679713438dec07a
+    summation_version: 80ab2d8ea7869c6ea14adc48a22d82074abe55eb
     client: de
     asset_type: pv
     location_type: state
@@ -366,9 +367,9 @@ models:
   - name:  de_ecmwf_pv
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: 0c3034142f4bfc47d5c07c44c5cf62d3a743ccde
+    version: f234cd2a79d8988893a43155577438b08417b614
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: cb5a03a3b84e4963a6a6b3b22c887ab3db5e12c3
+    summation_version: 6de0171bb1501e16e3af91b96d0f8bf9e9e8b633
     client: de
     asset_type: pv
     location_type: state
@@ -377,9 +378,9 @@ models:
   - name:  de_ecmwf_pv_mo_sat
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: 46076e856f873b15ce5023e038adadfab357125b
+    version: 237f61f2d6e4e08cdcc84f8da100c8efee303712
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: db84a365b235b2ff9ae75a7f490adcd5a9d0643a
+    summation_version: 78f13a60ac05c45ed1594d28e64e9e7fb92dfd45
     client: de
     asset_type: pv
     location_type: state
