@@ -1,35 +1,5 @@
 # Here we define all the models that are available in the app
 models:
-    # NL model that include site history in the fusion layer
-  - name: nl_36_simple_site # migrated
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: a6407d6fdbb3a34ce5acfbfe2140aab22e3d9937
-    site_group_uuid: 4dce2381-9e8d-467e-bbdd-4e342c9e1d89
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    location_type: nation
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    satellite_archive_version: v0
-  - name: nl_national_pv_ecmwf_sat_small
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: 15f24ad67c4a496d6ecc9fb0e3f0d2a1cceeaec2
-    site_group_uuid: 4dce2381-9e8d-467e-bbdd-4e342c9e1d89
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    location_type: nation
-    curtailment: true
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    satellite_archive_version: v0
   - name: nl_regional_pv_ecmwf_sat
     type: pvnet
     id: openclimatefix-models/pvnet_nl
