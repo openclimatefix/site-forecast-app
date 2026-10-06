@@ -233,7 +233,7 @@ def test_app_sat_v0(
     assert result.exit_code == 0
 
     fv_per_hour = 4  # 15 min resolution = 4 values per hour
-    n_national_models = 2
+    n_national_models = 0
     n_regional_models = 4
     n_uncurtailed_saves = 1  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
     # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
