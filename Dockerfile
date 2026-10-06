@@ -14,10 +14,10 @@ COPY --from=build-venv /app/.venv /app/.venv
 
 WORKDIR /app
 
-COPY pyproject.toml /app/pyproject.toml
+COPY pyproject.toml uv.lock /app/
 
 # Install only requirements
-RUN mkdir site_forecast_app && uv sync --no-dev --no-install-project --compile-bytecode --inexact
+RUN mkdir site_forecast_app && uv sync --locked --no-dev --no-install-project --compile-bytecode --inexact
 
 # --- Build the package --- #
 FROM build-deps AS build-app
@@ -26,7 +26,7 @@ FROM build-deps AS build-app
 # * The .git folder is needed here for setuptools-git-versioning
 COPY site_forecast_app /app/site_forecast_app
 COPY .git /app/.git
-RUN uv sync --no-editable --no-dev --compile-bytecode --inexact
+RUN uv sync --locked --no-editable --no-dev --compile-bytecode --inexact
 
 # --- Runtime image --- #
 FROM python:3.12-slim
