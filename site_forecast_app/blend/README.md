@@ -72,7 +72,6 @@ All tunable parameters live in `config.yaml`:
 | `nl_regional_48h_pv_ecmwf` | Candidate — 48 h range ECMWF |
 | `nl_regional_pv_ecmwf_mo_sat` | Candidate — ECMWF + Met Office + satellite |
 | `nl_regional_pv_ecmwf_sat` | Candidate — ECMWF + satellite |
-| `nl_national_pv_ecmwf_sat_small` | Candidate — national-scale small model |
 | `nl_regional_ecmwf_only` | Candidate — ECMWF only, no PV or satellite |
 | `nl_regional_mo_only` | Candidate — Met Office only, no PV or satellite |
 
@@ -89,7 +88,6 @@ Scored on the 2024 validation set, national, p50.
 | `nl_regional_pv_ecmwf_sat` | 1.702% | 0.957% | 2.109% |
 | `nl_regional_ecmwf_only` | 1.851% | 1.551% | 2.209% |
 | `nl_regional_mo_only` | 2.036% | 1.706% | 2.430% |
-| `nl_national_pv_ecmwf_sat_small` | 1.937% | 1.166% | 2.417% |
 
 ![nMAE vs forecast horizon](data/nl_blend_nmae_vs_horizon_updated.png)
 

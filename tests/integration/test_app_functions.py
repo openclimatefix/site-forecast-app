@@ -112,7 +112,7 @@ def test_run_model(
 
     all_models = get_all_models(satellite_archive_version="v0")
     ml_model = all_models.models[0]
-    gen_sites = [s for s in sites if s.client_location_name == "test_site_nl"]
+    gen_sites = [s for s in sites if s.client_location_name == "test_site_nl_regional"][:1]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
     model = PVNetModel(
         timestamp=init_timestamp,
