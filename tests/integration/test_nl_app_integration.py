@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from dp_sdk.ocf import dp
 from grpclib.client import Channel
+from ocf import dp
 
 from site_forecast_app.blend.app import run_blend_app
 

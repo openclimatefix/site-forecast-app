@@ -3,7 +3,7 @@ import logging
 import os
 
 import pandas as pd
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app.blend.blend import get_blend_forecast_values_latest
 from site_forecast_app.blend.config import BlendConfig
@@ -40,7 +40,7 @@ async def run_blend_app(config: BlendConfig) -> None:
     3. Load the MAE scorecard
     4. Calculate blend weights and run blend for national location
     5. Save national forecast under {forecaster_name}
-    6. For each regional location (all non-national keys in the location map):
+    6. For each regional location (this client's non-national locations):
        - Calculate regional blend weights and run blend
        - Save under {forecaster_name}
     7. If use_adjuster=True: repeat steps 4-5 using {model}_adjust forecasters
@@ -71,12 +71,21 @@ async def run_blend_app(config: BlendConfig) -> None:
         logger.info("Fetching location map from Data Platform.")
         try:
             resp = await client.list_locations(dp.ListLocationsRequest())
-            dp_locations = resp.locations
+            dp_locations = [
+                loc for loc in resp.locations
+                if loc.country_code.upper() == _cfg.client_name.upper()
+            ]
             dp_loc_map = {loc.location_name: loc.location_uuid for loc in dp_locations}
             if not dp_loc_map:
-                logger.error("Data Platform returned an empty location map. Cannot continue.")
+                logger.error(
+                    f"Data Platform returned no locations for country "
+                    f"'{_cfg.client_name}'. Cannot continue.",
+                )
                 return
-            logger.info(f"Fetched {len(dp_loc_map)} location(s) from Data Platform.")
+            logger.info(
+                f"Fetched {len(dp_loc_map)} '{_cfg.client_name}' location(s) "
+                f"from Data Platform.",
+            )
         except Exception:
             logger.exception("Failed to connect to Data Platform while fetching location map.")
             return
@@ -123,7 +132,7 @@ async def run_blend_app(config: BlendConfig) -> None:
         )
 
         # -------------------------------------------------------------- #
-        # Regional blends (all locations except national)                 #
+        # Regional blends (this client's regions, except national)        #
         # -------------------------------------------------------------- #
         regional_locations = {
             loc.location_name: loc.location_uuid

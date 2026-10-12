@@ -13,8 +13,8 @@ from importlib.metadata import version
 
 import pandas as pd
 from betterproto.lib.google.protobuf import Struct, Value
-from dp_sdk.ocf import dp
 from grpclib.client import Channel
+from ocf import dp
 
 from site_forecast_app.save.utils import (
     add_or_convert_to_utc,
