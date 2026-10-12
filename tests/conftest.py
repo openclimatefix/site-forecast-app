@@ -16,8 +16,8 @@ import pytest
 import xarray as xr
 import zarr
 from betterproto.lib.google.protobuf import Struct, Value
-from dp_sdk.ocf import dp
 from icechunk.xarray import to_icechunk
+from ocf import dp
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read.model import get_or_create_model
 from pvsite_datamodel.sqlmodels import (
@@ -255,6 +255,7 @@ def de_dp_locations():
                 effective_capacity_watts=int(capacity_kw * 1000),
                 latlng=dp.LatLng(latitude=latitude, longitude=longitude),
                 metadata=Struct(fields=metadata),
+                country_code="DE",
             ),
         )
 

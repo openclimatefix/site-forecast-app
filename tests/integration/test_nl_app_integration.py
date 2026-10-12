@@ -1,8 +1,8 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from dp_sdk.ocf import dp
 from grpclib.client import Channel
+from ocf import dp
 
 from site_forecast_app.blend.app import run_blend_app
 
@@ -36,6 +36,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
             location_type=dp.LocationType.NATION,
             effective_capacity_watts=1_000_000,
             valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
         ),
     )
     location_uuid = create_resp.location_uuid

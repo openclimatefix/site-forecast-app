@@ -8,8 +8,8 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
-from dp_sdk.ocf import dp
 from freezegun import freeze_time
+from ocf import dp
 from pvsite_datamodel.sqlmodels import ForecastSQL, ForecastValueSQL, MLModelSQL
 
 from site_forecast_app.app import (

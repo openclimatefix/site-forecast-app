@@ -6,7 +6,7 @@ from ``site_forecast_app.save``, so no change is needed at call sites.
 
 from grpclib.client import Channel  # noqa: F401  (used by integration test monkeypatching)
 
-from dp_sdk.ocf import dp  # noqa: F401  (used by integration test monkeypatching)
+from ocf import dp  # noqa: F401  (used by integration test monkeypatching)
 
 from site_forecast_app.save.data_platform import (
     DataPlatformClient,

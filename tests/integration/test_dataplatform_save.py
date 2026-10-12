@@ -3,7 +3,7 @@ import asyncio
 import datetime as dt
 
 import pytest
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app.save import save_forecast
 from site_forecast_app.save.data_platform import (

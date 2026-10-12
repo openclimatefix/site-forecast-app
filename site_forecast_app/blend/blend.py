@@ -5,7 +5,7 @@ import math
 from datetime import datetime
 
 import pandas as pd
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
 

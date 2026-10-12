@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from betterproto.lib.google.protobuf import Struct, Value
-from dp_sdk.ocf import dp
 from grpclib.client import Channel
+from ocf import dp
 
 from site_forecast_app.blend.app import run_blend_app
 
@@ -105,15 +105,23 @@ async def _create_location(
     longitude: float,
 ) -> str:
     """Create one DE location and return its UUID."""
+    # POINT geometries are only allowed for sites, so give each region a small
+    # square centred on its coordinates
+    d = 0.5
+    west, east, south, north = longitude - d, longitude + d, latitude - d, latitude + d
     response = await client.create_location(
         dp.CreateLocationRequest(
             location_name=name,
             energy_source=dp.EnergySource.SOLAR,
-            geometry_wkt=f"POINT({longitude} {latitude})",
+            geometry_wkt=(
+                f"POLYGON(({west} {south}, {west} {north}, {east} {north}, "
+                f"{east} {south}, {west} {south}))"
+            ),
             location_type=dp.LocationType.NATION if region_id == 0 else dp.LocationType.STATE,
             effective_capacity_watts=capacity_watts,
             valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
-            # the Data Platform derives latlng from the point, and rejects both
+            country_code="DE",
+            # the Data Platform derives latlng from the polygon's centroid
             metadata=Struct(
                 fields={
                     "region": Value(string_value=region),

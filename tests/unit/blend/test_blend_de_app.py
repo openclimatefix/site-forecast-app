@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pandas as pd
 import pytest
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app import blend
 from site_forecast_app.blend.app import run_blend_app
@@ -92,6 +92,28 @@ async def test_zones_use_regional_weights(mock_blend, de_blend_config):
     await run_blend_app(config=de_blend_config)
 
     assert mock_blend["weights"].call_count == 2  # national blend + adjuster
+    assert mock_blend["regional_weights"].call_count == len(DE_ZONES)
+
+
+@pytest.mark.asyncio
+async def test_other_countries_regions_are_not_blended(
+    mock_blend, de_blend_config, de_dp_locations,
+):
+    """The DP location map holds every country; DE must only blend its own zones."""
+    nl_province = dp.ListLocationsResponseLocationSummary(
+        location_uuid="019c74e8-b5f3-78e8-b8b6-8d44175cd847",
+        location_name="nl_region_3_drenthe",
+        location_type=dp.LocationType.STATE,
+        energy_source=dp.EnergySource.SOLAR,
+        country_code="NL",
+    )
+    mock_blend["client"].list_locations.return_value = MagicMock(
+        locations=[*de_dp_locations, nl_province],
+    )
+
+    await run_blend_app(config=de_blend_config)
+
+    assert _saved(mock_blend, "location_key") == [DE_NATIONAL, *DE_ZONES, DE_NATIONAL]
     assert mock_blend["regional_weights"].call_count == len(DE_ZONES)
 
 

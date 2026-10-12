@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app.blend.app import rename_columns_with_adjuster, run_blend_app
 
@@ -42,6 +42,7 @@ def mock_dependencies(monkeypatch):
                 location_name=req.location_name,
                 location_type=req.location_type,
                 location_uuid=f"uuid-{req.location_name}",
+                country_code=req.country_code or "",
             )
             mock_db.append(loc)
             return loc
@@ -85,6 +86,7 @@ async def test_run_blend_app_success(mock_dependencies, blend_config):
             location_type=dp.LocationType.NATION,
             effective_capacity_watts=1_000,
             valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
         ),
     )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
@@ -124,7 +126,7 @@ async def test_run_blend_app_aborts_on_empty_location(caplog, mock_dependencies,
     with caplog.at_level(logging.ERROR, logger="blend_app"):
         await run_blend_app(config=blend_config)
 
-    assert "empty location map" in caplog.text
+    assert "no locations for country 'nl'" in caplog.text
 
 
 
@@ -142,6 +144,7 @@ async def test_run_blend_app_aborts_on_empty_blend(caplog, mock_dependencies, bl
             location_type=dp.LocationType.NATION,
             effective_capacity_watts=1_000,
             valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
         ),
     )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
@@ -187,7 +190,7 @@ class TestRenameColumnsWithAdjuster:
 
 @pytest.mark.asyncio
 async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend_config):
-    """Test that regional blends are only run for locations starting with 'nl_'."""
+    """Test that regional blends are only run for NL regional locations."""
     deps = mock_dependencies
 
     mock_client = deps["mock_client"]
@@ -200,6 +203,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
             location_type=dp.LocationType.NATION,
             effective_capacity_watts=1_000,
             valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
         ),
     )
     # Create regional location
@@ -211,9 +215,21 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
             location_type=dp.LocationType.STATE,
             effective_capacity_watts=1_000,
             valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
         ),
     )
     # Create other locations (should be filtered out)
+    await mock_client.create_location(
+        dp.CreateLocationRequest(
+            location_name="de_tennet",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.STATE,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="DE",
+        ),
+    )
     await mock_client.create_location(
         dp.CreateLocationRequest(
             location_name="taun1",
@@ -247,7 +263,7 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
     # Should run:
     # 1. nl_national  -> get_blend_weights, main pass + adjuster pass (2 calls)
     # 2. nl_groningen -> get_regional_blend_weights, main pass only (1 call)
-    # taun1 and temp_3 should be filtered out.
+    # de_tennet (another country's region), taun1 and temp_3 should be filtered out.
     assert deps["get_blend_weights"].call_count == 2
     assert deps["get_regional_blend_weights"].call_count == 1
     assert deps["get_blend_forecast_values_latest"].call_count == 3

@@ -11,7 +11,7 @@ from functools import partial
 import click
 import pandas as pd
 import sentry_sdk
-from dp_sdk.ocf import dp
+from ocf import dp
 from pvsite_datamodel import DatabaseConnection
 from pvsite_datamodel.read import get_sites_by_country
 from pvsite_datamodel.sqlmodels import LocationGroupSQL, LocationSQL

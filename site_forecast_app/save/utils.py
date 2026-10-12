@@ -6,7 +6,7 @@ import os
 from datetime import UTC, datetime
 
 import pandas as pd
-from dp_sdk.ocf import dp
+from ocf import dp
 from pvsite_datamodel.sqlmodels import LocationSQL  # noqa: TC002
 
 adjuster_limit_fraction_default = float(os.environ.get("ADJUSTER_LIMIT_FRACTION", 0.1))

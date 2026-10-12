@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app.data.generation import fetch_generation_from_dp
 

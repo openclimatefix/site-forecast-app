@@ -21,7 +21,7 @@ from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
-from dp_sdk.ocf import dp
+from ocf import dp
 
 from site_forecast_app.blend.config import BlendConfig
 from site_forecast_app.blend.data_platform import fetch_latest_nl_init_times
