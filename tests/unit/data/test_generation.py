@@ -96,4 +96,4 @@ async def test_get_site_generation_data_clips_negative_extrapolation(monkeypatch
 
     generation = result["data"]["generation_kw"].sel(location_id=1)
     assert generation.sel(time_utc=timestamp).item() == 0
-    assert (generation.fillna(0) >=0).all()
+    assert (generation.dropna(dim="time_utc") >= 0).all()
