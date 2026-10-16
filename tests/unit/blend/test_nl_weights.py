@@ -58,7 +58,6 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     weight_sum = weights_df.sum(axis=1)
     assert (weight_sum > 0.99).all() and (weight_sum < 1.01).all()
 
-
 @pytest.mark.asyncio
 async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
     """Verify fallback when no initialisation times exist (everything falls back)."""
@@ -83,3 +82,54 @@ async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
         # It still computes weights evenly or heavily shifts since they both have huge penalties.
         # Just ensure the DF isn't empty.
         assert not weights_df.empty
+
+@pytest.mark.asyncio
+async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConfig):
+    """Verify intraday blending is applied on top of the day-ahead blend."""
+    config = blend_config.model_copy(
+        update={"intraday_candidate_models": ["fake_intraday"]},
+    )
+
+    t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
+    max_horizon = pd.Timedelta("36h")
+
+    horizons = pd.timedelta_range(
+        start="15min",
+        end="36h",
+        freq="15min",
+    )
+
+    df_mae = pd.DataFrame(
+        {
+            "nl_regional_2h_pv_ecmwf": 5.0,
+            "nl_regional_48h_pv_ecmwf": [
+                5.0 if horizon <= pd.Timedelta(hours=8) else 2.0
+                for horizon in horizons
+            ],
+            "fake_intraday": [
+                1.0 if horizon <= pd.Timedelta(hours=8) else 5.0
+                for horizon in horizons
+            ],
+        },
+        index=horizons,
+    )
+
+    with patch(
+        "site_forecast_app.blend.weights.fetch_latest_nl_init_times",
+        new_callable=AsyncMock,
+    ) as mock_fetch:
+        mock_fetch.return_value = {
+            "nl_regional_2h_pv_ecmwf": t0,
+            "nl_regional_48h_pv_ecmwf": t0,
+            "fake_intraday": t0,
+        }
+        weights_df = await get_blend_weights(
+            t0=t0,
+            location_uuid="test-uuid",
+            df_mae=df_mae,
+            max_horizon=max_horizon,
+            client=AsyncMock(),
+            config=config,
+        )
+        assert list(weights_df.columns) == ["fake_intraday"]
+        assert weights_df["fake_intraday"].iloc[0] == pytest.approx(1.0)

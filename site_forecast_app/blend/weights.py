@@ -214,24 +214,23 @@ def calculate_optimal_blend_weights(
         index=df_mae.index,
     )
 
-
 # ---------------------------------------------------------------------------
 # Shared weight computation logic
 # ---------------------------------------------------------------------------
-
 async def _compute_weights(
     t0: pd.Timestamp,
     location_uuid: str,
     df_mae: pd.DataFrame,
     max_horizon: pd.Timedelta,
     client: dp.DataPlatformDataServiceStub,
-    candidate_models: list[str],
+    day_ahead_candidate_models: list[str],
+    intraday_candidate_models: list[str],
     label: str,
     backup_model: str,
     kernel: list[float],
     min_forecast_horizon: pd.Timedelta,
 ) -> pd.DataFrame:
-    """Fetches init times, shifts MAE curves, and runs the single-stage optimiser.
+    """Fetches init times, shifts MAE curves, and runs the two-stage optimiser.
 
     Shared by get_blend_weights and get_regional_blend_weights.
 
@@ -242,7 +241,8 @@ async def _compute_weights(
         max_horizon:          Maximum scorecard horizon; used as max_delay and as
                               the score window upper bound.
         client:               Authenticated Data Platform gRPC client stub.
-        candidate_models:     Models to evaluate against *backup_model*.
+        day_ahead_candidate_models: Models to evaluate for the day-ahead blend.
+        intraday_candidate_models: Models to evaluate for the intraday blend.
         label:                Short label for log messages ("National"/"Regional").
         backup_model:         Fallback model name (always available).
         kernel:               Taper kernel weights (e.g. [0.75, 0.5, 0.25]).
@@ -253,7 +253,11 @@ async def _compute_weights(
         Weights sum to 1.0 at every horizon.
         Returns an empty DataFrame on failure.
     """
-    all_models = [backup_model, *candidate_models]
+    all_models = [
+        backup_model,
+        *day_ahead_candidate_models,
+        *intraday_candidate_models,
+    ]
 
     # Fetch model initialisation times
     model_init_times = await fetch_latest_nl_init_times(
@@ -286,27 +290,73 @@ async def _compute_weights(
         )
         return pd.DataFrame()
 
-    # Single-stage optimisation: best candidate vs backup over full horizon
-    score_func = make_avg_mae_func(max_horizon, min_forecast_horizon)
-    df_weights = calculate_optimal_blend_weights(
+    # Stage 1: optimise the day-ahead blend over the full horizon
+    da_score_func = make_avg_mae_func(
+        pd.Timedelta(hours=36),
+        min_forecast_horizon,
+    )
+
+    df_da_model_weights = calculate_optimal_blend_weights(
         df_mae=df_delayed_mae,
         backup_model_name=backup_model,
-        candidate_models=candidate_models,
+        candidate_models=day_ahead_candidate_models,
         kernel=kernel,
-        score_func=score_func,
+        score_func=da_score_func,
         min_forecast_horizon=min_forecast_horizon,
     )
-    logger.info(f"[{label}] Weights (head):\n{df_weights.head()}")
 
-    # Convert relative-horizon index -> absolute UTC target times
-    df_weights.index = df_weights.index + t0
+    logger.info(f"[{label}] Day-ahead weights (head):\n{df_da_model_weights.head()}")
 
+    # Keep relative-horizon index while building the Stage 2 blend
     logger.info(
-        f"[{label}] Blend weights computed for {len(df_weights)} target times, "
-        f"participating models: {list(df_weights.columns)}",
+        f"[{label}] Day-ahead weights computed for {len(df_da_model_weights)} target times, "
+        f"participating models: {list(df_da_model_weights.columns)}",
     )
-    return df_weights
 
+    # Stage 2: optimise intraday models against the day-ahead blend over 8 hours
+    df_delayed_mae["blend_day_ahead"] = (
+        df_da_model_weights
+        .set_axis(df_delayed_mae.index)
+        .mul(df_delayed_mae[df_da_model_weights.columns])
+        .sum(axis=1, skipna=True)
+    )
+
+    intraday_score_func = make_avg_mae_func(
+        pd.Timedelta(hours=8),
+        min_forecast_horizon,
+    )
+
+    df_intraday_model_weights = calculate_optimal_blend_weights(
+        df_mae=df_delayed_mae,
+        backup_model_name="blend_day_ahead",
+        candidate_models=intraday_candidate_models,
+        kernel=kernel,
+        score_func=intraday_score_func,
+        min_forecast_horizon=min_forecast_horizon,
+    )
+
+    # Apply the intraday blend weight to the day-ahead model weights
+    blend_day_ahead_weights = df_intraday_model_weights["blend_day_ahead"]
+
+    for col in df_da_model_weights.columns:
+        df_da_model_weights[col] = (
+            df_da_model_weights[col] * blend_day_ahead_weights
+        )
+
+    df_intraday_model_weights = df_intraday_model_weights.drop(
+        columns="blend_day_ahead",
+    )
+
+    df_all_weights = pd.concat(
+        [df_da_model_weights, df_intraday_model_weights],
+        axis=1,
+    )
+
+    df_all_weights = df_all_weights.loc[:, df_all_weights.sum(axis=0) > 0]
+
+    df_all_weights.index = df_all_weights.index + t0
+
+    return df_all_weights
 
 # ---------------------------------------------------------------------------
 # Public entry points
@@ -322,7 +372,7 @@ async def get_blend_weights(
 ) -> pd.DataFrame:
     """Produces the national blend weight DataFrame for t0.
 
-    Single-stage: picks the best model from config.national_candidate_models
+    Two-stage: blends day-ahead models, then blends intraday models on top.
     to blend against config.backup_model, scored over the full scorecard horizon.
 
     Args:
@@ -344,7 +394,8 @@ async def get_blend_weights(
         df_mae=df_mae,
         max_horizon=max_horizon,
         client=client,
-        candidate_models=config.national_candidate_models,
+        day_ahead_candidate_models=config.day_ahead_candidate_models,
+        intraday_candidate_models=config.intraday_candidate_models,
         label="National",
         backup_model=config.backup_model,
         kernel=config.blend_kernel,
@@ -384,7 +435,8 @@ async def get_regional_blend_weights(
         df_mae=df_mae,
         max_horizon=max_horizon,
         client=client,
-        candidate_models=config.regional_candidate_models,
+        day_ahead_candidate_models=config.regional_candidate_models,
+        intraday_candidate_models=config.intraday_candidate_models,
         label="Regional",
         backup_model=config.backup_model,
         kernel=config.blend_kernel,
