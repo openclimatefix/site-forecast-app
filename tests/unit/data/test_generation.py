@@ -1,8 +1,14 @@
+import datetime as dt
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
+from pvsite_datamodel.sqlmodels import LocationAssetType
 
 from site_forecast_app.data.generation import (
+    _get_site_generation_data,
     format_generation_data,
 )
 
@@ -61,3 +67,33 @@ def test_format_generation_data():
     np.testing.assert_allclose(
         result["capacity_mwp"].sel(location_id=102).values, 10.0,
     )
+
+
+@pytest.mark.asyncio
+async def test_get_site_generation_data_clips_negative_extrapolation(monkeypatch):
+    """Quadratic extrapolation to t0 on a falling ramp should be clipped at zero"""
+    monkeypatch.setenv("READ_FROM_DATA_PLATFORM", "True")
+
+    timestamp = pd.Timestamp("2024-06-01 20:00")
+    site = MagicMock()
+    site.asset_type = LocationAssetType.wind
+    site.ml_id = 1
+    site.capacity_kw = 1000
+
+    # Generation collapsing on an evening ramp, stopping 15 minutes before t0.
+    # Without clipping, this extrapolates to about -10 kW at t0
+    times = pd.date_range(
+        timestamp - dt.timedelta(hours=1, minutes=15), periods=5, freq="15min", tz="UTC",
+    )
+    values = [100, 95, 85, 60, 10]
+    dp_data = [(t.to_pydatetime(), v) for t, v in zip(times, values, strict=True)]
+
+    with patch(
+        "site_forecast_app.data.generation.fetch_generation_from_dp",
+        AsyncMock(return_value=dp_data),
+    ):
+        result = await _get_site_generation_data(None, site, timestamp)
+
+    generation = result["data"]["generation_kw"].sel(location_id=1)
+    assert generation.sel(time_utc=timestamp).item() == 0
+    assert (generation.dropna(dim="time_utc") >= 0).all()
