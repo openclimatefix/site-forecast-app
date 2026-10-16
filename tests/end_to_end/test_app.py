@@ -368,6 +368,8 @@ def test_app_de(
         "de_ecmwf_pv_adjust",
         "de_ecmwf_pv_mo_sat",
         "de_ecmwf_pv_mo_sat_adjust",
+        "de_ecmwf_pv_mo_sat_intraday",
+        "de_ecmwf_pv_mo_sat_intraday_adjust",
         "de_blend",
         "de_blend_adjust",
     ]
@@ -379,17 +381,23 @@ def test_app_de(
             "de_ecmwf_only",
             "de_ecmwf_pv",
             "de_ecmwf_pv_mo_sat",
+            "de_ecmwf_pv_mo_sat_intraday",
             "de_blend",
         ]
 
     n_fv = 36 * 4  # 36 hours at 15 minute resolution
+    n_fv_intraday = 8 * 4  # 8 hours at 15 minute resolution
     for location_forecasts in forecasts.values():
         for forecast in location_forecasts:
-            if forecast.forecaster.forecaster_name.startswith("de_blend"):
+            forecaster_name = forecast.forecaster.forecaster_name
+            if forecaster_name.startswith("de_blend"):
                 # the blend spans its own horizon range, but must not be empty
                 assert forecast.values
                 continue
-            assert len(forecast.values) == n_fv
+            if "_intraday" in forecaster_name:
+                assert len(forecast.values) == n_fv_intraday
+            else:
+                assert len(forecast.values) == n_fv
             assert all(0 <= value.p50_fraction <= 1 for value in forecast.values)
             assert all(value.other_statistics_fractions for value in forecast.values)
 
