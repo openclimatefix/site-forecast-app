@@ -102,5 +102,7 @@ def test_make_potential_generation_without_prices(mock_entsoe_pandas_client, pri
     )
 
     # Curtailment also adds diagnostic columns; the original forecast must stay unchanged.
-    pd.testing.assert_frame_equal(potential_generation[forecast.columns], forecast)
-    pd.testing.assert_frame_equal(pd.DataFrame(forecast_values), forecast)
+    pd.testing.assert_frame_equal(
+        potential_generation[forecast.columns], forecast, check_exact=True,
+    )
+    pd.testing.assert_frame_equal(pd.DataFrame(forecast_values), forecast, check_exact=True)
