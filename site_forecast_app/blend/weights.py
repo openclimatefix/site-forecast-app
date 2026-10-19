@@ -202,9 +202,13 @@ def calculate_optimal_blend_weights(
             index=df_mae.index,
         )
 
-    backup_weights = 1 - best_weights
-    best_weights[df_mae[best_model].isna()] = np.nan
-    backup_weights[df_mae[backup_model_name].isna()] = np.nan
+    candidate_missing = df_mae[best_model].isna()
+    backup_missing = df_mae[backup_model_name].isna()
+
+    best_weights[candidate_missing] = np.nan
+    backup_weights = 1 - np.nan_to_num(best_weights, nan=0.0)
+    backup_weights[candidate_missing & ~backup_missing] = 1.0
+    backup_weights[backup_missing] = np.nan
 
     logger.debug(
         f"Selected '{best_model}' as best candidate (score {best_score:.5f}).",
@@ -326,10 +330,22 @@ async def _compute_weights(
         min_forecast_horizon,
     )
 
+    intraday_models = list(
+        dict.fromkeys(
+            [*day_ahead_candidate_models, *intraday_candidate_models],
+        ),
+    )
+
+    df_intraday_mae = df_delayed_mae.copy()
+
+    # Intraday candidates are unavailable beyond the 8-hour window.
+    intraday_horizon = df_intraday_mae.index > pd.Timedelta(hours=8)
+    df_intraday_mae.loc[intraday_horizon, intraday_models] = np.nan
+
     df_intraday_model_weights = calculate_optimal_blend_weights(
-        df_mae=df_delayed_mae,
+        df_mae=df_intraday_mae,
         backup_model_name="blend_day_ahead",
-        candidate_models=intraday_candidate_models,
+        candidate_models=intraday_models,
         kernel=kernel,
         score_func=intraday_score_func,
         min_forecast_horizon=min_forecast_horizon,

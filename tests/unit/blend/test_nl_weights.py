@@ -1,10 +1,15 @@
 from unittest.mock import AsyncMock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from site_forecast_app.blend.config import BlendConfig
-from site_forecast_app.blend.weights import get_blend_weights
+from site_forecast_app.blend.weights import (
+    calculate_optimal_blend_weights,
+    get_blend_weights,
+    make_avg_mae_func,
+)
 
 # ---------------------------------------------------------------------------
 # Tests for get_blend_weights
@@ -107,7 +112,7 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
                 for horizon in horizons
             ],
             "fake_intraday": [
-                1.0 if horizon <= pd.Timedelta(hours=8) else 5.0
+                1.0 if horizon <= pd.Timedelta(hours=8) else np.nan
                 for horizon in horizons
             ],
         },
@@ -131,5 +136,60 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
             client=AsyncMock(),
             config=config,
         )
-        assert list(weights_df.columns) == ["fake_intraday"]
-        assert weights_df["fake_intraday"].iloc[0] == pytest.approx(1.0)
+        # Intraday model dominates before the taper.
+        assert weights_df.loc["2024-06-01 19:00:00+00:00", "fake_intraday"] == pytest.approx(1.0)
+
+        assert (
+            weights_df.loc[
+                "2024-06-01 19:45:00+00:00",
+                "nl_regional_48h_pv_ecmwf",
+            ]
+            == pytest.approx(0.5)
+        )
+
+        assert (
+            weights_df.loc[
+                "2024-06-01 20:15:00+00:00",
+                "nl_regional_48h_pv_ecmwf",
+            ]
+            == pytest.approx(1.0)
+        )
+        assert pd.isna(
+            weights_df.loc[
+                "2024-06-01 20:15:00+00:00",
+                "fake_intraday",
+            ],
+        )
+def test_candidate_unavailable_falls_back_to_backup():
+    horizons = pd.timedelta_range(
+        start="15min",
+        periods=40,
+        freq="15min",
+    )
+    df_mae = pd.DataFrame(
+        {
+            "candidate": [
+                1.0 if horizon <= pd.Timedelta(hours=8) else np.nan
+                for horizon in horizons
+            ],
+            "backup": [5.0] * len(horizons),
+        },
+        index=horizons,
+    )
+
+    weights = calculate_optimal_blend_weights(
+        df_mae=df_mae,
+        backup_model_name="backup",
+        candidate_models=["candidate"],
+        kernel=[0.75, 0.5, 0.25],
+        score_func=make_avg_mae_func(
+            pd.Timedelta(hours=8),
+            pd.Timedelta(minutes=15),
+        ),
+        min_forecast_horizon=pd.Timedelta(minutes=15),
+    )
+
+    after_eight_hours = weights.index > pd.Timedelta(hours=8)
+
+    assert weights.loc[after_eight_hours, "candidate"].isna().all()
+    assert (weights.loc[after_eight_hours, "backup"] == 1.0).all()
