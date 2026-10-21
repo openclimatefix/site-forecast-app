@@ -77,8 +77,9 @@ blends:
       - de_sat_only
 
     # Candidate models for the intraday blend.
-    # Empty until the intraday model is available.
-    intraday_candidate_models: []
+    intraday_candidate_models:
+      - de_ecmwf_pv_mo_sat_intraday
+      - de_ecmwf_pv_intraday
 
     regional_candidate_models:
       - de_ecmwf_pv
@@ -96,7 +97,7 @@ blends:
 
     use_adjuster: true
 
-    scorecard_path: data/de_nmae_comparison.csv
+    scorecard_path: data/de_nmae_comparison_with_intraday.csv
     forecaster_name: de_blend
     national_location_key: de_national
     regional_location_type: STATE
