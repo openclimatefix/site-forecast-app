@@ -370,6 +370,8 @@ def test_app_de(
         "de_ecmwf_pv_mo_sat_adjust",
         "de_ecmwf_pv_mo_sat_intraday",
         "de_ecmwf_pv_mo_sat_intraday_adjust",
+        "de_ecmwf_pv_intraday",
+        "de_ecmwf_pv_intraday_adjust",
         "de_blend",
         "de_blend_adjust",
     ]
@@ -382,6 +384,7 @@ def test_app_de(
             "de_ecmwf_pv",
             "de_ecmwf_pv_mo_sat",
             "de_ecmwf_pv_mo_sat_intraday",
+            "de_ecmwf_pv_intraday",
             "de_blend",
         ]
 
