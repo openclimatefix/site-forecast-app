@@ -360,9 +360,20 @@ models:
     # https://github.com/openclimatefix/client-private/issues/656
     type: pvnet
     id: openclimatefix-models/pvnet_de
-    version: f3cfbc5a5a2ccd9089cc837adecb762e11706dcd
+    version: 1dcfdb378254c620e72ed23052b3048073c534d2
     summation_id: openclimatefix-models/pvnet_de
-    summation_version: 7558dd3745a3c4f4bb704162eed2a10eeffa4898
+    summation_version: 1ce22f856a2ca8ce3195cd2daaae6bd704742161
+    client: de
+    asset_type: pv
+    location_type: state
+    summation_location_type: nation
+    satellite_archive_version: v1
+  - name: de_ecmwf_pv_intraday
+    type: pvnet
+    id: openclimatefix-models/pvnet_de
+    version: f30566cc843a9154924f95cc71f03a0d35a6d20c
+    summation_id: openclimatefix-models/pvnet_de
+    summation_version: 2547e68733cb90a52bd37bfa6b6d13ddc7ffce99
     client: de
     asset_type: pv
     location_type: state
