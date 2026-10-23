@@ -205,9 +205,13 @@ def calculate_optimal_blend_weights(
     candidate_missing = df_mae[best_model].isna()
     backup_missing = df_mae[backup_model_name].isna()
 
+    # Exclude the candidate where it has no data.
     best_weights[candidate_missing] = np.nan
+    # Backup gets the remaining weight; NaN counts as 0 so the backup isn't NaN too.
     backup_weights = 1 - np.nan_to_num(best_weights, nan=0.0)
+    # Candidate missing but backup available: backup takes full weight.
     backup_weights[candidate_missing & ~backup_missing] = 1.0
+    # Exclude the backup where it has no data.
     backup_weights[backup_missing] = np.nan
 
     logger.debug(
