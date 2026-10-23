@@ -29,12 +29,21 @@ class BlendConfig(BaseModel):
         title="Backup Model",
         description="The absolute fallback model name; always used as the base.",
     )
-    national_candidate_models: list[str] = Field(
+    day_ahead_candidate_models: list[str] = Field(
         ...,
-        title="National Candidate Models",
+        title="Day-Ahead Candidate Models",
         description=(
-            "Models evaluated as candidates for the national blend. "
-            "The optimiser picks the single best one to blend against backup_model."
+            "Models evaluated as candidates for the day-ahead blend. "
+            "The optimiser picks the best model to blend against backup_model."
+        ),
+    )
+    intraday_candidate_models: list[str] = Field(
+        ...,
+        title="Intraday Candidate Models",
+        description=(
+            "Models evaluated as candidates for the intraday blend. "
+            "The optimiser blends them against the day-ahead blend over the "
+            "short forecast horizon."
         ),
     )
     regional_candidate_models: list[str] = Field(
@@ -42,7 +51,7 @@ class BlendConfig(BaseModel):
         title="Regional Candidate Models",
         description=(
             "Models evaluated as candidates for regional blends. "
-            "Typically a subset of national_candidate_models."
+            "Typically a subset of day_ahead_candidate_models."
         ),
     )
 

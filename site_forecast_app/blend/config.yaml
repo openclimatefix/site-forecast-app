@@ -11,12 +11,14 @@ blends:
 
     # Candidate models for the national blend.
     # The optimiser will pick the single best one to blend against backup_model.
-    national_candidate_models:
+    day_ahead_candidate_models:
       - nl_regional_48h_pv_ecmwf
       - nl_regional_pv_ecmwf_mo_sat
       - nl_regional_pv_ecmwf_sat
       - nl_regional_ecmwf_only
       - nl_regional_mo_only
+
+    intraday_candidate_models: []
 
     # Candidate models for regional blends (subset of national candidates).
     regional_candidate_models:
@@ -68,11 +70,16 @@ blends:
     backup_model: de_ecmwf_only
 
     # de_pv_only excluded: only wins below 1h, and crashes when generation lags t0.
-    national_candidate_models:
+    day_ahead_candidate_models:
       - de_ecmwf_pv
       - de_ecmwf_pv_mo_sat
       - de_mo_only
       - de_sat_only
+
+    # Candidate models for the intraday blend.
+    intraday_candidate_models:
+      - de_ecmwf_pv_mo_sat_intraday
+      - de_ecmwf_pv_intraday
 
     regional_candidate_models:
       - de_ecmwf_pv
@@ -90,7 +97,7 @@ blends:
 
     use_adjuster: true
 
-    scorecard_path: data/de_nmae_comparison.csv
+    scorecard_path: data/de_nmae_comparison_with_intraday.csv
     forecaster_name: de_blend
     national_location_key: de_national
     regional_location_type: STATE
