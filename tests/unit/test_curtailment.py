@@ -2,6 +2,7 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+import pytest
 
 from site_forecast_app.curtailment import Curtailment
 
@@ -69,3 +70,39 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
     # check the negative prices are all zero
     assert (potential_generation.loc[negative_prices_idx, "forecast_power_kw"]== 1/1.11).all()
     assert (potential_generation.loc[~negative_prices_idx, "forecast_power_kw"]== 1).all()
+
+
+@pytest.mark.parametrize(
+    "price_index",
+    [pd.RangeIndex(0), pd.DatetimeIndex([], tz="UTC")],
+    ids=["range-index", "utc-datetime-index"],
+)
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
+def test_make_potential_generation_without_prices(mock_entsoe_pandas_client, price_index):
+    start = pd.Timestamp("2026-05-12", tz="UTC")
+    forecast = pd.DataFrame({
+        "target_datetime_utc": pd.date_range(start=start, periods=3, freq="15min"),
+        "forecast_power_kw": [0.0, 10.0, 20.0],
+        "probabilistic_values": [
+            json.dumps({"p10": 0.0, "p90": 0.0}),
+            json.dumps({"p10": 8.0, "p90": 12.0}),
+            json.dumps({"p10": 16.0, "p90": 24.0}),
+        ],
+    })
+    forecast_values = forecast.to_dict("records")
+    mock_entsoe_pandas_client.return_value.query_day_ahead_prices.return_value = pd.Series(
+        index=price_index, dtype="float64",
+    )
+
+    curtailment = Curtailment(now=start)
+    assert curtailment.prices_df.empty
+
+    potential_generation = pd.DataFrame(
+        curtailment.apply_curtailment(forecast_values=forecast_values),
+    )
+
+    # Curtailment also adds diagnostic columns; the original forecast must stay unchanged.
+    pd.testing.assert_frame_equal(
+        potential_generation[forecast.columns], forecast, check_exact=True,
+    )
+    pd.testing.assert_frame_equal(pd.DataFrame(forecast_values), forecast, check_exact=True)
