@@ -38,7 +38,7 @@ model's score, the backup is used alone.
 
 ### 5. Blending
 
-The selected candidate and the backup model (`nl_regional_2h_pv_ecmwf`) are blended using a
+The selected candidate and the backup model (`nl_regional_ecmwf_only`) are blended using a
 taper kernel (`[0.75, 0.5, 0.25]`) at the crossover horizon — the point where the candidate's
 MAE curve crosses the backup's curve. Before the crossover, the candidate takes full weight;
 after it, the backup takes full weight; at the crossover the kernel provides a smooth transition.
@@ -68,11 +68,10 @@ All tunable parameters live in `config.yaml`:
 
 | Model | Role |
 |-------|------|
-| `nl_regional_2h_pv_ecmwf` | Backup — always used, 2 h init frequency |
+| `nl_regional_ecmwf_only` | Backup and candidate — ECMWF only, no PV or satellite |
 | `nl_regional_48h_pv_ecmwf` | Candidate — 48 h range ECMWF |
 | `nl_regional_pv_ecmwf_mo_sat` | Candidate — ECMWF + Met Office + satellite |
 | `nl_regional_pv_ecmwf_sat` | Candidate — ECMWF + satellite |
-| `nl_regional_ecmwf_only` | Candidate — ECMWF only, no PV or satellite |
 | `nl_regional_mo_only` | Candidate — Met Office only, no PV or satellite |
 
 ## Scorecard
