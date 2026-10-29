@@ -8,6 +8,7 @@ from site_forecast_app.blend.config import BlendConfig
 from site_forecast_app.blend.weights import (
     calculate_optimal_blend_weights,
     get_blend_weights,
+    infer_backup_model_name,
     make_avg_mae_func,
 )
 
@@ -193,3 +194,44 @@ def test_candidate_unavailable_falls_back_to_backup():
 
     assert weights.loc[after_eight_hours, "candidate"].isna().all()
     assert (weights.loc[after_eight_hours, "backup"] == 1.0).all()
+
+
+def test_infer_backup_model_name_prefers_longest_horizon_then_lowest_mae():
+    horizons = pd.timedelta_range(start="15min", periods=4, freq="15min")
+    df_mae = pd.DataFrame(
+        {
+            "short": [0.1, 0.1, np.nan, np.nan],
+            "long_worse": [2.0, 2.0, 2.0, 2.0],
+            "long_better": [1.0, 1.0, 1.0, 1.0],
+        },
+        index=horizons,
+    )
+    assert infer_backup_model_name(df_mae) == "long_better"
+
+
+@pytest.mark.asyncio
+async def test_get_blend_weights_configured_backup_missing(blend_config: BlendConfig):
+    """Verify a fresh candidate becomes the backup when the configured backup is missing."""
+    t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
+    horizons = pd.timedelta_range(start="15min", end="36h", freq="15min")
+    df_mae = pd.DataFrame(
+        {"nl_regional_ecmwf_only": 1.0, "nl_regional_48h_pv_ecmwf": 2.0},
+        index=horizons,
+    )
+
+    with patch(
+        "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
+    ) as mock_fetch:
+        mock_fetch.return_value = {"nl_regional_48h_pv_ecmwf": t0}
+
+        weights_df = await get_blend_weights(
+            t0=t0,
+            location_uuid="u",
+            df_mae=df_mae,
+            max_horizon=pd.Timedelta("36h"),
+            client=AsyncMock(),
+            config=blend_config,
+        )
+
+    assert list(weights_df.columns) == ["nl_regional_48h_pv_ecmwf"]
+    assert (weights_df["nl_regional_48h_pv_ecmwf"] == 1.0).all()
