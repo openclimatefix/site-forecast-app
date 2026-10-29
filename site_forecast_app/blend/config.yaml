@@ -6,7 +6,8 @@ blends:
     # Model registry                                                       #
     # ------------------------------------------------------------------ #
 
-    # The absolute fallback model: always available, used as the backup.
+    # Preferred backup. The actual backup is the model with the longest
+    # delay-adjusted horizon; this one is assumed fresh if no model has a run.
     backup_model: nl_regional_ecmwf_only
 
     # Candidate models for the national blend.

@@ -27,7 +27,10 @@ class BlendConfig(BaseModel):
     backup_model: str = Field(
         ...,
         title="Backup Model",
-        description="The absolute fallback model name; always used as the base.",
+        description=(
+            "Preferred backup model. The day-ahead backup is inferred from the "
+            "delay-shifted MAE curves; this model is the fallback if none has a run."
+        ),
     )
     day_ahead_candidate_models: list[str] = Field(
         ...,

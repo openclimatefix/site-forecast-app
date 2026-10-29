@@ -91,6 +91,35 @@ def index_of_last_non_nan_value(x: np.ndarray) -> int:
     return int(non_nan_indices[-1])
 
 
+def infer_backup_model_name(df_mae: pd.DataFrame) -> str:
+    """Infer the backup model name from the DataFrame of horizon-MAE values.
+
+    The backup model is the one which has the longest forecast horizon in the input DataFrame. Ties
+    are broken by lowest average MAE.
+
+    Args:
+        df_mae: DataFrame of horizon-MAE values for all models under consideration. These should
+            have been modified for the delay of the latest model run.
+
+    Returns:
+        The name of the backup model
+    """
+    candidates: list[tuple[str, pd.Timedelta, float]] = []
+
+    for model_name in df_mae.columns:
+        model_mae = df_mae[model_name].dropna()
+        if model_mae.empty:
+            continue
+        candidates.append((model_name, model_mae.index.max(), model_mae.mean()))
+
+    if not candidates:
+        logger.warning("Cannot infer backup model from empty MAE data. Returning first.")
+        return df_mae.columns[0]
+
+    backup_model_name, _, _ = max(candidates, key=lambda item: (item[1], -item[2]))
+    return backup_model_name
+
+
 # ---------------------------------------------------------------------------
 # Core weight optimiser
 # ---------------------------------------------------------------------------
@@ -252,7 +281,7 @@ async def _compute_weights(
         day_ahead_candidate_models: Models to evaluate for the day-ahead blend.
         intraday_candidate_models: Models to evaluate for the intraday blend.
         label:                Short label for log messages ("National"/"Regional").
-        backup_model:         Fallback model name (always available).
+        backup_model:         Fallback if no day-ahead model has a recent run.
         kernel:               Taper kernel weights (e.g. [0.75, 0.5, 0.25]).
         min_forecast_horizon: Minimum forecast horizon used in the scoring window.
 
@@ -281,10 +310,11 @@ async def _compute_weights(
     missing = [m for m in all_models if m not in model_init_times]
     if missing:
         logger.info(f"[{label}] No init time found for {missing}; assigning penalty delays.")
+    found_any = any(m in model_init_times for m in [backup_model, *day_ahead_candidate_models])
     for m in missing:
-        # Backup always gets delay=0 (always available).
-        # Candidates get delay=max_horizon (effectively excluded).
-        model_init_times[m] = t0 if m == backup_model else t0 - max_horizon
+        # Missing models get delay=max_horizon (effectively excluded).
+        # Backup gets delay=0 only if no day-ahead model has a recent run.
+        model_init_times[m] = t0 if (m == backup_model and not found_any) else t0 - max_horizon
 
     # Compute delays and shift MAE scorecard
     delays = calculate_model_delays(model_init_times, t0)
@@ -304,10 +334,18 @@ async def _compute_weights(
         min_forecast_horizon,
     )
 
+    # Pick the backup dynamically, as in uk-pv-forecast-blend
+    da_models = [
+        m for m in dict.fromkeys([backup_model, *day_ahead_candidate_models])
+        if m in df_delayed_mae.columns
+    ]
+    da_backup_model = infer_backup_model_name(df_delayed_mae[da_models])
+    logger.info(f"[{label}] Day-ahead backup model: {da_backup_model}")
+
     df_da_model_weights = calculate_optimal_blend_weights(
         df_mae=df_delayed_mae,
-        backup_model_name=backup_model,
-        candidate_models=day_ahead_candidate_models,
+        backup_model_name=da_backup_model,
+        candidate_models=[m for m in da_models if m != da_backup_model],
         kernel=kernel,
         score_func=da_score_func,
         min_forecast_horizon=min_forecast_horizon,
@@ -393,7 +431,7 @@ async def get_blend_weights(
     """Produces the national blend weight DataFrame for t0.
 
     Two-stage: blends day-ahead models, then blends intraday models on top.
-    to blend against config.backup_model, scored over the full scorecard horizon.
+    The day-ahead backup is inferred from the delay-shifted MAE curves.
 
     Args:
         t0:            Blend reference time (UTC, floored to 15 min).

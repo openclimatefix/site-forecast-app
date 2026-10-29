@@ -38,7 +38,9 @@ model's score, the backup is used alone.
 
 ### 5. Blending
 
-The selected candidate and the backup model (`nl_regional_ecmwf_only`) are blended using a
+The backup is the model with the longest delay-adjusted horizon (ties broken by lowest MAE),
+as in uk-pv-forecast-blend; usually `nl_regional_ecmwf_only`. The selected candidate and the
+backup are blended using a
 taper kernel (`[0.75, 0.5, 0.25]`) at the crossover horizon — the point where the candidate's
 MAE curve crosses the backup's curve. Before the crossover, the candidate takes full weight;
 after it, the backup takes full weight; at the crossover the kernel provides a smooth transition.
