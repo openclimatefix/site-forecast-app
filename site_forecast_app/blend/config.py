@@ -24,20 +24,13 @@ class BlendConfig(BaseModel):
     # ------------------------------------------------------------------
     # Model registry
     # ------------------------------------------------------------------
-    backup_model: str = Field(
-        ...,
-        title="Backup Model",
-        description=(
-            "Preferred backup model. The day-ahead backup is inferred from the "
-            "delay-shifted MAE curves; this model is the fallback if none has a run."
-        ),
-    )
     day_ahead_candidate_models: list[str] = Field(
         ...,
         title="Day-Ahead Candidate Models",
         description=(
-            "Models evaluated as candidates for the day-ahead blend. "
-            "The optimiser picks the best model to blend against backup_model."
+            "Models evaluated for the day-ahead blend. The one with the longest "
+            "delay-adjusted horizon is the backup; the optimiser picks the best "
+            "other model to blend against it."
         ),
     )
     intraday_candidate_models: list[str] = Field(

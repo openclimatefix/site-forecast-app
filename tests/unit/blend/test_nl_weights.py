@@ -66,14 +66,13 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
 
 @pytest.mark.asyncio
 async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
-    """Verify fallback when no initialisation times exist (everything falls back)."""
+    """Verify no weights are produced when no initialisation times exist."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     df_mae = pd.DataFrame({"nl_regional_ecmwf_only": [1.0]}, index=[pd.Timedelta("30min")])
 
     with patch(
         "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
     ) as mock_fetch:
-        # No init times found -> delays are 1000 days
         mock_fetch.return_value = {}
 
         weights_df = await get_blend_weights(
@@ -84,10 +83,7 @@ async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
             client=AsyncMock(),
             config=blend_config,
         )
-        assert len(weights_df) == 1
-        # It still computes weights evenly or heavily shifts since they both have huge penalties.
-        # Just ensure the DF isn't empty.
-        assert not weights_df.empty
+        assert weights_df.empty
 
 @pytest.mark.asyncio
 async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConfig):
@@ -210,8 +206,8 @@ def test_infer_backup_model_name_prefers_longest_horizon_then_lowest_mae():
 
 
 @pytest.mark.asyncio
-async def test_get_blend_weights_configured_backup_missing(blend_config: BlendConfig):
-    """Verify a fresh candidate becomes the backup when the configured backup is missing."""
+async def test_get_blend_weights_ignores_models_without_a_run(blend_config: BlendConfig):
+    """Verify a lower-MAE model with no recent run is not used."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     horizons = pd.timedelta_range(start="15min", end="36h", freq="15min")
     df_mae = pd.DataFrame(

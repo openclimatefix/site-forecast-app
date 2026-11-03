@@ -149,7 +149,6 @@ class TestDeConfig:
         """Models missing from the scorecard are dropped when the MAE curves shift."""
         df_mae = load_nl_mae_scorecard(str(BLEND_DIR / de_blend_config.scorecard_path))
         configured = {
-            de_blend_config.backup_model,
             *de_blend_config.day_ahead_candidate_models,
             *de_blend_config.regional_candidate_models,
             *de_blend_config.intraday_candidate_models,

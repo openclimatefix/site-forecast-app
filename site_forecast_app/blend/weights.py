@@ -263,7 +263,6 @@ async def _compute_weights(
     day_ahead_candidate_models: list[str],
     intraday_candidate_models: list[str],
     label: str,
-    backup_model: str,
     kernel: list[float],
     min_forecast_horizon: pd.Timedelta,
 ) -> pd.DataFrame:
@@ -281,7 +280,6 @@ async def _compute_weights(
         day_ahead_candidate_models: Models to evaluate for the day-ahead blend.
         intraday_candidate_models: Models to evaluate for the intraday blend.
         label:                Short label for log messages ("National"/"Regional").
-        backup_model:         Fallback if no day-ahead model has a recent run.
         kernel:               Taper kernel weights (e.g. [0.75, 0.5, 0.25]).
         min_forecast_horizon: Minimum forecast horizon used in the scoring window.
 
@@ -291,7 +289,6 @@ async def _compute_weights(
         Returns an empty DataFrame on failure.
     """
     all_models = [
-        backup_model,
         *day_ahead_candidate_models,
         *intraday_candidate_models,
     ]
@@ -310,11 +307,9 @@ async def _compute_weights(
     missing = [m for m in all_models if m not in model_init_times]
     if missing:
         logger.info(f"[{label}] No init time found for {missing}; assigning penalty delays.")
-    found_any = any(m in model_init_times for m in [backup_model, *day_ahead_candidate_models])
     for m in missing:
         # Missing models get delay=max_horizon (effectively excluded).
-        # Backup gets delay=0 only if no day-ahead model has a recent run.
-        model_init_times[m] = t0 if (m == backup_model and not found_any) else t0 - max_horizon
+        model_init_times[m] = t0 - max_horizon
 
     # Compute delays and shift MAE scorecard
     delays = calculate_model_delays(model_init_times, t0)
@@ -334,11 +329,7 @@ async def _compute_weights(
         min_forecast_horizon,
     )
 
-    # Pick the backup dynamically, as in uk-pv-forecast-blend
-    da_models = [
-        m for m in dict.fromkeys([backup_model, *day_ahead_candidate_models])
-        if m in df_delayed_mae.columns
-    ]
+    da_models = [m for m in day_ahead_candidate_models if m in df_delayed_mae.columns]
     da_backup_model = infer_backup_model_name(df_delayed_mae[da_models])
     logger.info(f"[{label}] Day-ahead backup model: {da_backup_model}")
 
@@ -455,7 +446,6 @@ async def get_blend_weights(
         day_ahead_candidate_models=config.day_ahead_candidate_models,
         intraday_candidate_models=config.intraday_candidate_models,
         label="National",
-        backup_model=config.backup_model,
         kernel=config.blend_kernel,
         min_forecast_horizon=config.min_forecast_horizon,
     )
@@ -496,7 +486,6 @@ async def get_regional_blend_weights(
         day_ahead_candidate_models=config.regional_candidate_models,
         intraday_candidate_models=config.intraday_candidate_models,
         label="Regional",
-        backup_model=config.backup_model,
         kernel=config.blend_kernel,
         min_forecast_horizon=config.min_forecast_horizon,
     )
