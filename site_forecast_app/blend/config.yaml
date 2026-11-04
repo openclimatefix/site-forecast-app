@@ -7,7 +7,7 @@ blends:
     # ------------------------------------------------------------------ #
 
     # The absolute fallback model: always available, used as the backup.
-    backup_model: nl_regional_ecmwf_only
+    backup_model: nl_regional_da_ecmwf
 
     # Candidate models for the national blend.
     # The optimiser will pick the single best one to blend against backup_model.
