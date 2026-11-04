@@ -22,11 +22,11 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     location_uuid = "test-uuid"
     max_horizon = pd.Timedelta("48h")
 
-    # Create MAE scorecard where nl_regional_ecmwf_only is better than nl_regional_pv_ecmwf_mo_sat
+    # Create MAE scorecard where nl_regional_da_ecmwf is better than nl_regional_pv_ecmwf_mo_sat
     horizons = [pd.Timedelta("30min"), pd.Timedelta("1h")]
     df_mae = pd.DataFrame(
         {
-            "nl_regional_ecmwf_only": [1.0, 1.5],
+            "nl_regional_da_ecmwf": [1.0, 1.5],
             "nl_regional_pv_ecmwf_mo_sat": [2.0, 2.5],
             "backup_blend": [5.0, 5.0],
         },
@@ -39,9 +39,9 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
     with patch(
         "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
     ) as mock_fetch:
-        # only nl_regional_ecmwf_only has a recent init_time
+        # only nl_regional_da_ecmwf has a recent init_time
         mock_fetch.return_value = {
-            "nl_regional_ecmwf_only": pd.Timestamp("2024-06-01 11:30", tz="UTC"),
+            "nl_regional_da_ecmwf": pd.Timestamp("2024-06-01 11:30", tz="UTC"),
         }
 
         weights_df = await get_blend_weights(
@@ -54,7 +54,7 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
         )
 
     assert weights_df is not None
-    assert "nl_regional_ecmwf_only" in weights_df.columns
+    assert "nl_regional_da_ecmwf" in weights_df.columns
     # nl_regional_pv_ecmwf_mo_sat has penalty and is worse, so maybe only backup shows up.
     # Check that at least the fallback is there.
     assert len(weights_df) > 0 # At least 1 valid horizon after shifting
@@ -67,7 +67,7 @@ async def test_get_blend_weights_missing_init_times(blend_config: BlendConfig):
 async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
     """Verify fallback when no initialisation times exist (everything falls back)."""
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
-    df_mae = pd.DataFrame({"nl_regional_ecmwf_only": [1.0]}, index=[pd.Timedelta("30min")])
+    df_mae = pd.DataFrame({"nl_regional_da_ecmwf": [1.0]}, index=[pd.Timedelta("30min")])
 
     with patch(
         "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
@@ -91,9 +91,7 @@ async def test_get_blend_weights_all_fail(blend_config: BlendConfig):
 @pytest.mark.asyncio
 async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConfig):
     """Verify intraday blending is applied on top of the day-ahead blend."""
-    config = blend_config.model_copy(
-        update={"intraday_candidate_models": ["fake_intraday"]},
-    )
+    config = blend_config
 
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     max_horizon = pd.Timedelta("36h")
@@ -106,12 +104,12 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
 
     df_mae = pd.DataFrame(
         {
-            "nl_regional_ecmwf_only": 5.0,
-            "nl_regional_48h_pv_ecmwf": [
+            "nl_regional_da_ecmwf": 5.0,
+            "nl_regional_da_ecmwf_mo": [
                 5.0 if horizon <= pd.Timedelta(hours=8) else 2.0
                 for horizon in horizons
             ],
-            "fake_intraday": [
+            "nl_regional_intra_ecmwf_mo_sat_pv": [
                 1.0 if horizon <= pd.Timedelta(hours=8) else np.nan
                 for horizon in horizons
             ],
@@ -124,9 +122,9 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
         new_callable=AsyncMock,
     ) as mock_fetch:
         mock_fetch.return_value = {
-            "nl_regional_ecmwf_only": t0,
-            "nl_regional_48h_pv_ecmwf": t0,
-            "fake_intraday": t0,
+            "nl_regional_da_ecmwf_mo": t0,
+            "nl_regional_da_mo": t0,
+            "nl_regional_intra_ecmwf_mo_sat_pv": t0,
         }
         weights_df = await get_blend_weights(
             t0=t0,
@@ -137,12 +135,12 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
             config=config,
         )
         # Intraday model dominates before the taper.
-        assert weights_df.loc["2024-06-01 19:00:00+00:00", "fake_intraday"] == pytest.approx(1.0)
+        assert weights_df.loc["2024-06-01 19:00:00+00:00", "nl_regional_intra_ecmwf_mo_sat_pv"] == pytest.approx(1.0)
 
         assert (
             weights_df.loc[
                 "2024-06-01 19:45:00+00:00",
-                "nl_regional_48h_pv_ecmwf",
+                "nl_regional_da_ecmwf_mo",
             ]
             == pytest.approx(0.5)
         )
@@ -150,14 +148,14 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
         assert (
             weights_df.loc[
                 "2024-06-01 20:15:00+00:00",
-                "nl_regional_48h_pv_ecmwf",
+                "nl_regional_da_ecmwf_mo",
             ]
             == pytest.approx(1.0)
         )
         assert pd.isna(
             weights_df.loc[
                 "2024-06-01 20:15:00+00:00",
-                "fake_intraday",
+                "nl_regional_intra_ecmwf_mo_sat_pv",
             ],
         )
 def test_candidate_unavailable_falls_back_to_backup():
