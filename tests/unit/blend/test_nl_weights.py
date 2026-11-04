@@ -135,7 +135,12 @@ async def test_get_blend_weights_intraday_then_day_ahead(blend_config: BlendConf
             config=config,
         )
         # Intraday model dominates before the taper.
-        assert weights_df.loc["2024-06-01 19:00:00+00:00", "nl_regional_intra_ecmwf_mo_sat_pv"] == pytest.approx(1.0)
+        assert (
+            weights_df.loc[
+                "2024-06-01 19:00:00+00:00",
+                "nl_regional_intra_ecmwf_mo_sat_pv",
+                ] == pytest.approx(1.0)
+        )
 
         assert (
             weights_df.loc[
