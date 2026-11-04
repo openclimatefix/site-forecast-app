@@ -12,21 +12,23 @@ blends:
     # Candidate models for the national blend.
     # The optimiser will pick the single best one to blend against backup_model.
     day_ahead_candidate_models:
-      - nl_regional_48h_pv_ecmwf
-      - nl_regional_pv_ecmwf_mo_sat
-      - nl_regional_pv_ecmwf_sat
-      - nl_regional_ecmwf_only
-      - nl_regional_mo_only
+      - nl_regional_da_ecmwf_mo
+      - nl_regional_da_ecmwf
+      - nl_regional_da_mo
 
-    intraday_candidate_models: []
+    intraday_candidate_models: 
+      - nl_regional_intra_ecmwf_mo_sat_pv
+      - nl_regional_intra_ecmwf_mo_sat
+      - nl_regional_intra_ecmwf_mo_pv
+      - nl_regional_intra_ecmwf_sat_pv
+
 
     # Candidate models for regional blends (subset of national candidates).
     regional_candidate_models:
-      - nl_regional_48h_pv_ecmwf
-      - nl_regional_pv_ecmwf_mo_sat
-      - nl_regional_pv_ecmwf_sat
-      - nl_regional_ecmwf_only
-      - nl_regional_mo_only
+      - nl_regional_intra_ecmwf_mo_sat_pv
+      - nl_regional_intra_ecmwf_mo_sat
+      - nl_regional_intra_ecmwf_mo_pv
+      - nl_regional_intra_ecmwf_sat_pv
 
     # ------------------------------------------------------------------ #
     # Blending parameters                                                  #
