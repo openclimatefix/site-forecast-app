@@ -150,18 +150,23 @@ class TestDeConfig:
         df_mae = load_nl_mae_scorecard(str(BLEND_DIR / de_blend_config.scorecard_path))
         configured = {
             de_blend_config.backup_model,
-            *de_blend_config.national_candidate_models,
+            *de_blend_config.day_ahead_candidate_models,
             *de_blend_config.regional_candidate_models,
+            *de_blend_config.intraday_candidate_models,
         }
 
         missing = sorted(configured - set(df_mae.columns))
         assert not missing, f"models in config.yaml but not in the scorecard: {missing}"
 
     def test_scorecard_has_no_gaps(self, de_blend_config):
-        """A NaN in the scorecard propagates into the weight optimisation."""
+        """A NaN in the scorecard propagates into the weight optimisation.
+        Intraday models only cover the first 8 hours.
+        """
         df_mae = load_nl_mae_scorecard(str(BLEND_DIR / de_blend_config.scorecard_path))
+        intraday = de_blend_config.intraday_candidate_models
 
-        assert not df_mae.isna().to_numpy().any()
+        assert not df_mae.drop(columns=intraday).isna().to_numpy().any()
+        assert not df_mae.loc[:pd.Timedelta(hours=8), intraday].isna().to_numpy().any()
 
     def test_scorecard_reaches_the_minimum_horizon(self, de_blend_config):
         """A scorecard starting above min_forecast_horizon would emit nothing."""
