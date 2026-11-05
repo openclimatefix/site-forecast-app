@@ -110,8 +110,13 @@ def test_run_model(
     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
     monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
 
-    all_models = get_all_models(satellite_archive_version="v0")
+    all_models = get_all_models(satellite_archive_version="v1")
     ml_model = all_models.models[0]
+    if "_intra" in ml_model.name:
+        n_fv = 8 * 4 # expect forecast length 8 hrs x 15mins
+    else:
+        n_fv = 36 * 4 # expect forecast length 36 hrs x 15mins
+    
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl_regional"][:1]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
     model = PVNetModel(
@@ -125,9 +130,9 @@ def test_run_model(
         client_name="nl",
     )
     forecast = run_model(model=model, timestamp=init_timestamp)
-
+    
     assert isinstance(forecast, list)
-    assert len(forecast) == 36*4  # value for every 15mins over 36 hours
+    assert len(forecast) == n_fv
     assert all(isinstance(value["start_utc"], dt.datetime) for value in forecast)
     assert all(isinstance(value["end_utc"], dt.datetime) for value in forecast)
     assert all(isinstance(value["forecast_power_kw"], int) for value in forecast)
