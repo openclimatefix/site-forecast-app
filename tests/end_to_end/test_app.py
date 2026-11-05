@@ -482,7 +482,7 @@ def test_app_critical_only(
     nwp_data,
     nwp_mo_global_data_nl,
     generation_db_values,  # noqa: ARG001
-    satellite_data,
+    satellite_data_icechunk,
     mock_da_prices,
     monkeypatch,
 ):
@@ -491,7 +491,8 @@ def test_app_critical_only(
     monkeypatch.setenv("COUNTRY", "nl")
     monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
     monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
-    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
+    monkeypatch.setenv("SATELLITE_ICECHUNK_PATH_5", satellite_data_icechunk)
+    monkeypatch.setenv("SATELLITE_ARCHIVE_VERSION", "v1")
     monkeypatch.setenv("RUN_CRITICAL_MODELS_ONLY", "true")
 
     mock_entsoe_pandas_client_instance = MagicMock()
