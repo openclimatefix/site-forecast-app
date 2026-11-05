@@ -6,7 +6,6 @@ import logging
 import os
 import shutil
 import sys
-from functools import partial
 
 import click
 import pandas as pd
