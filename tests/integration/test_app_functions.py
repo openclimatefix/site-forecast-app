@@ -116,7 +116,7 @@ def test_run_model(
         n_fv = 8 * 4 # expect forecast length 8 hrs x 15mins
     else:
         n_fv = 36 * 4 # expect forecast length 36 hrs x 15mins
-    
+
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl_regional"][:1]
     gen_data = get_generation_data(db_session, sites=gen_sites, timestamp=init_timestamp)
     model = PVNetModel(
@@ -130,7 +130,7 @@ def test_run_model(
         client_name="nl",
     )
     forecast = run_model(model=model, timestamp=init_timestamp)
-    
+
     assert isinstance(forecast, list)
     assert len(forecast) == n_fv
     assert all(isinstance(value["start_utc"], dt.datetime) for value in forecast)

@@ -27,7 +27,7 @@ from site_forecast_app.data.satellite import (
     check_model_satellite_inputs_available,
     get_valid_satellite_times,
 )
-from site_forecast_app.data_platform import get_sites_from_data_platform, get_dataplatform_client
+from site_forecast_app.data_platform import get_sites_from_data_platform
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pvnet.consts import root_data_path, satellite_path
 from site_forecast_app.models.pydantic_models import Model
@@ -243,7 +243,7 @@ def app_run(
                     "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
                     exc_info=True,
                 )
-        
+
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
@@ -382,15 +382,15 @@ def app_run(
                             some succeeded: {successful_runs}")
         else:
             raise Exception("All forecasts failed")
-        
+
 
         # lets now run curtailment
         curtailment = Curtailment(timestamp)
-        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed", 
-                                                location_map=dp_location_map, 
+        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed",
+                                                location_map=dp_location_map,
                                                 t0=timestamp,
                                                 new_model_name="nl_blend"))
-        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust", 
+        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust",
                                                 location_map=dp_location_map,
                                                 t0=timestamp,
                                                 new_model_name="nl_blend_adjust"))

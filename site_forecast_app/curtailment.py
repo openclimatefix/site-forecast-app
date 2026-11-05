@@ -4,20 +4,15 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timedelta, UTC
+from datetime import datetime
 from venv import logger
 
-from ocf import dp
 import pandas as pd
 from entsoe import EntsoePandasClient
 
-from site_forecast_app.data_platform import get_dataplatform_client
-from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
 from site_forecast_app.blend.app import save_forecasts
-
-from site_forecast_app.save.data_platform import (
-    save_to_dataplatform,
-)
+from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
+from site_forecast_app.data_platform import get_dataplatform_client
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +43,7 @@ class Curtailment:
         max_retries = 3
 
         self.prices_df = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"], index=pd.date_range(start=start, end=end, freq="15T"))
-        self.prices_df['target_datetime_utc'] = self.prices_df.index
+        self.prices_df["target_datetime_utc"] = self.prices_df.index
         return None
 
         for attempt in range(max_retries):
@@ -143,8 +138,7 @@ class Curtailment:
         return forecast_values_df.to_dict("records")
 
     async def apply_curtailment_on_model(self, model_name: str, location_map: dict[str, str], new_model_name:str, t0: datetime):
-        """ Run the curtailment process for a specific model. """
-        
+        """Run the curtailment process for a specific model."""
         async with get_dataplatform_client() as dp_client:
 
             # load the forecast values
@@ -152,11 +146,11 @@ class Curtailment:
                 client=dp_client,
                 location_uuid=location_map["nl_national"],
                 model_name=model_name,
-                start_datetime=t0
+                start_datetime=t0,
             )
 
-            values['target_datetime_utc'] = values['target_time']
-            values['forecast_power'] = values['expected_power_generation']
+            values["target_datetime_utc"] = values["target_time"]
+            values["forecast_power"] = values["expected_power_generation"]
 
             # Apply curtailment
             curtailment_results = self.apply_curtailment(forecast_values=values)
