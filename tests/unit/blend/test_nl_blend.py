@@ -29,9 +29,9 @@ def _make_model_df(target_times, model_name, p50_values, p10_values=None, p90_va
             "expected_power_generation_megawatts": p50_values[i],
         }
         if p10_values is not None:
-            row["p10_mw"] = p10_values[i]
+            row["p10"] = p10_values[i]
         if p90_values is not None:
-            row["p90_mw"] = p90_values[i]
+            row["p90"] = p90_values[i]
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -57,8 +57,8 @@ class TestEmptyInputs:
     EXPECTED_COLUMNS: ClassVar[set[str]] = {
         "target_time",
         "expected_power_generation_megawatts",
-        "p10_mw",
-        "p90_mw",
+        "p10",
+        "p90",
     }
 
     def test_empty_model_df(self):
@@ -68,8 +68,8 @@ class TestEmptyInputs:
                 "target_time",
                 "model_name",
                 "expected_power_generation_megawatts",
-                "p10_mw",
-                "p90_mw",
+                "p10",
+                "p90",
             ],
         )
         weights = _make_weights_df(TARGET_TIMES, {"model_A": [1.0, 1.0, 1.0, 1.0]})
@@ -125,8 +125,8 @@ class TestSingleModelBlend:
 
         result_indexed = result.set_index("target_time")
         for i, t in enumerate(TARGET_TIMES):
-            assert result_indexed.loc[t, "p10_mw"] == pytest.approx(p10[i])
-            assert result_indexed.loc[t, "p90_mw"] == pytest.approx(p90[i])
+            assert result_indexed.loc[t, "p10"] == pytest.approx(p10[i])
+            assert result_indexed.loc[t, "p90"] == pytest.approx(p90[i])
 
 
 # ---------------------------------------------------------------------------
@@ -202,8 +202,8 @@ class TestTwoModelBlend:
         for i, t in enumerate(TARGET_TIMES):
             expected_p10 = (p10_a[i] + p10_b[i]) / 2
             expected_p90 = (p90_a[i] + p90_b[i]) / 2
-            assert result_indexed.loc[t, "p10_mw"] == pytest.approx(expected_p10)
-            assert result_indexed.loc[t, "p90_mw"] == pytest.approx(expected_p90)
+            assert result_indexed.loc[t, "p10"] == pytest.approx(expected_p10)
+            assert result_indexed.loc[t, "p90"] == pytest.approx(expected_p90)
 
     def test_taper_transition_between_models(self):
         """Kernel taper [0.75, 0.5, 0.25] blends correctly at the transition zone."""
@@ -309,8 +309,8 @@ class TestMissingModelData:
             # Only model_A contributes p10/p90, with weight 0.5
             # Since only model_A contributes (weight_sum=0.5 for p10),
             # the blend is (0.5 * 10.0) / 0.5 = 10.0 (normalised).
-            assert result_indexed.loc[t, "p10_mw"] == pytest.approx(10.0)
-            assert result_indexed.loc[t, "p90_mw"] == pytest.approx(90.0)
+            assert result_indexed.loc[t, "p10"] == pytest.approx(10.0)
+            assert result_indexed.loc[t, "p90"] == pytest.approx(90.0)
 
 
 # ---------------------------------------------------------------------------
@@ -327,19 +327,19 @@ class TestOutputFormat:
 
         assert "target_time" in result.columns
         assert "expected_power_generation_megawatts" in result.columns
-        assert "p10_mw" in result.columns
-        assert "p90_mw" in result.columns
+        assert "p10" in result.columns
+        assert "p90" in result.columns
 
     def test_p10_p90_nan_when_not_in_input(self):
-        """p10_mw and p90_mw should be NaN when neither input model provides them."""
+        """p10 and p90 should be NaN when neither input model provides them."""
         models_df = _make_model_df(TARGET_TIMES, "model_A", [10.0, 20.0, 30.0, 40.0])
         weights = _make_weights_df(TARGET_TIMES, {"model_A": [1.0] * 4})
 
         result = blend_forecasts_together(models_df, weights)
 
         for _, row in result.iterrows():
-            assert math.isnan(row["p10_mw"]), "p10_mw should be NaN when input has no p10"
-            assert math.isnan(row["p90_mw"]), "p90_mw should be NaN when input has no p90"
+            assert math.isnan(row["p10"]), "p10 should be NaN when input has no p10"
+            assert math.isnan(row["p90"]), "p90 should be NaN when input has no p90"
 
     def test_weights_sum_to_one_correct_blend(self):
         """Weights that exactly sum to 1.0 produce numerically correct results."""

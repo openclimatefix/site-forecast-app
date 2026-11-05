@@ -102,8 +102,8 @@ async def get_all_forecast_values_as_dataframe(
     -------
     target_time                          - UTC datetime of the forecast step
     expected_power_generation_megawatts  - p50 value converted to MW
-    p10_mw                               - p10 value converted to MW (NaN if absent)
-    p90_mw                               - p90 value converted to MW (NaN if absent)
+    p10                                  - p10 value converted to MW (NaN if absent)
+    p90.                                 - p90 value converted to MW (NaN if absent)
     created_utc                          - wall-clock time of the fetch
     model_name                           - name of the source model
 
@@ -113,8 +113,8 @@ async def get_all_forecast_values_as_dataframe(
         columns=[
             "target_time",
             "expected_power_generation_megawatts",
-            "p10_mw",
-            "p90_mw",
+            "p10",
+            "p90",
             "created_utc",
             "model_name",
         ],
@@ -138,8 +138,8 @@ async def get_all_forecast_values_as_dataframe(
         # p10/p90 are optional fields - fall back to NaN when absent or zero.
         p10_fraction = v.other_statistics_fractions.get("p10")
         p90_fraction = v.other_statistics_fractions.get("p90")
-        p10_mw = p10_fraction if p10_fraction is not None else float("nan")
-        p90_mw = p90_fraction if p90_fraction is not None else float("nan")
+        p10 = p10_fraction if p10_fraction is not None else float("nan")
+        p90 = p90_fraction if p90_fraction is not None else float("nan")
 
         target_time = _to_aware_datetime(v.target_timestamp_utc).replace(microsecond=0)
 
@@ -147,8 +147,8 @@ async def get_all_forecast_values_as_dataframe(
             {
                 "target_time": target_time,
                 "expected_power_generation_megawatts": p50_mw,
-                "p10_mw": p10_mw,
-                "p90_mw": p90_mw,
+                "p10": p10,
+                "p90": p90,
                 "created_utc": now,
                 "model_name": model_name,
             },
@@ -263,8 +263,8 @@ def build_forecast_value_objects(
 
     Args:
         blended_df:     DataFrame with columns [target_time,
-                        expected_power_generation_megawatts, p10_mw (opt),
-                        p90_mw (opt)].
+                        expected_power_generation_megawatts,p10 (opt),
+                        p90 (opt)].
         init_time_utc:  Forecast init time (UTC); used to compute horizon_mins.
 
     Returns:
@@ -273,8 +273,8 @@ def build_forecast_value_objects(
     if init_time_utc.tzinfo is None:
         init_time_utc = init_time_utc.replace(tzinfo=UTC)
 
-    has_p10 = "p10_mw" in blended_df.columns
-    has_p90 = "p90_mw" in blended_df.columns
+    has_p10 = "p10" in blended_df.columns
+    has_p90 = "p90" in blended_df.columns
 
     values: list[dp.CreateForecastRequestForecastValue] = []
     for row in blended_df.itertuples(index=False):
@@ -290,13 +290,13 @@ def build_forecast_value_objects(
 
         other_stats: dict[str, float] = {}
         if has_p10:
-            p10_mw = row.p10_mw
-            if not math.isnan(p10_mw):
-                other_stats["p10"] = float(p10_mw)
+            p10 = row.p10
+            if not math.isnan(p10):
+                other_stats["p10"] = float(p10)
         if has_p90:
-            p90_mw = row.p90_mw
-            if not math.isnan(p90_mw):
-                other_stats["p90"] = float(p90_mw)
+            p90 = row.p90
+            if not math.isnan(p90):
+                other_stats["p90"] = float(p90)
 
         values.append(
             dp.CreateForecastRequestForecastValue(
