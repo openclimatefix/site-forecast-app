@@ -112,9 +112,6 @@ def test_run_model(
 
     all_models = get_all_models(satellite_archive_version="v1")
     ml_model = all_models.models[0]
-
-    # intraday models forecast length 8 hrs x 15mins,
-    # DA models forecast length 36 hrs x 15mins
     n_fv = 8 * 4 if "_intra" in ml_model.name else 36 * 4
 
     gen_sites = [s for s in sites if s.client_location_name == "test_site_nl_regional"][:1]
