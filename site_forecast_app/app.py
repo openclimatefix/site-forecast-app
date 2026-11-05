@@ -386,6 +386,7 @@ def app_run(
 
         # lets now run curtailment
         if client_name == "nl" and save_to_data_platform:
+            log.info("Running curtailment for NL...")
             curtailment = Curtailment(timestamp)
             asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed",
                                                     location_map=dp_location_map,

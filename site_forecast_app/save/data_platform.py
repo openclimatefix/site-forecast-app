@@ -52,7 +52,7 @@ async def build_dp_location_map() -> dict[str, str]:
 
 
 @contextlib.asynccontextmanager
-async def get_dataplatform_client(dp_client: dp.DataPlatformDataServiceStub | None) \
+async def get_dataplatform_client(dp_client: dp.DataPlatformDataServiceStub | None = None) \
     -> AsyncIterator[DataPlatformClient]:
     """Async context manager that opens a gRPC channel and yields a ready-to-use client.
 
