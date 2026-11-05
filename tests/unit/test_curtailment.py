@@ -133,5 +133,21 @@ async def test_apply_curtailment_on_model(mock_entsoe_pandas_client, mock_da_pri
         time = row.target_time.time()
         if (time >= pd.Timestamp("08:15").time()) and (time <= pd.Timestamp("14:15").time()):
             assert np.round(row["forecast_power"], 4) == np.round(i/100 / 1.11, 4)
+            assert np.round(row["p10"], 4) == np.round(0.8 / 1.11, 4)
+            assert np.round(row["p90"], 4) == np.round(1.2 / 1.11, 4)
         else:
             assert np.round(row["forecast_power"], 4) == np.round(i/100,4)
+            assert np.round(row["p10"], 4) == np.round(0.8, 4)
+            assert np.round(row["p90"], 4) == np.round(1.2, 4)
+
+    # check that the save function is called
+    client.create_forecaster.assert_called_once()
+    client.create_forecast.assert_called_once()
+
+    # see what the forecast looks like, when saved to the dp
+    forecast = client.create_forecast.call_args[0][0]
+    values = forecast.values
+    assert len(values) == 97
+    assert values[0].p50_fraction == 0.0
+    assert np.round(values[0].other_statistics_fractions["p10"], 4) == 0.8
+    assert np.round(values[0].other_statistics_fractions["p90"], 4) == 1.2
