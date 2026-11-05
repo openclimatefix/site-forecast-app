@@ -18,7 +18,7 @@ def blend_forecasts_together(
 ) -> pd.DataFrame:
     """Blends per-model forecast arrays using pre-calculated weight trajectories.
 
-    Blends p50 (expected_power_generation_megawatts), p10, and p90 
+    Blends p50 (expected_power_generation_megawatts), p10, and p90
     using the same weights for all three quantities.
 
     Approach:
