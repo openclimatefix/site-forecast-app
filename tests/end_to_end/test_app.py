@@ -203,7 +203,7 @@ class FakeDataPlatform:
 def test_app_nl(
     mock_entsoe_pandas_client,
     db_session,
-    sites,  # noqa: ARG001q
+    sites,  # noqa: ARG001
     nwp_data,
     nwp_mo_global_data_nl,
     generation_db_values,  # noqa: ARG001
