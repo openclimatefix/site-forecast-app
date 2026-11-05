@@ -214,14 +214,14 @@ async def test_get_blend_weights_ignores_models_without_a_run(blend_config: Blen
     t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
     horizons = pd.timedelta_range(start="15min", end="36h", freq="15min")
     df_mae = pd.DataFrame(
-        {"nl_regional_ecmwf_only": 1.0, "nl_regional_48h_pv_ecmwf": 2.0},
+        {"nl_regional_da_ecmwf_mo": 1.0, "nl_regional_da_mo": 2.0},
         index=horizons,
     )
 
     with patch(
         "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
     ) as mock_fetch:
-        mock_fetch.return_value = {"nl_regional_48h_pv_ecmwf": t0}
+        mock_fetch.return_value = {"nl_regional_da_ecmwf_mo": t0}
 
         weights_df = await get_blend_weights(
             t0=t0,
@@ -232,5 +232,5 @@ async def test_get_blend_weights_ignores_models_without_a_run(blend_config: Blen
             config=blend_config,
         )
 
-    assert list(weights_df.columns) == ["nl_regional_48h_pv_ecmwf"]
-    assert (weights_df["nl_regional_48h_pv_ecmwf"] == 1.0).all()
+    assert list(weights_df.columns) == ["nl_regional_da_ecmwf_mo"]
+    assert (weights_df["nl_regional_da_ecmwf_mo"] == 1.0).all()
