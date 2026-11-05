@@ -27,7 +27,7 @@ from site_forecast_app.data.satellite import (
     check_model_satellite_inputs_available,
     get_valid_satellite_times,
 )
-from site_forecast_app.data_platform import get_sites_from_data_platform
+from site_forecast_app.data_platform import get_sites_from_data_platform, get_dataplatform_client
 from site_forecast_app.models import PVNetModel, get_all_models
 from site_forecast_app.models.pvnet.consts import root_data_path, satellite_path
 from site_forecast_app.models.pydantic_models import Model
@@ -243,11 +243,7 @@ def app_run(
                     "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
                     exc_info=True,
                 )
-
-        if any(m.curtailment for m in all_model_configs.models):
-            log.info("Curtailment is enabled for at least one model.")
-            curtailment = Curtailment(timestamp)
-
+        
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
@@ -353,36 +349,13 @@ def app_run(
                         location_map=dp_location_map,
                     )
 
-                    if not model_config.curtailment:
-                        # if there is no curtailment, we can save the forecast normally
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
+                    # if there is no curtailment, we can save the forecast normally
+                    save_forecast_for_site_group_partial(
+                        forecast_values=forecast_values,
+                        model_name=model_config.name,
+                        observer_name=model_config.observer_name_adjuster,
+                    )
 
-                    elif model_config.save_uncurtailed & model_config.curtailment:
-                        # if there is curtailment, and we want to save the uncurtailed values
-                        log.info("Saving uncurtailed forecast values...")
-
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name + "_uncurtailed",
-                            observer_name=model_config.observer_name_uncurtailed_adjuster,
-                        )
-
-                    if model_config.curtailment:
-                        # now saving the curtailed forecast values
-                        log.info("Applying curtailment to forecast values...")
-                        forecast_values = {k: curtailment.apply_curtailment(v) \
-                                        for k, v in forecast_values.items()}
-
-
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
                     successful_runs_count += 1
                     successful_runs.append(f"model={model_config.name}, "
                                        f"site_group_uuid={model_config.site_group_uuid}")
@@ -409,6 +382,19 @@ def app_run(
                             some succeeded: {successful_runs}")
         else:
             raise Exception("All forecasts failed")
+        
+
+        # lets now run curtailment
+        curtailment = Curtailment(timestamp)
+        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed", 
+                                                location_map=dp_location_map, 
+                                                t0=timestamp,
+                                                new_model_name="nl_blend"))
+        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust", 
+                                                location_map=dp_location_map,
+                                                t0=timestamp,
+                                                new_model_name="nl_blend_adjust"))
+
 
 
         # lets remove any temporary files created during forecasting

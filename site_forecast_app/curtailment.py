@@ -4,10 +4,20 @@ import json
 import logging
 import os
 import time
+from datetime import datetime, timedelta, UTC
 from venv import logger
 
+from ocf import dp
 import pandas as pd
 from entsoe import EntsoePandasClient
+
+from site_forecast_app.data_platform import get_dataplatform_client
+from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
+from site_forecast_app.blend.app import save_forecasts
+
+from site_forecast_app.save.data_platform import (
+    save_to_dataplatform,
+)
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +46,10 @@ class Curtailment:
                  from {start} to {end}")
 
         max_retries = 3
+
+        self.prices_df = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"], index=pd.date_range(start=start, end=end, freq="15T"))
+        self.prices_df['target_datetime_utc'] = self.prices_df.index
+        return None
 
         for attempt in range(max_retries):
             log.info(f"Attempt {attempt + 1}/{max_retries} to fetch data from ENTSOE API.")
@@ -105,18 +119,10 @@ class Curtailment:
         forecast_values_df["curtailed"] = forecast_values_df[
             "NL_day_ahead_prices_euros_per_mwh"
         ].apply(lambda x: x <= 0)
-        forecast_values_df["forecast_power_kw"] = forecast_values_df.apply(
-            lambda row: row["forecast_power_kw"] / 1.11 if row["curtailed"] \
-                else row["forecast_power_kw"],
+        forecast_values_df["forecast_power"] = forecast_values_df.apply(
+            lambda row: row["forecast_power"] / 1.11 if row["curtailed"] \
+                else row["forecast_power"],
             axis=1,
-        )
-
-        # Lets now also apply curtailment to the probabilistic_values
-        # Convert to probabilistic_values column of dict to columns
-        forecast_values_df["probabilistic_values"] \
-            = forecast_values_df["probabilistic_values"].apply(json.loads)
-        forecast_values_df = forecast_values_df.pipe(
-            lambda df: df.join(pd.json_normalize(df["probabilistic_values"])),
         )
 
         # apply curtailament on p10 and p90
@@ -135,3 +141,32 @@ class Curtailment:
 
         # convert back to list of dicts
         return forecast_values_df.to_dict("records")
+
+    async def apply_curtailment_on_model(self, model_name: str, location_map: dict[str, str], new_model_name:str, t0: datetime):
+        """ Run the curtailment process for a specific model. """
+        
+        async with get_dataplatform_client() as dp_client:
+
+            # load the forecast values
+            values = await get_all_forecast_values_as_dataframe(
+                client=dp_client,
+                location_uuid=location_map["nl_national"],
+                model_name=model_name,
+                start_datetime=t0
+            )
+
+            values['target_datetime_utc'] = values['target_time']
+            values['forecast_power'] = values['expected_power_generation']
+
+            # Apply curtailment
+            curtailment_results = self.apply_curtailment(forecast_values=values)
+
+            # Save the results
+            save_forecasts(
+                client=dp_client,
+                blended_df=pd.DataFrame(curtailment_results),
+                t0=t0,
+                location_uuid=location_map["nl_national"],
+                location_key=new_model_name,
+                forecaster_name=new_model_name)
+

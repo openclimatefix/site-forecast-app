@@ -38,22 +38,22 @@ def blend_forecasts_together(
     Args:
         all_model_df: Long-format DataFrame with columns
                       [target_time, expected_power_generation_megawatts,
-                       p10_mw, p90_mw, model_name].
+                       p10, p90, model_name].
         weights_df:   Wide-format DataFrame indexed by target_time (UTC), columns
                       are model names, values are blend weights.
 
     Returns:
         DataFrame with columns
-        [target_time, expected_power_generation_megawatts, p10_mw, p90_mw].
-        p10_mw / p90_mw are NaN for steps where no model supplied those values.
+        [target_time, expected_power_generation_megawatts, p10, p90].
+        p10 / p90 are NaN for steps where no model supplied those values.
     """
     if all_model_df.empty or weights_df.empty:
         return pd.DataFrame(
             columns=[
                 "target_time",
                 "expected_power_generation_megawatts",
-                "p10_mw",
-                "p90_mw",
+                "p10",
+                "p90",
             ],
         )
 
@@ -63,12 +63,12 @@ def blend_forecasts_together(
         all_model_df.set_index(_idx)["expected_power_generation_megawatts"].to_dict()
     )
     p10_values = (
-        all_model_df.set_index(_idx)["p10_mw"].to_dict()
-        if "p10_mw" in all_model_df.columns else {}
+        all_model_df.set_index(_idx)["p10"].to_dict()
+        if "p10" in all_model_df.columns else {}
     )
     p90_values = (
-        all_model_df.set_index(_idx)["p90_mw"].to_dict()
-        if "p90_mw" in all_model_df.columns else {}
+        all_model_df.set_index(_idx)["p90"].to_dict()
+        if "p90" in all_model_df.columns else {}
     )
 
     blended_rows = []
@@ -127,8 +127,8 @@ def blend_forecasts_together(
             {
                 "target_time": t,
                 "expected_power_generation_megawatts": p50_blend / weight_sum,
-                "p10_mw": p10_blend / p10_weight_sum if p10_weight_sum > 0.0 else float("nan"),
-                "p90_mw": p90_blend / p90_weight_sum if p90_weight_sum > 0.0 else float("nan"),
+                "p10": p10_blend / p10_weight_sum if p10_weight_sum > 0.0 else float("nan"),
+                "p90": p90_blend / p90_weight_sum if p90_weight_sum > 0.0 else float("nan"),
             },
         )
 

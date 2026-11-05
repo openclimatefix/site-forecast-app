@@ -133,22 +133,23 @@ async def get_all_forecast_values_as_dataframe(
     now = datetime.now(UTC)
     rows = []
     for v in dp_values:
-        p50_mw = v.p50_value_fraction
+        p50 = v.p50_value_fraction
+        # TODO this is an error, its not in MW
 
         # p10/p90 are optional fields - fall back to NaN when absent or zero.
         p10_fraction = v.other_statistics_fractions.get("p10")
         p90_fraction = v.other_statistics_fractions.get("p90")
-        p10_mw = p10_fraction if p10_fraction is not None else float("nan")
-        p90_mw = p90_fraction if p90_fraction is not None else float("nan")
+        p10 = p10_fraction if p10_fraction is not None else float("nan")
+        p90 = p90_fraction if p90_fraction is not None else float("nan")
 
         target_time = _to_aware_datetime(v.target_timestamp_utc).replace(microsecond=0)
 
         rows.append(
             {
                 "target_time": target_time,
-                "expected_power_generation_megawatts": p50_mw,
-                "p10_mw": p10_mw,
-                "p90_mw": p90_mw,
+                "expected_power_generation": p50,
+                "p10": p10,
+                "p90": p90,
                 "created_utc": now,
                 "model_name": model_name,
             },

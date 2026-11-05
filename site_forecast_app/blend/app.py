@@ -278,7 +278,7 @@ async def _run_blend_pass(
         f"(first 5 rows):\n{blended_df.head(5)}",
     )
 
-    await _save_forecasts(
+    await save_forecasts(
         client=client,
         t0=t0,
         location_uuid=location_uuid,
@@ -288,7 +288,7 @@ async def _run_blend_pass(
     )
 
 
-async def _save_forecasts(
+async def save_forecasts(
     client: dp.DataPlatformDataServiceStub,
     t0: pd.Timestamp,
     location_uuid: str,
