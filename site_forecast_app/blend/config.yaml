@@ -6,11 +6,9 @@ blends:
     # Model registry                                                       #
     # ------------------------------------------------------------------ #
 
-    # The absolute fallback model: always available, used as the backup.
-    backup_model: nl_regional_ecmwf_only
-
     # Candidate models for the national blend.
-    # The optimiser will pick the single best one to blend against backup_model.
+    # The one with the longest delay-adjusted horizon is the backup.
+    # The optimiser will pick the single best other one to blend against it.
     day_ahead_candidate_models:
       - nl_regional_48h_pv_ecmwf
       - nl_regional_pv_ecmwf_mo_sat
@@ -67,10 +65,9 @@ blends:
     regional_location_type: STATE
 
   - client_name: de
-    backup_model: de_ecmwf_only
-
     # de_pv_only excluded: only wins below 1h, and crashes when generation lags t0.
     day_ahead_candidate_models:
+      - de_ecmwf_only
       - de_ecmwf_pv
       - de_ecmwf_pv_mo_sat
       - de_mo_only
@@ -82,6 +79,7 @@ blends:
       - de_ecmwf_pv_intraday
 
     regional_candidate_models:
+      - de_ecmwf_only
       - de_ecmwf_pv
       - de_ecmwf_pv_mo_sat
       - de_mo_only
