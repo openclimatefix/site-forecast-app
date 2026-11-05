@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -58,9 +57,10 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
     assert len(potential_generation) == 97 # 15 minute intervals in one day + 1
     assert potential_generation.iloc[0].forecast_power == 1 # 00:00 is 1
     assert potential_generation.iloc[48].forecast_power == 1/1.11 #12:00 has been increased
-    assert potential_generation.iloc[0].probabilistic_values == json.dumps({"p10": 0.8, "p90": 1.2})
-    assert potential_generation.iloc[48].probabilistic_values \
-        == json.dumps({"p10": 0.8/1.11, "p90": 1.2/1.11})
+    assert potential_generation.iloc[0].p10 == 0.8
+    assert potential_generation.iloc[48].p10 == 0.8/1.11
+    assert potential_generation.iloc[0].p90 == 1.2
+    assert potential_generation.iloc[48].p90 == 1.2/1.11
 
     # we know that the prices at 8:15 to 14:15 was negative
     # lets check these values

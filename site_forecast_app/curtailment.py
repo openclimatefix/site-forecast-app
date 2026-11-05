@@ -1,6 +1,5 @@
 """Class for managing curtailment forecasts."""
 
-import json
 import logging
 import os
 import time
@@ -123,13 +122,6 @@ class Curtailment:
                 lambda x: x[plevel] / 1.11 if x["curtailed"] else x[plevel], # noqa B023
                 axis=1,
             )
-
-        # convert back to json
-        forecast_values_df["probabilistic_values"] = forecast_values_df[["p10", "p90"]].apply(
-            lambda row: json.dumps(row.to_dict()),
-            axis=1,
-        )
-        forecast_values_df = forecast_values_df.drop(columns=["p10", "p90"])
 
         # convert back to list of dicts
         return forecast_values_df.to_dict("records")
