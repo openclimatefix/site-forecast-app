@@ -18,7 +18,7 @@ def blend_forecasts_together(
 ) -> pd.DataFrame:
     """Blends per-model forecast arrays using pre-calculated weight trajectories.
 
-    Blends p50 (expected_power_generation_megawatts), p10, and p90
+    Blends p50 (expected_power_generation), p10, and p90
     using the same weights for all three quantities.
 
     Approach:
@@ -37,21 +37,21 @@ def blend_forecasts_together(
 
     Args:
         all_model_df: Long-format DataFrame with columns
-                      [target_time, expected_power_generation_megawatts,
+                      [target_time, expected_power_generation,
                        p10, p90, model_name].
         weights_df:   Wide-format DataFrame indexed by target_time (UTC), columns
                       are model names, values are blend weights.
 
     Returns:
         DataFrame with columns
-        [target_time, expected_power_generation_megawatts, p10, p90].
+        [target_time, expected_power_generation, p10, p90].
         p10 / p90 are NaN for steps where no model supplied those values.
     """
     if all_model_df.empty or weights_df.empty:
         return pd.DataFrame(
             columns=[
                 "target_time",
-                "expected_power_generation_megawatts",
+                "expected_power_generation",
                 "p10",
                 "p90",
             ],
@@ -59,8 +59,9 @@ def blend_forecasts_together(
 
     # Build fast lookups keyed by (target_time, model_name)
     _idx = ["target_time", "model_name"]
+    print(all_model_df)
     p50_values = (
-        all_model_df.set_index(_idx)["expected_power_generation_megawatts"].to_dict()
+        all_model_df.set_index(_idx)["expected_power_generation"].to_dict()
     )
     p10_values = (
         all_model_df.set_index(_idx)["p10"].to_dict()
@@ -126,7 +127,7 @@ def blend_forecasts_together(
         blended_rows.append(
             {
                 "target_time": t,
-                "expected_power_generation_megawatts": p50_blend / weight_sum,
+                "expected_power_generation": p50_blend / weight_sum,
                 "p10": p10_blend / p10_weight_sum if p10_weight_sum > 0.0 else float("nan"),
                 "p90": p90_blend / p90_weight_sum if p90_weight_sum > 0.0 else float("nan"),
             },
@@ -157,7 +158,7 @@ async def get_blend_forecast_values_latest(
 
     Returns:
         Blended timeseries DataFrame with columns
-        [target_time, expected_power_generation_megawatts, p10, p90].
+        [target_time, expected_power_generation, p10, p90].
         p10 / p90 are NaN for steps where no model supplied those values.
     """
     if weights_df.empty:
@@ -165,7 +166,7 @@ async def get_blend_forecast_values_latest(
         return pd.DataFrame(
             columns=[
                 "target_time",
-                "expected_power_generation_megawatts",
+                "expected_power_generation",
                 "p10",
                 "p90",
             ],
@@ -198,7 +199,7 @@ async def get_blend_forecast_values_latest(
         return pd.DataFrame(
             columns=[
                 "target_time",
-                "expected_power_generation_megawatts",
+                "expected_power_generation",
                 "p10",
                 "p90",
             ],

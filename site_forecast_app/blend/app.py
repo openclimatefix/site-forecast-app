@@ -304,7 +304,7 @@ async def _save_forecasts(
         location_uuid:   DP location UUID to write forecasts under.
         location_key:    Human-readable location identifier (for logging only).
         blended_df:      DataFrame with columns [target_time,
-                         expected_power_generation_megawatts, p10 (opt),
+                         expected_power_generation, p10 (opt),
                          p90 (opt)].
         forecaster_name: Forecaster tag written to the Data Platform.
     """

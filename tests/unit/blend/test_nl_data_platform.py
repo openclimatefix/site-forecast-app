@@ -34,7 +34,7 @@ async def test_get_all_forecast_values_as_dataframe_empty():
 
     assert df.empty
     assert "target_time" in df.columns
-    assert "expected_power_generation_megawatts" in df.columns
+    assert "expected_power_generation" in df.columns
     assert "p10" in df.columns
 
 
@@ -69,12 +69,12 @@ async def test_get_all_forecast_values_as_dataframe_success():
         )
 
     assert len(df) == 2
-    assert df.iloc[0]["expected_power_generation_megawatts"] == 0.155
+    assert df.iloc[0]["expected_power_generation"] == 0.155
     assert df.iloc[0]["p10"] == 0.10
     assert df.iloc[0]["p90"] == 0.20
     assert df.iloc[0]["model_name"] == "test-model"
 
-    assert df.iloc[1]["expected_power_generation_megawatts"] == 0.07
+    assert df.iloc[1]["expected_power_generation"] == 0.07
     assert math.isnan(df.iloc[1]["p10"])
     assert math.isnan(df.iloc[1]["p90"])
 
@@ -90,13 +90,13 @@ def test_build_forecast_value_objects():
         [
             {
                 "target_time": datetime(2024, 6, 1, 12, 30, tzinfo=UTC),
-                "expected_power_generation_megawatts": 0.20,
+                "expected_power_generation": 0.20,
                 "p10": 0.155,
                 "p90": 0.250,
             },
             {
                 "target_time": datetime(2024, 6, 1, 13, 0, tzinfo=UTC),
-                "expected_power_generation_megawatts": 0.35,
+                "expected_power_generation": 0.35,
                 "p10": float("nan"), # Missing p10
                 "p90": float("nan"),
             },

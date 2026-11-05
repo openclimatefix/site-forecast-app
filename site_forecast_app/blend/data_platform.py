@@ -101,7 +101,7 @@ async def get_all_forecast_values_as_dataframe(
     Columns
     -------
     target_time                          - UTC datetime of the forecast step
-    expected_power_generation_megawatts  - p50
+    expected_power_generation  - p50
     p10                                  - p10 (NaN if absent)
     p90                                  - p90 (NaN if absent)
     created_utc                          - wall-clock time of the fetch
@@ -112,7 +112,7 @@ async def get_all_forecast_values_as_dataframe(
     _EMPTY = pd.DataFrame(
         columns=[
             "target_time",
-            "expected_power_generation_megawatts",
+            "expected_power_generation",
             "p10",
             "p90",
             "created_utc",
@@ -133,7 +133,7 @@ async def get_all_forecast_values_as_dataframe(
     now = datetime.now(UTC)
     rows = []
     for v in dp_values:
-        p50_mw = v.p50_value_fraction
+        p50 = v.p50_value_fraction
 
         # p10/p90 are optional fields - fall back to NaN when absent or zero.
         p10_fraction = v.other_statistics_fractions.get("p10")
@@ -146,7 +146,7 @@ async def get_all_forecast_values_as_dataframe(
         rows.append(
             {
                 "target_time": target_time,
-                "expected_power_generation_megawatts": p50_mw,
+                "expected_power_generation": p50,
                 "p10": p10,
                 "p90": p90,
                 "created_utc": now,
@@ -257,13 +257,13 @@ def build_forecast_value_objects(
     """Converts a blended forecast DataFrame into DP CreateForecastRequestForecastValue objects.
 
     horizon_mins  = (target_time - init_time_utc) in whole minutes.
-    p50_fraction  = expected_power_generation_megawatts (passed without scaling).
+    p50_fraction  = expected_power_generation (passed without scaling).
     p10 / p90 are placed in other_statistics_fractions under keys "p10" / "p90"
     only when their MW column is present and not NaN.
 
     Args:
         blended_df:     DataFrame with columns [target_time,
-                        expected_power_generation_megawatts,p10 (opt),
+                        expected_power_generation,p10 (opt),
                         p90 (opt)].
         init_time_utc:  Forecast init time (UTC); used to compute horizon_mins.
 
@@ -286,7 +286,7 @@ def build_forecast_value_objects(
 
         horizon_mins = int((target_time - init_time_utc).total_seconds() / 60)
 
-        p50_fraction = float(row.expected_power_generation_megawatts)
+        p50_fraction = float(row.expected_power_generation)
 
         other_stats: dict[str, float] = {}
         if has_p10:

@@ -26,7 +26,7 @@ def _make_model_df(target_times, model_name, p50_values, p10_values=None, p90_va
         row = {
             "target_time": t,
             "model_name": model_name,
-            "expected_power_generation_megawatts": p50_values[i],
+            "expected_power_generation": p50_values[i],
         }
         if p10_values is not None:
             row["p10"] = p10_values[i]
@@ -56,7 +56,7 @@ TARGET_TIMES = [T0 + pd.Timedelta(f"{h}h") for h in range(1, 5)]
 class TestEmptyInputs:
     EXPECTED_COLUMNS: ClassVar[set[str]] = {
         "target_time",
-        "expected_power_generation_megawatts",
+        "expected_power_generation",
         "p10",
         "p90",
     }
@@ -67,7 +67,7 @@ class TestEmptyInputs:
             columns=[
                 "target_time",
                 "model_name",
-                "expected_power_generation_megawatts",
+                "expected_power_generation",
                 "p10",
                 "p90",
             ],
@@ -110,7 +110,7 @@ class TestSingleModelBlend:
         result_indexed = result.set_index("target_time")
         for i, t in enumerate(TARGET_TIMES):
             assert result_indexed.loc[
-                t, "expected_power_generation_megawatts",
+                t, "expected_power_generation",
             ] == pytest.approx(p50[i])
 
     def test_p10_p90_passthrough_at_full_weight(self):
@@ -154,7 +154,7 @@ class TestTwoModelBlend:
         assert len(result) == 4
         result_indexed = result.set_index("target_time")
         for i, t in enumerate(TARGET_TIMES):
-            assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(
+            assert result_indexed.loc[t, "expected_power_generation"] == pytest.approx(
                 expected_blend[i],
             )
 
@@ -177,7 +177,7 @@ class TestTwoModelBlend:
 
         for t in TARGET_TIMES:
             assert result_indexed.loc[
-                t, "expected_power_generation_megawatts",
+                t, "expected_power_generation",
             ] == pytest.approx(75.0)
 
     def test_50_50_blend_p10_p90(self):
@@ -229,7 +229,7 @@ class TestTwoModelBlend:
 
         for i, t in enumerate(TARGET_TIMES):
             expected = primary_weights[i] * 50.0 + backup_weights[i] * 100.0
-            assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(
+            assert result_indexed.loc[t, "expected_power_generation"] == pytest.approx(
                 expected,
             )
 
@@ -268,7 +268,7 @@ class TestMissingModelData:
         result_indexed = result.set_index("target_time")
         for t in TARGET_TIMES:
             assert result_indexed.loc[
-                t, "expected_power_generation_megawatts",
+                t, "expected_power_generation",
             ] == pytest.approx(100.0)
 
     def test_all_models_missing_data_produces_no_rows(self):
@@ -278,7 +278,7 @@ class TestMissingModelData:
             columns=[
                 "target_time",
                 "model_name",
-                "expected_power_generation_megawatts",
+                "expected_power_generation",
             ],
         )
         weights = _make_weights_df(
@@ -326,7 +326,7 @@ class TestOutputFormat:
         result = blend_forecasts_together(models_df, weights)
 
         assert "target_time" in result.columns
-        assert "expected_power_generation_megawatts" in result.columns
+        assert "expected_power_generation" in result.columns
         assert "p10" in result.columns
         assert "p90" in result.columns
 
@@ -364,6 +364,6 @@ class TestOutputFormat:
 
         result_indexed = result.set_index("target_time")
         for t in TARGET_TIMES:
-            assert result_indexed.loc[t, "expected_power_generation_megawatts"] == pytest.approx(
+            assert result_indexed.loc[t, "expected_power_generation"] == pytest.approx(
                 expected_p50,
             )
