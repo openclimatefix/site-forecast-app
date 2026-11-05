@@ -336,9 +336,8 @@ def app_run(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
 
-                    # make a partial function for saving forecast, still need to set
-                    # forecast_values and model_name
-                    save_forecast_for_site_group_partial = partial(save_forecast_for_site_group,
+                    # save the forecast
+                    save_forecast_for_site_group(
                         db_session=session,
                         timestamp=timestamp,
                         site_group=site_group,
@@ -347,10 +346,6 @@ def app_run(
                         version=version,
                         use_adjuster_database=use_adjuster_database,
                         location_map=dp_location_map,
-                    )
-
-                    # if there is no curtailment, we can save the forecast normally
-                    save_forecast_for_site_group_partial(
                         forecast_values=forecast_values,
                         model_name=model_config.name,
                         observer_name=model_config.observer_name_adjuster,
