@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, UTC
 from venv import logger
 
 import pandas as pd
@@ -140,7 +140,7 @@ class Curtailment:
             location_map: dict[str, str],
             new_model_name:str,
             t0: datetime,
-            dp_client: dp.DataPlatformDataServiceStub | None) -> None:
+            dp_client: dp.DataPlatformDataServiceStub | None = None) -> None:
         """Run the curtailment process for a specific model."""
         async with get_dataplatform_client(dp_client) as dp_client:
 
@@ -163,10 +163,10 @@ class Curtailment:
                 = self.curtailment_results["forecast_power"]
 
             # Save the results
-            save_forecasts(
+            await save_forecasts(
                 client=dp_client,
                 blended_df=self.curtailment_results,
-                t0=t0,
+                t0=t0.replace(tzinfo=UTC),
                 location_uuid=location_map["nl_national"],
                 location_key=new_model_name,
                 forecaster_name=new_model_name)
