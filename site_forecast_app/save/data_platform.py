@@ -52,7 +52,8 @@ async def build_dp_location_map() -> dict[str, str]:
 
 
 @contextlib.asynccontextmanager
-async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
+async def get_dataplatform_client(dp_client: dp.DataPlatformDataServiceStub | None) \
+    -> AsyncIterator[DataPlatformClient]:
     """Async context manager that opens a gRPC channel and yields a ready-to-use client.
 
     Usage::
@@ -65,6 +66,10 @@ async def get_dataplatform_client() -> AsyncIterator[DataPlatformClient]:
     ``DATA_PLATFORM_PORT`` environment variables
     (defaulting to ``localhost:50051``).
     """
+    if dp_client is not None:
+        yield dp_client
+        return
+
     channel = Channel(
         host=os.getenv("DATA_PLATFORM_HOST","localhost"),
         port=int(os.getenv("DATA_PLATFORM_PORT", "50051")),

@@ -1,7 +1,11 @@
 import json
-from unittest.mock import MagicMock, patch
+from datetime import timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
 import pandas as pd
+import pytest
+from ocf.dp.dp_data import messages_pb2
 
 from site_forecast_app.curtailment import Curtailment
 
@@ -66,3 +70,68 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
     # check the negative prices are all zero
     assert (potential_generation.loc[negative_prices_idx, "forecast_power"]== 1/1.11).all()
     assert (potential_generation.loc[~negative_prices_idx, "forecast_power"]== 1).all()
+
+@pytest.mark.asyncio(loop_scope="session")
+@patch("site_forecast_app.curtailment.EntsoePandasClient")
+async def test_apply_curtailment_on_model(mock_entsoe_pandas_client, mock_da_prices):
+    start = pd.Timestamp("2026-05-12").tz_localize("UTC")
+
+    # add negative prices
+    negative_prices_idx =\
+          (mock_da_prices.index.time >= pd.Timestamp("08:15").time()) \
+        & (mock_da_prices.index.time <= pd.Timestamp("14:15").time())
+    mock_da_prices.loc[negative_prices_idx, "price"] = -1
+
+    mock_entsoe_pandas_client_instance = MagicMock()
+    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
+    mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
+
+    # set up fake dp
+    client = AsyncMock()
+    client.get_latest_forecasts = \
+        AsyncMock(
+            return_value=messages_pb2.GetLatestForecastsResponse(
+                forecasts=[
+                    messages_pb2.GetLatestForecastsResponse.Forecast(
+                        initialization_timestamp_utc=start,
+                        location_uuid="location-uuid",
+                        forecaster=messages_pb2.Forecaster(
+                                forecaster_name="test_uncurtailed",
+                                forecaster_version="1.0",
+                            ),
+                        ),
+                    ],
+                ),
+            )
+
+    client.get_forecast_as_timeseries = AsyncMock(
+        return_value=messages_pb2.GetForecastAsTimeseriesResponse(
+            values=[
+                messages_pb2.GetForecastAsTimeseriesResponse.Value(
+                    target_timestamp_utc=start + timedelta(minutes=15 * i),
+                    p50_value_fraction=i/100,
+                    other_statistics_fractions={"p10": 0.8, "p90": 1.2},
+                )
+                for i in range(97)
+            ],
+        ),
+    )
+
+    # run curtailment
+    curtailment = Curtailment(now=start)
+    await curtailment.apply_curtailment_on_model(model_name="test_uncurtailed",
+                                           location_map={"nl_national": "test_location"},
+                                           new_model_name="test",
+                                           t0=start,
+                                           dp_client=client)
+
+    # check that the curtailment results are as expected
+    curtailment_results = curtailment.curtailment_results
+    assert len(curtailment_results) == 97
+    for i in range(97):
+        row = curtailment_results.iloc[i]
+        time = row.target_time.time()
+        if (time >= pd.Timestamp("08:15").time()) and (time <= pd.Timestamp("14:15").time()):
+            assert np.round(row["forecast_power"], 4) == np.round(i/100 / 1.11, 4)
+        else:
+            assert np.round(row["forecast_power"], 4) == np.round(i/100,4)

@@ -9,6 +9,7 @@ from venv import logger
 
 import pandas as pd
 from entsoe import EntsoePandasClient
+from ocf import dp
 
 from site_forecast_app.blend.app import save_forecasts
 from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
@@ -138,9 +139,11 @@ class Curtailment:
             model_name: str,
             location_map: dict[str, str],
             new_model_name:str,
-            t0: datetime) -> None:
+            t0: datetime,
+            dp_client: dp.DataPlatformDataServiceStub | None) -> None:
         """Run the curtailment process for a specific model."""
-        async with get_dataplatform_client() as dp_client:
+        async with get_dataplatform_client(dp_client) as dp_client:
+
 
             # load the forecast values
             values = await get_all_forecast_values_as_dataframe(
@@ -150,16 +153,19 @@ class Curtailment:
                 start_datetime=t0,
             )
 
+            # Format the data, ready for curtailment
             values["target_datetime_utc"] = values["target_time"]
             values["forecast_power"] = values["expected_power_generation"]
 
             # Apply curtailment
-            curtailment_results = self.apply_curtailment(forecast_values=values)
+            self.curtailment_results = pd.DataFrame(self.apply_curtailment(forecast_values=values))
+            self.curtailment_results["expected_power_generation"] \
+                = self.curtailment_results["forecast_power"]
 
             # Save the results
             save_forecasts(
                 client=dp_client,
-                blended_df=pd.DataFrame(curtailment_results),
+                blended_df=self.curtailment_results,
                 t0=t0,
                 location_uuid=location_map["nl_national"],
                 location_key=new_model_name,
