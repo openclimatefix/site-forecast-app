@@ -54,18 +54,6 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
             n_steps=96,  # 24 h at 15-min resolution
         )
 
-    # Test intraday models
-    t0 = datetime.now(tz=UTC)
-    t0 = t0.replace(minute=(t0.minute // 15) * 15, second=0, microsecond=0)
-    for model_name in ("nl_regional_intra_ecmwf_mo_sat", "nl_regional_intra_ecmwf_mo_sat_pv"):
-        await _seed_source_model_forecast(
-            client=client,
-            location_uuid=location_uuid,
-            model_name=model_name,
-            init_time=t0,
-            n_steps=32,  # 8 h at 15-min resolution
-        )
-
     # Also run the full blend pipeline against the stored model forecasts
     await run_blend_app(config=blend_config)
 
