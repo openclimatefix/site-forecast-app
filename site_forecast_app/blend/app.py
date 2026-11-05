@@ -304,15 +304,15 @@ async def _save_forecasts(
         location_uuid:   DP location UUID to write forecasts under.
         location_key:    Human-readable location identifier (for logging only).
         blended_df:      DataFrame with columns [target_time,
-                         expected_power_generation_megawatts, p10_mw (opt),
-                         p90_mw (opt)].
+                         expected_power_generation, p10 (opt),
+                         p90 (opt)].
         forecaster_name: Forecaster tag written to the Data Platform.
     """
     n_rows = len(blended_df)
-    has_p10 = "p10_mw" in blended_df.columns
-    has_p90 = "p90_mw" in blended_df.columns
-    n_p10 = int(blended_df["p10_mw"].notna().sum()) if has_p10 else 0
-    n_p90 = int(blended_df["p90_mw"].notna().sum()) if has_p90 else 0
+    has_p10 = "p10" in blended_df.columns
+    has_p90 = "p90" in blended_df.columns
+    n_p10 = int(blended_df["p10"].notna().sum()) if has_p10 else 0
+    n_p90 = int(blended_df["p90"].notna().sum()) if has_p90 else 0
 
     logger.info(
         f"Blended forecast summary for '{location_key}': {n_rows} rows | "
