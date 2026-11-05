@@ -30,7 +30,7 @@ def mock_dependencies(monkeypatch):
         patch(
             "site_forecast_app.blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
         ) as mock_blend,
-        patch("site_forecast_app.blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
+        patch("site_forecast_app.blend.app.save_forecasts", new_callable=AsyncMock) as mock_save,
     ):
         mock_client = AsyncMock()
         mock_get_client.return_value.__aenter__.return_value = mock_client

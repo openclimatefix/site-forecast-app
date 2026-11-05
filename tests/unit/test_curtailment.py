@@ -27,15 +27,12 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
 
     data = pd.DataFrame({
         "target_datetime_utc": pd.date_range(start=start, end=end, freq="15min"),
-        "forecast_power_kw": [1] * 97,
+        "forecast_power": [1] * 97,
         "p10": [0.8] * 97,
         "p90": [1.2] * 97,
     })
-    data["probabilistic_values"] = data[["p10", "p90"]].apply(
-            lambda row: json.dumps(row.to_dict()),
-            axis=1,
-        )
-    data = data[["target_datetime_utc", "forecast_power_kw", "probabilistic_values"]]
+
+    data = data[["target_datetime_utc", "forecast_power", "p10", "p90"]]
 
     # add negative prices
     negative_prices_idx =\
@@ -55,8 +52,8 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
     assert isinstance(potential_generation, pd.DataFrame)
     assert not potential_generation.empty
     assert len(potential_generation) == 97 # 15 minute intervals in one day + 1
-    assert potential_generation.iloc[0].forecast_power_kw == 1 # 00:00 is 1
-    assert potential_generation.iloc[48].forecast_power_kw == 1/1.11 #12:00 has been increased
+    assert potential_generation.iloc[0].forecast_power == 1 # 00:00 is 1
+    assert potential_generation.iloc[48].forecast_power == 1/1.11 #12:00 has been increased
     assert potential_generation.iloc[0].probabilistic_values == json.dumps({"p10": 0.8, "p90": 1.2})
     assert potential_generation.iloc[48].probabilistic_values \
         == json.dumps({"p10": 0.8/1.11, "p90": 1.2/1.11})
@@ -67,5 +64,5 @@ def test_make_potential_generation(mock_entsoe_pandas_client, mock_da_prices):
           (potential_generation["target_datetime_utc"].dt.time >= pd.Timestamp("08:15").time()) \
         & (data["target_datetime_utc"].dt.time <= pd.Timestamp("14:15").time())
     # check the negative prices are all zero
-    assert (potential_generation.loc[negative_prices_idx, "forecast_power_kw"]== 1/1.11).all()
-    assert (potential_generation.loc[~negative_prices_idx, "forecast_power_kw"]== 1).all()
+    assert (potential_generation.loc[negative_prices_idx, "forecast_power"]== 1/1.11).all()
+    assert (potential_generation.loc[~negative_prices_idx, "forecast_power"]== 1).all()
