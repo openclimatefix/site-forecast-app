@@ -37,11 +37,7 @@ def blend_forecasts_together(
 
     Args:
         all_model_df: Long-format DataFrame with columns
-<<<<<<< HEAD
                       [target_time, expected_power_generation_megawatts,
-=======
-                      [target_time, expected_power_generation,
->>>>>>> NL-2026-q4-models
                        p10, p90, model_name].
         weights_df:   Wide-format DataFrame indexed by target_time (UTC), columns
                       are model names, values are blend weights.

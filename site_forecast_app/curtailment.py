@@ -42,10 +42,6 @@ class Curtailment:
 
         max_retries = 3
 
-        self.prices_df = pd.DataFrame(columns=["NL_day_ahead_prices_euros_per_mwh"], index=pd.date_range(start=start, end=end, freq="15T"))
-        self.prices_df["target_datetime_utc"] = self.prices_df.index
-        return None
-
         for attempt in range(max_retries):
             log.info(f"Attempt {attempt + 1}/{max_retries} to fetch data from ENTSOE API.")
             try:
@@ -137,7 +133,12 @@ class Curtailment:
         # convert back to list of dicts
         return forecast_values_df.to_dict("records")
 
-    async def apply_curtailment_on_model(self, model_name: str, location_map: dict[str, str], new_model_name:str, t0: datetime):
+    async def apply_curtailment_on_model(
+            self,
+            model_name: str,
+            location_map: dict[str, str],
+            new_model_name:str,
+            t0: datetime) -> None:
         """Run the curtailment process for a specific model."""
         async with get_dataplatform_client() as dp_client:
 
