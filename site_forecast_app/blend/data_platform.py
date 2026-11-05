@@ -101,7 +101,7 @@ async def get_all_forecast_values_as_dataframe(
     Columns
     -------
     target_time                          - UTC datetime of the forecast step
-    expected_power_generation_megawatts  - p50 
+    expected_power_generation_megawatts  - p50
     p10                                  - p10 (NaN if absent)
     p90                                  - p90 (NaN if absent)
     created_utc                          - wall-clock time of the fetch
