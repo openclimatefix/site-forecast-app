@@ -385,12 +385,13 @@ def app_run(
 
 
         # lets now run curtailment
-        curtailment = Curtailment(timestamp)
-        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed",
-                                                location_map=dp_location_map,
-                                                t0=timestamp,
-                                                new_model_name="nl_blend"))
-        asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust",
+        if client_name == "nl":
+            curtailment = Curtailment(timestamp)
+            asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed",
+                                                    location_map=dp_location_map,
+                                                    t0=timestamp,
+                                                    new_model_name="nl_blend"))
+            asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust",
                                                 location_map=dp_location_map,
                                                 t0=timestamp,
                                                 new_model_name="nl_blend_adjust"))
