@@ -59,7 +59,6 @@ def blend_forecasts_together(
 
     # Build fast lookups keyed by (target_time, model_name)
     _idx = ["target_time", "model_name"]
-    print(all_model_df)
     p50_values = (
         all_model_df.set_index(_idx)["expected_power_generation"].to_dict()
     )
