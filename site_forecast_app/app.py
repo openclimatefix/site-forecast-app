@@ -388,7 +388,7 @@ def app_run(
                                                 location_map=dp_location_map,
                                                 t0=timestamp,
                                                 new_model_name="nl_blend_adjust"))
-            
+
         if successful_runs_count == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs_count < runs:

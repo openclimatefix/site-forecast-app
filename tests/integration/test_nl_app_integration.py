@@ -59,7 +59,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
 
     # 4. Verify the blended forecast was written to the Data Platform.
     list_forecasters_resp = await client.list_forecasters(
-        dp.ListForecastersRequest(forecaster_names_filter=["nl_blend"]),
+        dp.ListForecastersRequest(forecaster_names_filter=["nl_blend_uncurtailed"]),
     )
     assert list_forecasters_resp.forecasters, (
         "blend forecaster was not created in the Data Platform."

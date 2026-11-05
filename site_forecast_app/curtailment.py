@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from venv import logger
 
 import pandas as pd
