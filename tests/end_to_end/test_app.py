@@ -198,64 +198,12 @@ class FakeDataPlatform:
             ),
         )
 
-
 @freeze_time(now)
 @patch("site_forecast_app.curtailment.EntsoePandasClient")
-def test_app_sat_v0(
+def test_app_nl(
     mock_entsoe_pandas_client,
     db_session,
-    sites,  # noqa: ARG001
-    nwp_data,
-    nwp_mo_global_data_nl,
-    generation_db_values,  # noqa: ARG001
-    satellite_data,
-    mock_da_prices,
-    monkeypatch,
-):
-    """Test for running app from command line"""
-    monkeypatch.setenv("CLIENT_NAME", "nl")
-    monkeypatch.setenv("COUNTRY", "nl")
-    monkeypatch.setenv("NWP_ECMWF_ZARR_PATH", nwp_data)
-    monkeypatch.setenv("NWP_MO_GLOBAL_ZARR_PATH", nwp_mo_global_data_nl)
-    monkeypatch.setenv("SATELLITE_ZARR_PATH", satellite_data)
-
-    mock_entsoe_pandas_client_instance = MagicMock()
-    mock_entsoe_pandas_client.return_value = mock_entsoe_pandas_client_instance
-    mock_entsoe_pandas_client_instance.query_day_ahead_prices.return_value = mock_da_prices
-
-    init_n_forecasts = db_session.query(ForecastSQL).count()
-    init_n_forecast_values = db_session.query(ForecastValueSQL).count()
-
-    write_to_db = True
-    args = _base_args(write_to_db)
-
-    result = run_click_script(app, args)
-    assert result.exit_code == 0
-
-    fv_per_hour = 4  # 15 min resolution = 4 values per hour
-    n_national_models = 0
-    n_regional_models = 4
-    n_uncurtailed_saves = 1  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
-    # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
-    n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
-    n_models = n_national_models + n_regional_models + n_uncurtailed_saves
-    # each forecast has 36 hours of values
-    n_fv = 36 * fv_per_hour
-
-    assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
-    assert db_session.query(MLModelSQL).count() == n_models * 2
-    forecast_values = db_session.query(ForecastValueSQL).all()
-    assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
-    assert forecast_values[0].probabilistic_values is not None
-    assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
-
-
-@freeze_time(now)
-@patch("site_forecast_app.curtailment.EntsoePandasClient")
-def test_app_sat_v1(
-    mock_entsoe_pandas_client,
-    db_session,
-    sites,  # noqa: ARG001
+    sites,  # noqa: ARG001q
     nwp_data,
     nwp_mo_global_data_nl,
     generation_db_values,  # noqa: ARG001
@@ -285,21 +233,42 @@ def test_app_sat_v1(
     assert result.exit_code == 0
 
     fv_per_hour = 4  # 15 min resolution = 4 values per hour
-    n_national_models = 0
-    n_regional_models = 7
-    n_uncurtailed_saves = 0  # nl_regional_pv_ecmwf_mo_sat saves uncurtailed forecasts too
-    # each regional model writes 12 regional sites + 1 national summation = 13 forecasts
-    n_forecasts = n_national_models + (n_regional_models + n_uncurtailed_saves) * 13
-    n_models = n_national_models + n_regional_models + n_uncurtailed_saves
-    # each forecast has 36 hours of values
-    n_fv = 36 * fv_per_hour
+    n_models_da = 3  # nl_regional_da_* models forecast 36 hours ahead
+    n_models_intraday = 6  # nl_regional_intra_* models forecast 8 hours ahead
+    n_models = n_models_da + n_models_intraday
+    # each model writes 12 regional sites + 1 national summation = 13 forecasts
+    n_forecasts_per_model = 13
+    n_forecasts_da = n_models_da * n_forecasts_per_model
+    n_forecasts_intraday = n_models_intraday * n_forecasts_per_model
+    n_forecasts = n_forecasts_da + n_forecasts_intraday
+    n_fv_da = 36 * fv_per_hour
+    n_fv_intraday = 8 * fv_per_hour
 
+    # everything is saved twice: once as-is and once with the adjuster applied
     assert db_session.query(ForecastSQL).count() == init_n_forecasts + n_forecasts * 2
     assert db_session.query(MLModelSQL).count() == n_models * 2
     forecast_values = db_session.query(ForecastValueSQL).all()
-    assert len(forecast_values) == init_n_forecast_values + (n_forecasts * 2 * n_fv)
+    n_new_forecast_values = 2 * (n_forecasts_da * n_fv_da + n_forecasts_intraday * n_fv_intraday)
+    assert len(forecast_values) == init_n_forecast_values + n_new_forecast_values
     assert forecast_values[0].probabilistic_values is not None
     assert json.loads(forecast_values[0].probabilistic_values)["p10"] is not None
+
+    # check each forecast has the right length for the model that made it
+    model_names = {m.model_uuid: m.name for m in db_session.query(MLModelSQL).all()}
+    values_per_forecast: dict = {}
+    for fv in forecast_values:
+        if fv.ml_model_uuid is None:
+            continue  # values from before this run (e.g. fixtures)
+        key = (fv.forecast_uuid, model_names[fv.ml_model_uuid])
+        values_per_forecast[key] = values_per_forecast.get(key, 0) + 1
+
+    assert {name for _, name in values_per_forecast} == set(model_names.values())
+    for (_, model_name), n_values in values_per_forecast.items():
+        if "_intra_" in model_name:
+            assert n_values == n_fv_intraday, model_name
+        else:
+            assert "_da_" in model_name, model_name
+            assert n_values == n_fv_da, model_name
 
 
 
