@@ -6,7 +6,6 @@ import logging
 import os
 import shutil
 import sys
-from functools import partial
 
 import click
 import pandas as pd
@@ -244,10 +243,6 @@ def app_run(
                     exc_info=True,
                 )
 
-        if any(m.curtailment for m in all_model_configs.models):
-            log.info("Curtailment is enabled for at least one model.")
-            curtailment = Curtailment(timestamp)
-
         for model_config in all_model_configs.models:
             # 2. Get sites
             log.info("Getting sites...")
@@ -340,9 +335,8 @@ def app_run(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
 
-                    # make a partial function for saving forecast, still need to set
-                    # forecast_values and model_name
-                    save_forecast_for_site_group_partial = partial(save_forecast_for_site_group,
+                    # save the forecast
+                    save_forecast_for_site_group(
                         db_session=session,
                         timestamp=timestamp,
                         site_group=site_group,
@@ -351,38 +345,11 @@ def app_run(
                         version=version,
                         use_adjuster_database=use_adjuster_database,
                         location_map=dp_location_map,
+                        forecast_values=forecast_values,
+                        model_name=model_config.name,
+                        observer_name=model_config.observer_name_adjuster,
                     )
 
-                    if not model_config.curtailment:
-                        # if there is no curtailment, we can save the forecast normally
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
-
-                    elif model_config.save_uncurtailed & model_config.curtailment:
-                        # if there is curtailment, and we want to save the uncurtailed values
-                        log.info("Saving uncurtailed forecast values...")
-
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name + "_uncurtailed",
-                            observer_name=model_config.observer_name_uncurtailed_adjuster,
-                        )
-
-                    if model_config.curtailment:
-                        # now saving the curtailed forecast values
-                        log.info("Applying curtailment to forecast values...")
-                        forecast_values = {k: curtailment.apply_curtailment(v) \
-                                        for k, v in forecast_values.items()}
-
-
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
                     successful_runs_count += 1
                     successful_runs.append(f"model={model_config.name}, "
                                        f"site_group_uuid={model_config.site_group_uuid}")
@@ -402,6 +369,20 @@ def app_run(
                 log.info(f"Starting {app_config.client_name} blend pipeline...")
                 asyncio.run(run_blend_app(config=app_config))
                 log.info(f"{app_config.client_name} blend pipeline completed.")
+
+        # lets now run curtailment
+        if client_name == "nl" and save_to_data_platform:
+            log.info("Running curtailment for NL...")
+            curtailment = Curtailment(timestamp)
+            asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed",
+                                                    location_map=dp_location_map,
+                                                    t0=timestamp,
+                                                    new_model_name="nl_blend"))
+            asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust",
+                                                location_map=dp_location_map,
+                                                t0=timestamp,
+                                                new_model_name="nl_blend_adjust"))
+
         if successful_runs_count == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs_count < runs:
@@ -409,6 +390,7 @@ def app_run(
                             some succeeded: {successful_runs}")
         else:
             raise Exception("All forecasts failed")
+
 
 
         # lets remove any temporary files created during forecasting

@@ -57,7 +57,7 @@ blends:
     scorecard_path: data/nl_backtest_nmae_comparison.csv
 
     # Forecaster name written to the Data Platform.
-    forecaster_name: nl_blend
+    forecaster_name: nl_blend_uncurtailed
 
     # The location name key that identifies the national location in the DP location map.
     national_location_key: nl_national

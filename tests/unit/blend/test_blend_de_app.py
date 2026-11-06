@@ -34,7 +34,7 @@ def mock_blend(monkeypatch, de_dp_locations):
         patch(
             "site_forecast_app.blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
         ) as blend_values,
-        patch("site_forecast_app.blend.app._save_forecasts", new_callable=AsyncMock) as save,
+        patch("site_forecast_app.blend.app.save_forecasts", new_callable=AsyncMock) as save,
     ):
         client = AsyncMock()
         client.list_locations.return_value = MagicMock(locations=de_dp_locations)
