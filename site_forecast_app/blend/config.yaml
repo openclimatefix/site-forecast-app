@@ -19,14 +19,6 @@ blends:
       - nl_regional_intra_ecmwf_mo_pv
       - nl_regional_intra_ecmwf_sat_pv
 
-
-    # Candidate models for regional blends (subset of national candidates).
-    regional_candidate_models:
-      - nl_regional_intra_ecmwf_mo_sat_pv
-      - nl_regional_intra_ecmwf_mo_sat
-      - nl_regional_intra_ecmwf_mo_pv
-      - nl_regional_intra_ecmwf_sat_pv
-
     # ------------------------------------------------------------------ #
     # Blending parameters                                                  #
     # ------------------------------------------------------------------ #
@@ -78,13 +70,6 @@ blends:
     intraday_candidate_models:
       - de_ecmwf_pv_mo_sat_intraday
       - de_ecmwf_pv_intraday
-
-    regional_candidate_models:
-      - de_ecmwf_only
-      - de_ecmwf_pv
-      - de_ecmwf_pv_mo_sat
-      - de_mo_only
-      - de_sat_only
 
     blend_kernel:
       - 0.75

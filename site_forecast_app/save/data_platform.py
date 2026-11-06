@@ -34,20 +34,22 @@ dp_forecaster_version = "1.4.0"
 DataPlatformClient = dp.DataPlatformDataServiceStub
 
 
-async def fetch_dp_location_map(client: DataPlatformClient) -> dict[str, str]:
+async def fetch_dp_location_map(
+        client: DataPlatformClient,
+        country: str | None = None) -> dict[str, str]:
     """Fetch all locations (SITE, NATION, STATE, etc.) from the Data Platform.
 
     Returns a name → UUID map. Pre-fetching avoids separate list_locations calls
     for every forecast save.
     """
-    resp = await client.list_locations(dp.ListLocationsRequest())
+    resp = await client.list_locations(dp.ListLocationsRequest(country_code_filter=country))
     return {loc.location_name: loc.location_uuid for loc in resp.locations}
 
 
-async def build_dp_location_map() -> dict[str, str]:
+async def build_dp_location_map(country:str | None = None) -> dict[str, str]:
     """Async wrapper: open a channel, fetch the location map, close."""
     async with get_dataplatform_client() as client:
-        return await fetch_dp_location_map(client)
+        return await fetch_dp_location_map(client, country)
 
 
 

@@ -235,7 +235,7 @@ def app_run(
         dp_location_map: dict[str, str] | None = None
         if save_to_data_platform:
             try:
-                dp_location_map = asyncio.run(build_dp_location_map())
+                dp_location_map = asyncio.run(build_dp_location_map(country=country.upper()))
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
             except Exception:
                 log.warning(
@@ -381,7 +381,8 @@ def app_run(
             asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust",
                                                 location_map=dp_location_map,
                                                 t0=timestamp,
-                                                new_model_name="nl_blend_adjust"))
+                                                new_model_name="nl_blend_adjust",
+                                                national_only=True))
 
         if successful_runs_count == runs:
             log.info("All forecasts completed successfully")

@@ -132,34 +132,43 @@ class Curtailment:
             location_map: dict[str, str],
             new_model_name:str,
             t0: datetime,
-            dp_client: dp.DataPlatformDataServiceStub | None = None) -> None:
+            dp_client: dp.DataPlatformDataServiceStub | None = None,
+            national_only:bool = False) -> None:
         """Run the curtailment process for a specific model."""
         async with get_dataplatform_client(dp_client) as dp_client:
 
+            for location_key, location_uuid in location_map.items():
 
-            # load the forecast values
-            values = await get_all_forecast_values_as_dataframe(
-                client=dp_client,
-                location_uuid=location_map["nl_national"],
-                model_name=model_name,
-                start_datetime=t0,
-            )
+                if national_only and location_key != "nl_national":
+                    continue
 
-            # Format the data, ready for curtailment
-            values["target_datetime_utc"] = values["target_time"]
-            values["forecast_power"] = values["expected_power_generation"]
+                log.info(f"Applying curtailment for model {model_name} "
+                         f"at location {location_key} ({location_uuid})")
 
-            # Apply curtailment
-            self.curtailment_results = pd.DataFrame(self.apply_curtailment(forecast_values=values))
-            self.curtailment_results["expected_power_generation"] \
-                = self.curtailment_results["forecast_power"]
+                # load the forecast values
+                values = await get_all_forecast_values_as_dataframe(
+                    client=dp_client,
+                    location_uuid=location_uuid,
+                    model_name=model_name,
+                    start_datetime=t0,
+                )
 
-            # Save the results
-            await save_forecasts(
-                client=dp_client,
-                blended_df=self.curtailment_results,
-                t0=t0.replace(tzinfo=UTC),
-                location_uuid=location_map["nl_national"],
-                location_key=new_model_name,
-                forecaster_name=new_model_name)
+                # Format the data, ready for curtailment
+                values["target_datetime_utc"] = values["target_time"]
+                values["forecast_power"] = values["expected_power_generation"]
+
+                # Apply curtailment
+                self.curtailment_results \
+                    = pd.DataFrame(self.apply_curtailment(forecast_values=values))
+                self.curtailment_results["expected_power_generation"] \
+                    = self.curtailment_results["forecast_power"]
+
+                # Save the results
+                await save_forecasts(
+                    client=dp_client,
+                    blended_df=self.curtailment_results,
+                    t0=t0.replace(tzinfo=UTC),
+                    location_uuid=location_uuid,
+                    location_key=new_model_name,
+                    forecaster_name=new_model_name)
 

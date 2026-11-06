@@ -42,14 +42,6 @@ class BlendConfig(BaseModel):
             "short forecast horizon."
         ),
     )
-    regional_candidate_models: list[str] = Field(
-        ...,
-        title="Regional Candidate Models",
-        description=(
-            "Models evaluated as candidates for regional blends. "
-            "Typically a subset of day_ahead_candidate_models."
-        ),
-    )
 
     # ------------------------------------------------------------------
     # Blending parameters
