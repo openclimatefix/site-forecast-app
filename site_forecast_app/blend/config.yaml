@@ -5,26 +5,27 @@ blends:
     # ------------------------------------------------------------------ #
     # Model registry                                                       #
     # ------------------------------------------------------------------ #
-
     # Candidate models for the national blend.
     # The one with the longest delay-adjusted horizon is the backup.
     # The optimiser will pick the single best other one to blend against it.
     day_ahead_candidate_models:
-      - nl_regional_48h_pv_ecmwf
-      - nl_regional_pv_ecmwf_mo_sat
-      - nl_regional_pv_ecmwf_sat
-      - nl_regional_ecmwf_only
-      - nl_regional_mo_only
+      - nl_regional_da_ecmwf_mo
+      - nl_regional_da_ecmwf
+      - nl_regional_da_mo
 
-    intraday_candidate_models: []
+    intraday_candidate_models: 
+      - nl_regional_intra_ecmwf_mo_sat_pv
+      - nl_regional_intra_ecmwf_mo_sat
+      - nl_regional_intra_ecmwf_mo_pv
+      - nl_regional_intra_ecmwf_sat_pv
+
 
     # Candidate models for regional blends (subset of national candidates).
     regional_candidate_models:
-      - nl_regional_48h_pv_ecmwf
-      - nl_regional_pv_ecmwf_mo_sat
-      - nl_regional_pv_ecmwf_sat
-      - nl_regional_ecmwf_only
-      - nl_regional_mo_only
+      - nl_regional_intra_ecmwf_mo_sat_pv
+      - nl_regional_intra_ecmwf_mo_sat
+      - nl_regional_intra_ecmwf_mo_pv
+      - nl_regional_intra_ecmwf_sat_pv
 
     # ------------------------------------------------------------------ #
     # Blending parameters                                                  #
@@ -56,7 +57,7 @@ blends:
     scorecard_path: data/nl_backtest_nmae_comparison.csv
 
     # Forecaster name written to the Data Platform.
-    forecaster_name: nl_blend
+    forecaster_name: nl_blend_uncurtailed
 
     # The location name key that identifies the national location in the DP location map.
     national_location_key: nl_national

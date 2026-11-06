@@ -1,87 +1,13 @@
 # Here we define all the models that are available in the app
 models:
-  - name: nl_regional_pv_ecmwf_sat
+# NL models below - all of these are trained with rolling effective capacity
+# intraday models
+  - name: nl_regional_intra_ecmwf_mo_sat_pv
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 73c068d5b15fe65cff6fb35e4247144e65399d79
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 36df9cd69a6dfc42477e06e111ca5d5eabdcbbfd
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    satellite_archive_version: v0
-  - name: nl_regional_48h_pv_ecmwf
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: ca49693efaeec8154463fc41c03872fd3daa08be
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 5b7f40c9bec763b1d4d8f26e97d66da628ccba66
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment 
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    satellite_archive_version: v1
-  - name: nl_regional_2h_pv_ecmwf
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: 6955410dca0c5a60e7881f9333503014f56c13fb
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 296bde7b5af4cf256129800d3bc5013d8b27ffd5
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    satellite_archive_version: v1
-  - name: nl_regional_pv_ecmwf_mo_sat
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: 570c62524ba46bac02eaef451ed83382bc997283
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: f40884b26ebd91f4613374fe04b453d2cf60256d
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    # the generation data that is loaded
-    observer_name: nednl_no_curtailment
-    # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    # save the uncurtailed values too
-    save_uncurtailed: true
-    observer_name_uncurtailed_adjuster: nednl_no_curtailment
-    satellite_archive_version: v0
-    # Uncurtailed model below
-  - name: nl_regional_ecmwf_mo_sat
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: c5b25a74b99807645114a1b866a83adc7c270d2c
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 1be9cd5b4688aad9ffa738a2ba229990dc795a47
+    version: 53ed9ec1876c5aaf902ad60a86891eb90e17c68c 
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: 930a0f91cc13d1b458294d1a197ea38633e275f1
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -92,106 +18,14 @@ models:
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
     observer_name_adjuster: nednl_no_curtailment
-    satellite_archive_version: v0
-    # Single source NL Models below
-  - name: nl_regional_pv_only
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: e3987dd5dc7bfb0d9bb9ea48ebf656028f1bac4e
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 5e0149e1724ab54431f4a99d1ad9dd818afdd9b1
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    observer_name: nednl_no_curtailment
-    observer_name_adjuster: nednl
-    is_critical: false
-    satellite_archive_version: v1
-  - name: nl_regional_sat_only
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: ef9620943f520caf86fc456a9a2932f82b3121e0
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 277d5d4665ce682d1b543f794598303890368021
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    observer_name: nednl_no_curtailment
-    observer_name_adjuster: nednl
-    is_critical: false
-    satellite_archive_version: v0
-  # New archive single source sat model below  
-  - name: nl_regional_sat_only_v1
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: e92b63220cffe21497e23e473f0ce8a1d219ec46
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 6f95c6ccd4694553a7fd5389a92eee6db388035b
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    observer_name: nednl_no_curtailment
-    observer_name_adjuster: nednl
-    is_critical: false
-    satellite_archive_version: v1
-  - name: nl_regional_ecmwf_only
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: f6dfe7e595f9f83ce925c76091929b84935cc974
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: decdbcc90e4907ac1fa459f4f49cb87cfdabe0d6
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    observer_name: nednl_no_curtailment
-    observer_name_adjuster: nednl
     is_critical: true
     satellite_archive_version: v1
-  - name: nl_regional_mo_only
+  - name: nl_regional_intra_pv
     type: pvnet
     id: openclimatefix-models/pvnet_nl
-    version: 6815348c9d4ced9e4a71bd2b69134a190a18867a
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: f2b9b22e558f0d3916e05816d12d6001b1b87a05
-    client: nl
-    asset_type: pv
-    satellite_scaling_method: constant
-    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
-    location_type: state
-    summation_location_type: nation
-    curtailment: true
-    observer_name: nednl_no_curtailment
-    observer_name_adjuster: nednl
-    is_critical: true
-    satellite_archive_version: v1
-  - name: nl_regional_pv_ecmwf_mo9_sat
-    # This model is trained on generation data where we have removed the curtailment
-    # Also only 9 MO variables have been used, these have been removed:
-    # - downward_shortwave_radiation_flux_gl
-    # - visibility_sl
-    # - snow_depth_gl
-    # Also trained on new satellite archive
-    type: pvnet
-    id: openclimatefix-models/pvnet_nl
-    version: c5c145b413c3fcb2109d6a4d103e040bc9610c0b
-    summation_id: openclimatefix-models/pvnet_nl
-    summation_version: 386fd2b9af20e3d0f6ff10334d8aa6fa21b23ab8
+    version: 1d4c2b4447fb142ebf83818f8d9c0de90737c14f
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: a2c4cdc712810ad8c96631dd0baf4e78664a965d
     client: nl
     asset_type: pv
     satellite_scaling_method: constant
@@ -201,14 +35,136 @@ models:
     # the generation data that is loaded
     observer_name: nednl_no_curtailment
     # the generation data used for the adjuster
-    observer_name_adjuster: nednl
-    curtailment: true
+    observer_name_adjuster: nednl_no_curtailment
     is_critical: false
     satellite_archive_version: v1
-    # save the uncurtailed values too
-    # save_uncurtailed: true
-    # observer_name_uncurtailed_adjuster: nednl_no_curtailment
-    # India models below
+  - name: nl_regional_intra_sat
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 9aba8f2c5b3a48cde059b5c2c8562c0b1d63f12d
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: 25b86792667fbb136fb434a265f5b979640baf68
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: false
+    satellite_archive_version: v1
+  - name: nl_regional_intra_ecmwf_mo_pv
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: f3ebf58d8b16dc29a189a78e6c40965269a72e66
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: 535f8fc7e8d52f7a01093c61b36c8c2ce925e085
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: true
+    satellite_archive_version: v1
+  - name: nl_regional_intra_ecmwf_sat_pv
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: e1df3917097204c9a6610526bcc3ee60b83718bd
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: 241ef72808b085355f3386172709a832830201c5
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: true
+    satellite_archive_version: v1
+  - name: nl_regional_intra_ecmwf_mo_sat
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 18f670d00a2632e73e191a4000699697570cc22e
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: 6b1d4a8c34f7fa7b9c6b0e2c4465fac5a84c16f4
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: true
+    satellite_archive_version: v1
+  - name: nl_regional_da_ecmwf_mo
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 56ae3435ebf04d5f8fb5b646bd031fce1d33f8b3
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: d0784e8e30560fcae206ebfe5b684202735ca0fd
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: true
+    satellite_archive_version: v1
+  - name: nl_regional_da_ecmwf
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 48886cfdfec61f57fee3d944e8b450ba5ae1aec7
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: cbaf5e053ca86e77552f78457a3c47ad8fe7609e
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: true
+    satellite_archive_version: v1
+  - name: nl_regional_da_mo
+    type: pvnet
+    id: openclimatefix-models/pvnet_nl
+    version: 60ee99d4182599966034b29cfe9dfe846c3bdba5
+    summation_id: openclimatefix-models/pvnet_nl_summation
+    summation_version: e8b659af29bfa540621a55d11d820a1a5e938b09
+    client: nl
+    asset_type: pv
+    satellite_scaling_method: constant
+    site_group_uuid: 418259c9-0a31-4df7-a657-e53df9623897
+    location_type: state
+    summation_location_type: nation
+    # the generation data that is loaded
+    observer_name: nednl_no_curtailment
+    # the generation data used for the adjuster
+    observer_name_adjuster: nednl_no_curtailment
+    is_critical: true
+    satellite_archive_version: v1
+# India models below
   - name: pvnet_ad_sites_satellite_ecmwf_long_site_history
     type: pvnet
     id: openclimatefix-models/pvnet_ad_sites
