@@ -112,7 +112,7 @@ DB_URL={DB_URL} poetry run seeder
 
 This example runs the application and writes the results to stdout
 ```
-DB_URL={DB_URL} NWP_ZARR_PATH={NWP_ZARR_PATH} poetry run app
+uv run python site_forecast_app/app.py
 ```
 
 To save batches, you need to set the `SAVE_BATCHES_DIR` environment variable to directory. 
