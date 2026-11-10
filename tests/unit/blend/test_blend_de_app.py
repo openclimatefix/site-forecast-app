@@ -29,9 +29,6 @@ def mock_blend(monkeypatch, de_dp_locations):
             "site_forecast_app.blend.app.get_blend_weights", new_callable=AsyncMock,
         ) as weights,
         patch(
-            "site_forecast_app.blend.app.get_regional_blend_weights", new_callable=AsyncMock,
-        ) as regional_weights,
-        patch(
             "site_forecast_app.blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
         ) as blend_values,
         patch("site_forecast_app.blend.app.save_forecasts", new_callable=AsyncMock) as save,
@@ -41,7 +38,6 @@ def mock_blend(monkeypatch, de_dp_locations):
         get_client.return_value.__aenter__.return_value = client
 
         weights.return_value = pd.DataFrame({"de_ecmwf_pv": [1.0]})
-        regional_weights.return_value = pd.DataFrame({"de_ecmwf_pv": [1.0]})
         blend_values.return_value = pd.DataFrame(
             {
                 "target_time": [pd.Timestamp("2026-09-21 12:00", tz="UTC")],
@@ -52,7 +48,6 @@ def mock_blend(monkeypatch, de_dp_locations):
         yield {
             "client": client,
             "weights": weights,
-            "regional_weights": regional_weights,
             "blend_values": blend_values,
             "save": save,
         }
@@ -91,8 +86,7 @@ async def test_zones_use_regional_weights(mock_blend, de_blend_config):
     """The nation uses the national candidate set, zones use the regional one."""
     await run_blend_app(config=de_blend_config)
 
-    assert mock_blend["weights"].call_count == 2  # national blend + adjuster
-    assert mock_blend["regional_weights"].call_count == len(DE_ZONES)
+    assert mock_blend["weights"].call_count == 2 + len(DE_ZONES)  # national blend + adjuster
 
 
 @pytest.mark.asyncio
@@ -114,7 +108,6 @@ async def test_other_countries_regions_are_not_blended(
     await run_blend_app(config=de_blend_config)
 
     assert _saved(mock_blend, "location_key") == [DE_NATIONAL, *DE_ZONES, DE_NATIONAL]
-    assert mock_blend["regional_weights"].call_count == len(DE_ZONES)
 
 
 @pytest.mark.asyncio
@@ -150,7 +143,6 @@ class TestDeConfig:
         df_mae = load_nl_mae_scorecard(str(BLEND_DIR / de_blend_config.scorecard_path))
         configured = {
             *de_blend_config.day_ahead_candidate_models,
-            *de_blend_config.regional_candidate_models,
             *de_blend_config.intraday_candidate_models,
         }
 

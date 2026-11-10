@@ -11,7 +11,7 @@ from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
 )
 from site_forecast_app.blend.init_times import load_nl_mae_scorecard
-from site_forecast_app.blend.weights import get_blend_weights, get_regional_blend_weights
+from site_forecast_app.blend.weights import get_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
     get_dataplatform_client,
@@ -153,7 +153,6 @@ async def run_blend_app(config: BlendConfig) -> None:
                 df_mae=df_mae,
                 max_horizon=max_horizon,
                 forecaster_name=_cfg.forecaster_name,
-                use_regional_weights=True,
                 config=_cfg,
             )
 
@@ -231,7 +230,7 @@ async def _run_blend_pass(
     )
 
     # Regional locations use the regional candidate model set.
-    weight_fn = get_regional_blend_weights if use_regional_weights else get_blend_weights
+    weight_fn = get_blend_weights
     try:
         weights_df = await weight_fn(
             t0=t0,

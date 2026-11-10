@@ -235,7 +235,7 @@ def app_run(
         dp_location_map: dict[str, str] | None = None
         if save_to_data_platform:
             try:
-                dp_location_map = asyncio.run(build_dp_location_map())
+                dp_location_map = asyncio.run(build_dp_location_map(country=country.upper()))
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
             except Exception:
                 log.warning(
