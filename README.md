@@ -102,17 +102,10 @@ make test
 The example notebook is [here](run_app_locally.ipynb), follow the instructions inside.
 
 ## Running the app locally
-Replace `{DB_URL}` with a postgres DB connection string (see below for setting up a ephemeral local DB)
 
-If testing on a local DB, you may use the following script to seed the the DB with a dummy user, site and site_group. 
+You need to see your enviornment values, and then run the application using
 ```
-DB_URL={DB_URL} poetry run seeder
-```
-⚠️ Note this is a destructive script and will drop all tables before recreating them to ensure a clean slate. DO NOT RUN IN PRODUCTION ENVIRONMENTS
-
-This example runs the application and writes the results to stdout
-```
-DB_URL={DB_URL} NWP_ZARR_PATH={NWP_ZARR_PATH} poetry run app
+uv run python site_forecast_app/app.py
 ```
 
 To save batches, you need to set the `SAVE_BATCHES_DIR` environment variable to directory. 
