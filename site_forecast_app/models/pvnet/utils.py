@@ -107,11 +107,6 @@ def populate_data_config_sources(input_path: str, output_path: str) -> dict:
         if "capacity_mode" in generation_config:
             generation_config.pop("capacity_mode")
 
-        # remove any dropout timedeltas
-        if "dropout_timedeltas_minutes" in generation_config:
-            generation_config["dropout_timedeltas_minutes"] = []
-            generation_config["dropout_fraction"] = 0
-
     # add solar position
     config["input_data"]["solar_position"] = {}
     for k in ["time_resolution_minutes", "interval_end_minutes", "interval_start_minutes"]:
