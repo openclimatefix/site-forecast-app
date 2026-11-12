@@ -1,13 +1,18 @@
 """Class for managing curtailment forecasts."""
 
-import json
 import logging
 import os
 import time
+from datetime import UTC, datetime
 from venv import logger
 
 import pandas as pd
 from entsoe import EntsoePandasClient
+from ocf import dp
+
+from site_forecast_app.blend.app import save_forecasts
+from site_forecast_app.blend.data_platform import get_all_forecast_values_as_dataframe
+from site_forecast_app.data_platform import get_dataplatform_client
 
 log = logging.getLogger(__name__)
 
@@ -105,18 +110,10 @@ class Curtailment:
         forecast_values_df["curtailed"] = forecast_values_df[
             "NL_day_ahead_prices_euros_per_mwh"
         ].apply(lambda x: x <= 0)
-        forecast_values_df["forecast_power_kw"] = forecast_values_df.apply(
-            lambda row: row["forecast_power_kw"] / 1.11 if row["curtailed"] \
-                else row["forecast_power_kw"],
+        forecast_values_df["forecast_power"] = forecast_values_df.apply(
+            lambda row: row["forecast_power"] / 1.11 if row["curtailed"] \
+                else row["forecast_power"],
             axis=1,
-        )
-
-        # Lets now also apply curtailment to the probabilistic_values
-        # Convert to probabilistic_values column of dict to columns
-        forecast_values_df["probabilistic_values"] \
-            = forecast_values_df["probabilistic_values"].apply(json.loads)
-        forecast_values_df = forecast_values_df.pipe(
-            lambda df: df.join(pd.json_normalize(df["probabilistic_values"])),
         )
 
         # apply curtailament on p10 and p90
@@ -126,12 +123,52 @@ class Curtailment:
                 axis=1,
             )
 
-        # convert back to json
-        forecast_values_df["probabilistic_values"] = forecast_values_df[["p10", "p90"]].apply(
-            lambda row: json.dumps(row.to_dict()),
-            axis=1,
-        )
-        forecast_values_df = forecast_values_df.drop(columns=["p10", "p90"])
-
         # convert back to list of dicts
         return forecast_values_df.to_dict("records")
+
+    async def apply_curtailment_on_model(
+            self,
+            model_name: str,
+            location_map: dict[str, str],
+            new_model_name:str,
+            t0: datetime,
+            dp_client: dp.DataPlatformDataServiceStub | None = None,
+            national_only:bool = False) -> None:
+        """Run the curtailment process for a specific model."""
+        async with get_dataplatform_client(dp_client) as dp_client:
+
+            for location_key, location_uuid in location_map.items():
+
+                if national_only and location_key != "nl_national":
+                    continue
+
+                log.info(f"Applying curtailment for model {model_name} "
+                         f"at location {location_key} ({location_uuid})")
+
+                # load the forecast values
+                values = await get_all_forecast_values_as_dataframe(
+                    client=dp_client,
+                    location_uuid=location_uuid,
+                    model_name=model_name,
+                    start_datetime=t0,
+                )
+
+                # Format the data, ready for curtailment
+                values["target_datetime_utc"] = values["target_time"]
+                values["forecast_power"] = values["expected_power_generation"]
+
+                # Apply curtailment
+                self.curtailment_results \
+                    = pd.DataFrame(self.apply_curtailment(forecast_values=values))
+                self.curtailment_results["expected_power_generation"] \
+                    = self.curtailment_results["forecast_power"]
+
+                # Save the results
+                await save_forecasts(
+                    client=dp_client,
+                    blended_df=self.curtailment_results,
+                    t0=t0.replace(tzinfo=UTC),
+                    location_uuid=location_uuid,
+                    location_key=new_model_name,
+                    forecaster_name=new_model_name)
+

@@ -45,7 +45,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
     # Floor to 15-min boundary to match the blend app's own t0 calculation.
     t0 = datetime.now(tz=UTC)
     t0 = t0.replace(minute=(t0.minute // 15) * 15, second=0, microsecond=0)
-    for model_name in ("nl_regional_2h_pv_ecmwf", "nl_regional_48h_pv_ecmwf"):
+    for model_name in ("nl_regional_da_ecmwf_mo", "nl_regional_da_ecmwf"):
         await _seed_source_model_forecast(
             client=client,
             location_uuid=location_uuid,
@@ -59,7 +59,7 @@ async def test_run_blend_app_e2e(dp_address, monkeypatch, blend_config):
 
     # 4. Verify the blended forecast was written to the Data Platform.
     list_forecasters_resp = await client.list_forecasters(
-        dp.ListForecastersRequest(forecaster_names_filter=["nl_blend"]),
+        dp.ListForecastersRequest(forecaster_names_filter=["nl_blend_uncurtailed"]),
     )
     assert list_forecasters_resp.forecasters, (
         "blend forecaster was not created in the Data Platform."
