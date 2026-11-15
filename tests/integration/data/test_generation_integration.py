@@ -61,7 +61,6 @@ def test_get_generation_data_dp(mock_fetch, db_session, sites, init_timestamp):
         (init_timestamp - dt.timedelta(hours=1), 10.5),
         (init_timestamp - dt.timedelta(hours=0.75), 10.5),
         (init_timestamp - dt.timedelta(hours=0.5), 14.5),
-        (init_timestamp - dt.timedelta(hours=0.25), 14.5),
         (init_timestamp, 20.0),
     ]
 
