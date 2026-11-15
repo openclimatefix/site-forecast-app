@@ -236,7 +236,7 @@ async def _get_site_generation_data(
         generation_df = generation_df.interpolate(method="linear",
                                                   limit_direction="both",
                                                   limit=4)
-    
+
         if client_name == "ruvnl":
             # Down-sample from 3 min to 15 min intervals
             generation_df = generation_df.resample("15min").mean()
