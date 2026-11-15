@@ -216,15 +216,16 @@ async def _get_site_generation_data(
             generation_df.index = generation_df.index.tz_convert("UTC").tz_localize(None)
 
 
+        # Drop any duplicated timestamps
+        generation_df = generation_df[~generation_df.index.duplicated()]
+
+        # xarray (used later) expects columns with string names
+        generation_df.columns = generation_df.columns.astype(str)
+
+
         if client_name == "ruvnl":
              # Ensure timestamps line up with 3min intervals
             generation_df.index = generation_df.index.round("3min")
-
-            # Drop any duplicated timestamps
-            generation_df = generation_df[~generation_df.index.duplicated()]
-
-            # xarray (used later) expects columns with string names
-            generation_df.columns = generation_df.columns.astype(str)
 
             # Handle any missing timestamps
             contiguous_dt_idx = pd.date_range(start=start, end=end, freq="3min")[:-1]
