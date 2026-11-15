@@ -92,7 +92,7 @@ async def test_get_site_generation_data_clips_negative_extrapolation(monkeypatch
         "site_forecast_app.data.generation.fetch_generation_from_dp",
         AsyncMock(return_value=dp_data),
     ):
-        result = await _get_site_generation_data(None, site, timestamp)
+        result = await _get_site_generation_data(None, site, timestamp, client_name="test_client")
 
     generation = result["data"]["generation_kw"].sel(location_id=1)
     assert generation.sel(time_utc=timestamp).item() == 0

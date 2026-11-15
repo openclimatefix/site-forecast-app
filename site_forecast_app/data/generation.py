@@ -86,6 +86,7 @@ def get_generation_data(
     db_session: Session,
     sites: list[LocationSQL],
     timestamp: pd.Timestamp,
+    client_name: str,
     observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Load generation data from Database.
@@ -97,6 +98,7 @@ def get_generation_data(
             db_session: A SQLAlchemy session
             sites: A list of LocationSQL objects
             timestamp: The end time from which to retrieve data
+            client_name: The name of the client requesting the data.
             observer_name: The name of the observer to fetch DP generation data from.
 
     Returns:
@@ -106,7 +108,7 @@ def get_generation_data(
     """
     if len(sites) == 1:
         return asyncio.run(
-            _get_site_generation_data(db_session, sites[0], timestamp, observer_name),
+            _get_site_generation_data(db_session, sites[0], timestamp, client_name, observer_name),
         )
     else:
         log.info("Multiple sites requested. Loading data for one site at a time...")
@@ -114,7 +116,7 @@ def get_generation_data(
         data_list: list[xr.Dataset] = []
         for site in sites:
             site_dict = asyncio.run(
-                _get_site_generation_data(db_session, site, timestamp, observer_name),
+                _get_site_generation_data(db_session, site, timestamp, client_name, observer_name),
             )
             metadata_list.append(site_dict["metadata"])
             data_list.append(site_dict["data"])
@@ -131,6 +133,7 @@ async def _get_site_generation_data(
     db_session: Session,
     site: LocationSQL,
     timestamp: pd.Timestamp,
+    client_name: str,
     observer_name: str | None = None,
 ) -> dict[str, pd.DataFrame | xr.Dataset]:
     """Gets generation data values for a single site.
@@ -139,6 +142,8 @@ async def _get_site_generation_data(
             db_session: A SQLAlchemy session
             site: A LocationSQL object
             timestamp: The end time from which to retrieve data
+            client_name: The name of the client requesting the data.
+                If RUVNL we assume data is 3 minutely.
             observer_name: The name of the observer to fetch DP generation data from.
 
     Returns:
@@ -210,18 +215,21 @@ async def _get_site_generation_data(
         if generation_df.index.tz is not None:
             generation_df.index = generation_df.index.tz_convert("UTC").tz_localize(None)
 
-        # Ensure timestamps line up with 3min intervals
-        generation_df.index = generation_df.index.round("3min")
 
-        # Drop any duplicated timestamps
-        generation_df = generation_df[~generation_df.index.duplicated()]
+        if client_name == "ruvnl":
+             # Ensure timestamps line up with 3min intervals
+            generation_df.index = generation_df.index.round("3min")
 
-        # xarray (used later) expects columns with string names
-        generation_df.columns = generation_df.columns.astype(str)
+            # Drop any duplicated timestamps
+            generation_df = generation_df[~generation_df.index.duplicated()]
 
-        # Handle any missing timestamps
-        contiguous_dt_idx = pd.date_range(start=start, end=end, freq="3min")[:-1]
-        generation_df = generation_df.reindex(contiguous_dt_idx, fill_value=None)
+            # xarray (used later) expects columns with string names
+            generation_df.columns = generation_df.columns.astype(str)
+
+            # Handle any missing timestamps
+            contiguous_dt_idx = pd.date_range(start=start, end=end, freq="3min")[:-1]
+            generation_df = generation_df.reindex(contiguous_dt_idx, fill_value=None)
+            generation_df.index.name = "time_utc"
 
         # Interpolate NaNs
         # this will do 4 steps, so 12 mins if 3 mins data, or 1 hour if 15 minute data
@@ -255,9 +263,6 @@ async def _get_site_generation_data(
         generation_xr = generation_xr.assign_coords(
             location_id=(["location_id"], [system_id]),
         )
-
-        # rename index to time_utc
-        generation_xr = generation_xr.rename({"index": "time_utc"})
 
         log.info(generation_xr)
 
