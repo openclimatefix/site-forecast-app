@@ -222,7 +222,6 @@ async def _get_site_generation_data(
         # xarray (used later) expects columns with string names
         generation_df.columns = generation_df.columns.astype(str)
 
-
         if client_name == "ruvnl":
              # Ensure timestamps line up with 3min intervals
             generation_df.index = generation_df.index.round("3min")
@@ -237,9 +236,10 @@ async def _get_site_generation_data(
         generation_df = generation_df.interpolate(method="linear",
                                                   limit_direction="both",
                                                   limit=4)
-
-        # Down-sample from 3 min to 15 min intervals
-        generation_df = generation_df.resample("15min").mean()
+    
+        if client_name == "ruvnl":
+            # Down-sample from 3 min to 15 min intervals
+            generation_df = generation_df.resample("15min").mean()
 
         # Add a final row for t0, and interpolate this row
         # this will do 4 steps, 1 hour if 15 minute data
