@@ -5,6 +5,7 @@ import os
 
 import fsspec
 import numpy as np
+import pandas as pd
 import torch
 import yaml
 from ocf_data_sampler.config.model import Configuration
@@ -150,6 +151,7 @@ def save_batch(
     batch: dict,
     model_name: str,
     site_uuid: str,
+    sample_t0: pd.Timestamp ,
     save_batches_dir: str | None = None,
 ) -> None:
     """Save batch to SAVE_BATCHES_DIR if set.
@@ -158,16 +160,20 @@ def save_batch(
         batch: The batch to save
         model_name: The name of the model
         site_uuid: The site_uuid of the site
+        sample_t0: The init time of the sample
         save_batches_dir: The directory to save the batch to,
             defaults to environment variable SAVE_BATCHES_DIR
     """
     if save_batches_dir is None:
         save_batches_dir = os.getenv("SAVE_BATCHES_DIR", None)
 
+    add_timestamp_batches = os.getenv("ADD_TIMESTAMP_BATCHES", None)
+    timestamp = sample_t0.isoformat() if add_timestamp_batches else None
+
     if save_batches_dir is not None:
         log.info(f"Saving batch to {save_batches_dir}")
 
-        local_filename = f"batch_{model_name}_{site_uuid}.pt"
+        local_filename = f"batch_{model_name}_{site_uuid}_{timestamp}.pt"
         torch.save(batch, local_filename)
 
         fs = fsspec.open(save_batches_dir).fs
