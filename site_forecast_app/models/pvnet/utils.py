@@ -167,7 +167,7 @@ def save_batch(
     if save_batches_dir is None:
         save_batches_dir = os.getenv("SAVE_BATCHES_DIR", None)
 
-    add_timestamp_batches = os.getenv("ADD_TIMESTAMP_BATCHES", None)
+    add_timestamp_batches = bool(os.getenv("SAVE_EVERY_BATCH", False).lower())
     timestamp = sample_t0.isoformat() if add_timestamp_batches else None
 
     if save_batches_dir is not None:
