@@ -215,6 +215,11 @@ async def _get_site_generation_data(
         if generation_df.index.tz is not None:
             generation_df.index = generation_df.index.tz_convert("UTC").tz_localize(None)
 
+        # ruvnl data is 3 minutely, other clients are 15 minutely
+        freq = "3min" if client_name == "ruvnl" else "15min"
+
+        # Ensure timestamps line up with 3min or 15min intervals
+        generation_df.index = generation_df.index.round(freq)
 
         # Drop any duplicated timestamps
         generation_df = generation_df[~generation_df.index.duplicated()]
@@ -222,14 +227,10 @@ async def _get_site_generation_data(
         # xarray (used later) expects columns with string names
         generation_df.columns = generation_df.columns.astype(str)
 
-        if client_name == "ruvnl":
-             # Ensure timestamps line up with 3min intervals
-            generation_df.index = generation_df.index.round("3min")
-
-            # Handle any missing timestamps
-            contiguous_dt_idx = pd.date_range(start=start, end=end, freq="3min")[:-1]
-            generation_df = generation_df.reindex(contiguous_dt_idx, fill_value=None)
-            generation_df.index.name = "time_utc"
+        # Handle any missing timestamps
+        contiguous_dt_idx = pd.date_range(start=start, end=end, freq=freq)[:-1]
+        generation_df = generation_df.reindex(contiguous_dt_idx, fill_value=None)
+        generation_df.index.name = "time_utc"
 
         # Interpolate NaNs
         # this will do 4 steps, so 12 mins if 3 mins data, or 1 hour if 15 minute data
