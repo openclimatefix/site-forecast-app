@@ -38,7 +38,10 @@ def test_get_generation_data_pv(db_session, sites, generation_db_values, init_ti
 
     # Test only checks for wind data as solar data not ready yet
     gen_sites = [s for s in sites if s.asset_type == LocationAssetType.pv][0:1]  # 1 site
-    gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
+    gen_data = get_generation_data(db_session,
+                                   gen_sites,
+                                   timestamp=init_timestamp,
+                                   client_name="ruvnl")
     gen_xr, gen_meta = gen_data["data"], gen_data["metadata"]
 
     # Check for 5 (non-null) generation values
@@ -56,6 +59,7 @@ def test_get_generation_data_dp(mock_fetch, db_session, sites, init_timestamp):
     """Test reading generation data from the data platform via env var."""
     mock_fetch.return_value = [
         (init_timestamp - dt.timedelta(hours=1), 10.5),
+        (init_timestamp - dt.timedelta(hours=0.75), 10.5),
         (init_timestamp - dt.timedelta(hours=0.5), 14.5),
         (init_timestamp, 20.0),
     ]
@@ -63,7 +67,10 @@ def test_get_generation_data_dp(mock_fetch, db_session, sites, init_timestamp):
     os.environ["READ_FROM_DATA_PLATFORM"] = "true"
     try:
         gen_sites = [s for s in sites if s.asset_type == LocationAssetType.pv][0:1]
-        gen_data = get_generation_data(db_session, gen_sites, timestamp=init_timestamp)
+        gen_data = get_generation_data(db_session,
+                                       gen_sites,
+                                       timestamp=init_timestamp,
+                                       client_name="test_client")
         gen_xr, gen_meta = gen_data["data"], gen_data["metadata"]
 
         mock_fetch.assert_called_once()

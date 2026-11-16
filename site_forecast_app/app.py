@@ -271,7 +271,11 @@ def app_run(
 
                 log.info("Reading latest historic generation data for all sites...")
                 generation_data = get_generation_data(
-                    session, site_group, timestamp, observer_name=model_config.observer_name,
+                    session,
+                    site_group,
+                    timestamp,
+                    client_name=client_name,
+                    observer_name=model_config.observer_name,
                 )
 
                 log.info(f"Loading concurrent model {model_config.name}...")
