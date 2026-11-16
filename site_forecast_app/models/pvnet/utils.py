@@ -168,12 +168,12 @@ def save_batch(
         save_batches_dir = os.getenv("SAVE_BATCHES_DIR", None)
 
     add_timestamp_batches = bool(os.getenv("SAVE_EVERY_BATCH", False).lower())
-    timestamp = sample_t0.isoformat() if add_timestamp_batches else None
+    timestamp = f"_{sample_t0.isoformat()}" if add_timestamp_batches else ""
 
     if save_batches_dir is not None:
         log.info(f"Saving batch to {save_batches_dir}")
 
-        local_filename = f"batch_{model_name}_{site_uuid}_{timestamp}.pt"
+        local_filename = f"batch_{model_name}_{site_uuid}{timestamp}.pt"
         torch.save(batch, local_filename)
 
         fs = fsspec.open(save_batches_dir).fs
