@@ -236,7 +236,9 @@ async def _get_site_generation_data(
         # this will do 4 steps, so 12 mins if 3 mins data, or 1 hour if 15 minute data
         generation_df = generation_df.interpolate(method="linear",
                                                   limit_direction="both",
-                                                  limit=4)
+                                                  limit=4,
+                                                  # this stops values being copied forward
+                                                  limit_area="inside")
 
         if client_name == "ruvnl":
             # Down-sample from 3 min to 15 min intervals
@@ -250,7 +252,7 @@ async def _get_site_generation_data(
                                                   limit=4)
 
         # Quadratic extrapolation can overshoot below zero, e.g. on a falling evening ramp
-        generation_df = generation_df.clip(lower=0)
+        generation_df = generation_df.clip(lower=0, upper=site.capacity_kw)
 
         # rename column to be generation_kw
         generation_df.columns = ["generation_kw"]
