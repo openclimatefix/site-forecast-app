@@ -83,9 +83,9 @@ async def test_get_site_generation_data_clips_negative_extrapolation(monkeypatch
     # Generation collapsing on an evening ramp, stopping 15 minutes before t0.
     # Without clipping, this extrapolates to about -10 kW at t0
     times = pd.date_range(
-        timestamp - dt.timedelta(hours=1, minutes=15), periods=5, freq="15min", tz="UTC",
+        timestamp - dt.timedelta(hours=1, minutes=15), periods=4, freq="15min", tz="UTC",
     )
-    values = [100, 95, 85, 60, 10]
+    values = [100, 95, 85, 20]
     dp_data = [(t.to_pydatetime(), v) for t, v in zip(times, values, strict=True)]
 
     with patch(
@@ -95,8 +95,12 @@ async def test_get_site_generation_data_clips_negative_extrapolation(monkeypatch
         result = await _get_site_generation_data(None, site, timestamp, client_name="test_client")
 
     generation = result["data"]["generation_kw"].sel(location_id=1)
+    print(generation)
     assert generation.sel(time_utc=timestamp).item() == 0
     assert (generation.dropna(dim="time_utc") >= 0).all()
-    for i in range(1, 5):
-        # we've added an extra -1, as generation has an extra value at the end
-        assert (generation.values[-i-1] == values[-i])
+    for i in range(1, 4):
+        # we've added an extra -2, as generation has an extra value at the end
+        assert (generation.values[-i-2] == values[-i])
+
+    # make sure values are copied forward
+    assert generation.values[-2] != 20
