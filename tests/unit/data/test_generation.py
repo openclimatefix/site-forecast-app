@@ -98,7 +98,7 @@ async def test_get_site_generation_data_clips_negative_extrapolation(monkeypatch
     assert generation.sel(time_utc=timestamp).item() == 0
     assert (generation.dropna(dim="time_utc") >= 0).all()
     for i in range(1, 4):
-        # we've added an extra -2, as generation has an extra value at the end
+        # we've added an extra -2, as generation has 2 extra value at the end
         assert (generation.values[-i-2] == values[-i])
 
     # make sure values are copied forward
