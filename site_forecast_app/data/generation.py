@@ -252,7 +252,7 @@ async def _get_site_generation_data(
                                                   limit=4)
 
         # Quadratic extrapolation can overshoot below zero, e.g. on a falling evening ramp
-        generation_df = generation_df.clip(lower=0)
+        generation_df = generation_df.clip(lower=0, upper=site.capacity_kw)
 
         # rename column to be generation_kw
         generation_df.columns = ["generation_kw"]
