@@ -261,3 +261,32 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
     assert deps["get_blend_weights"].call_count == 2 + 1
     assert deps["get_blend_forecast_values_latest"].call_count == 3
     assert deps["_save_forecasts"].call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_run_blend_app_with_model_suffix(mock_dependencies, blend_config):
+    """With a model suffix, the blend fetches {model}_pia and {model}_pia_adjust."""
+    deps = mock_dependencies
+    await deps["mock_client"].create_location(
+        dp.CreateLocationRequest(
+            location_name="nl_national",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.NATION,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
+        ),
+    )
+    deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
+    deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
+    deps["get_blend_forecast_values_latest"].return_value = pd.DataFrame()
+
+    config = blend_config.model_copy(update={"model_suffix": "_pia"})
+    await run_blend_app(config=config)
+
+    fetched = [
+        list(c.kwargs["weights_df"].columns)
+        for c in deps["get_blend_forecast_values_latest"].call_args_list
+    ]
+    assert fetched == [["model_A_pia"], ["model_A_pia_adjust"]]

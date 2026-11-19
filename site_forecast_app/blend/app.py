@@ -51,7 +51,7 @@ async def run_blend_app(config: BlendConfig) -> None:
     logger.info(
         "Starting blend execution. "
         f"use_adjuster={_cfg.use_adjuster}, "
-        f"forecaster='{_cfg.forecaster_name}'",
+        f"forecaster='{_cfg.output_forecaster_name}'",
     )
 
     # ------------------------------------------------------------------ #
@@ -127,7 +127,7 @@ async def run_blend_app(config: BlendConfig) -> None:
             location_key=_cfg.national_location_key,
             df_mae=df_mae,
             max_horizon=max_horizon,
-            forecaster_name=_cfg.forecaster_name,
+            forecaster_name=_cfg.output_forecaster_name,
             config=_cfg,
         )
 
@@ -152,7 +152,7 @@ async def run_blend_app(config: BlendConfig) -> None:
                 location_key=location_key,
                 df_mae=df_mae,
                 max_horizon=max_horizon,
-                forecaster_name=_cfg.forecaster_name,
+                forecaster_name=_cfg.output_forecaster_name,
                 config=_cfg,
             )
 
@@ -244,6 +244,12 @@ async def _run_blend_pass(
     except Exception:
         logger.exception(f"[{log_prefix}] Failed to calculate blend weights.")
         return
+
+    # e.g. fetch {model}_pia for models run in the pvnet-inference-app
+    if config.model_suffix:
+        weights_df = weights_df.rename(
+            columns={col: f"{col}{config.model_suffix}" for col in weights_df.columns},
+        )
 
     # For the adjuster pass: rename columns so DP fetches {model}_adjust.
     if use_adjuster:

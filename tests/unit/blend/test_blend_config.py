@@ -41,6 +41,12 @@ class TestAdjusterForecasterName:
         cfg = _cfg(blend_config)
         assert cfg.adjuster_forecaster_name != cfg.forecaster_name
 
+    def test_model_suffix_added_to_output_names(self, blend_config):
+        """The model suffix goes before '_adjust'."""
+        cfg = _cfg(blend_config, forecaster_name="nl_blend_uncurtailed", model_suffix="_pia")
+        assert cfg.output_forecaster_name == "nl_blend_uncurtailed_pia"
+        assert cfg.adjuster_forecaster_name == "nl_blend_uncurtailed_pia_adjust"
+
 
 # ---------------------------------------------------------------------------
 # Tests: BlendConfig — use_adjuster flag
