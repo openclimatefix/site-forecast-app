@@ -265,6 +265,7 @@ async def _compute_weights(
     label: str,
     kernel: list[float],
     min_forecast_horizon: pd.Timedelta,
+    model_suffix: str = "",
 ) -> pd.DataFrame:
     """Fetches init times, shifts MAE curves, and runs the two-stage optimiser.
 
@@ -282,6 +283,7 @@ async def _compute_weights(
         label:                Short label for log messages ("National"/"Regional").
         kernel:               Taper kernel weights (e.g. [0.75, 0.5, 0.25]).
         min_forecast_horizon: Minimum forecast horizon used in the scoring window.
+        model_suffix:         Suffix added to model names when fetching from the DP.
 
     Returns:
         Wide DataFrame indexed by absolute UTC target time.
@@ -297,10 +299,12 @@ async def _compute_weights(
     model_init_times = await fetch_latest_nl_init_times(
         client=client,
         location_uuid=location_uuid,
-        model_names=all_models,
+        model_names=[m + model_suffix for m in all_models],
         t0=t0,
         max_delay=max_horizon,
     )
+    # map back to the scorecard model names
+    model_init_times = {m.removesuffix(model_suffix): t for m, t in model_init_times.items()}
     logger.info(f"[{label}] Fetched model init times: {model_init_times}")
 
     # Assign penalty delays to missing models
@@ -448,44 +452,6 @@ async def get_blend_weights(
         label="National",
         kernel=config.blend_kernel,
         min_forecast_horizon=config.min_forecast_horizon,
+        model_suffix=config.model_suffix,
     )
 
-
-async def get_regional_blend_weights(
-    t0: pd.Timestamp,
-    location_uuid: str,
-    df_mae: pd.DataFrame,
-    max_horizon: pd.Timedelta,
-    client: dp.DataPlatformDataServiceStub,
-    config: BlendConfig,
-) -> pd.DataFrame:
-    """Produces a regional blend weight DataFrame for t0.
-
-    Identical pipeline to :func:`get_blend_weights` but uses
-    config.regional_candidate_models as the candidate set.
-
-    Args:
-        t0:            Blend reference time (UTC, floored to 15 min).
-        location_uuid: Data Platform location UUID for the specific region.
-        df_mae:        (horizon x model) MAE scorecard.
-        max_horizon:   Maximum horizon in the scorecard.
-        client:        Authenticated Data Platform gRPC client stub.
-        config:        Blend configuration supplying model names and kernel.
-
-    Returns:
-        Wide DataFrame indexed by absolute UTC target time.
-        Weights sum to 1.0 at every horizon.
-        Returns an empty DataFrame if the shifted MAE frame is empty.
-    """
-    return await _compute_weights(
-        t0=t0,
-        location_uuid=location_uuid,
-        df_mae=df_mae,
-        max_horizon=max_horizon,
-        client=client,
-        day_ahead_candidate_models=config.regional_candidate_models,
-        intraday_candidate_models=config.intraday_candidate_models,
-        label="Regional",
-        kernel=config.blend_kernel,
-        min_forecast_horizon=config.min_forecast_horizon,
-    )

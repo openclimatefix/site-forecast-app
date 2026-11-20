@@ -6,12 +6,12 @@ from site_forecast_app.models.pydantic_models import Model, get_all_models
 def test_get_all_models():
     """Test for getting all models"""
     models = get_all_models(satellite_archive_version="v0")
-    assert len(models.models) == 13
+    assert len(models.models) == 9
 
 def test_get_all_models_satellite_v1():
     """Test for getting all models"""
     models = get_all_models(satellite_archive_version="v1")
-    assert len(models.models) == 15
+    assert len(models.models) == 17
 
 def test_site_group_uuid():
     """Test for setting site_group_uuid"""
@@ -24,10 +24,10 @@ def test_get_all_models_critical_only():
     """Test that get_critical_only filters to only critical models."""
     from site_forecast_app.models.pydantic_models import get_all_models
 
-    all_models = get_all_models(client_abbreviation="nl", satellite_archive_version="v0")
+    all_models = get_all_models(client_abbreviation="nl", satellite_archive_version="v1")
     critical_models = get_all_models(client_abbreviation="nl",
                                      get_critical_only=True,
-                                     satellite_archive_version="v0")
+                                     satellite_archive_version="v1")
 
     assert len(critical_models.models) > 0
     assert len(critical_models.models) < len(all_models.models)

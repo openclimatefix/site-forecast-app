@@ -11,7 +11,7 @@ from site_forecast_app.blend.data_platform import (
     build_forecast_value_objects,
 )
 from site_forecast_app.blend.init_times import load_nl_mae_scorecard
-from site_forecast_app.blend.weights import get_blend_weights, get_regional_blend_weights
+from site_forecast_app.blend.weights import get_blend_weights
 from site_forecast_app.save.data_platform import (
     create_forecaster_if_not_exists,
     get_dataplatform_client,
@@ -51,7 +51,7 @@ async def run_blend_app(config: BlendConfig) -> None:
     logger.info(
         "Starting blend execution. "
         f"use_adjuster={_cfg.use_adjuster}, "
-        f"forecaster='{_cfg.forecaster_name}'",
+        f"forecaster='{_cfg.output_forecaster_name}'",
     )
 
     # ------------------------------------------------------------------ #
@@ -127,7 +127,7 @@ async def run_blend_app(config: BlendConfig) -> None:
             location_key=_cfg.national_location_key,
             df_mae=df_mae,
             max_horizon=max_horizon,
-            forecaster_name=_cfg.forecaster_name,
+            forecaster_name=_cfg.output_forecaster_name,
             config=_cfg,
         )
 
@@ -152,8 +152,7 @@ async def run_blend_app(config: BlendConfig) -> None:
                 location_key=location_key,
                 df_mae=df_mae,
                 max_horizon=max_horizon,
-                forecaster_name=_cfg.forecaster_name,
-                use_regional_weights=True,
+                forecaster_name=_cfg.output_forecaster_name,
                 config=_cfg,
             )
 
@@ -231,7 +230,7 @@ async def _run_blend_pass(
     )
 
     # Regional locations use the regional candidate model set.
-    weight_fn = get_regional_blend_weights if use_regional_weights else get_blend_weights
+    weight_fn = get_blend_weights
     try:
         weights_df = await weight_fn(
             t0=t0,
@@ -245,6 +244,12 @@ async def _run_blend_pass(
     except Exception:
         logger.exception(f"[{log_prefix}] Failed to calculate blend weights.")
         return
+
+    # e.g. fetch {model}_pia for models run in the pvnet-inference-app
+    if config.model_suffix:
+        weights_df = weights_df.rename(
+            columns={col: f"{col}{config.model_suffix}" for col in weights_df.columns},
+        )
 
     # For the adjuster pass: rename columns so DP fetches {model}_adjust.
     if use_adjuster:
@@ -278,7 +283,7 @@ async def _run_blend_pass(
         f"(first 5 rows):\n{blended_df.head(5)}",
     )
 
-    await _save_forecasts(
+    await save_forecasts(
         client=client,
         t0=t0,
         location_uuid=location_uuid,
@@ -288,7 +293,7 @@ async def _run_blend_pass(
     )
 
 
-async def _save_forecasts(
+async def save_forecasts(
     client: dp.DataPlatformDataServiceStub,
     t0: pd.Timestamp,
     location_uuid: str,

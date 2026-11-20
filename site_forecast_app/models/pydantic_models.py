@@ -106,20 +106,6 @@ class Model(BaseModel):
         description="The name of the observer to fetch from the DP use for the adjuster",
     )
 
-    # curtailment options
-    curtailment: bool = Field(
-        False,
-        title="Curtailment",
-        description="Whether the model should apply curtailment to the forecasts.",
-    )
-
-    save_uncurtailed: bool = Field(
-        False,
-        title="Save Uncurtailed",
-        description="Whether to save the uncurtailed forecasts. " \
-        "This will only be used if curtailment is enabled.",
-    )
-
     observer_name_uncurtailed_adjuster: str | None = Field(
         None,
         title="Observer Name for the uncurtailed adjuster",

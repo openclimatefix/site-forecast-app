@@ -25,12 +25,9 @@ def mock_dependencies(monkeypatch):
             "site_forecast_app.blend.app.get_blend_weights", new_callable=AsyncMock,
         ) as mock_weights,
         patch(
-            "site_forecast_app.blend.app.get_regional_blend_weights", new_callable=AsyncMock,
-        ) as mock_regional_weights,
-        patch(
             "site_forecast_app.blend.app.get_blend_forecast_values_latest", new_callable=AsyncMock,
         ) as mock_blend,
-        patch("site_forecast_app.blend.app._save_forecasts", new_callable=AsyncMock) as mock_save,
+        patch("site_forecast_app.blend.app.save_forecasts", new_callable=AsyncMock) as mock_save,
     ):
         mock_client = AsyncMock()
         mock_get_client.return_value.__aenter__.return_value = mock_client
@@ -60,7 +57,6 @@ def mock_dependencies(monkeypatch):
             "mock_client": mock_client,
             "load_nl_mae_scorecard": mock_load_mae,
             "get_blend_weights": mock_weights,
-            "get_regional_blend_weights": mock_regional_weights,
             "get_blend_forecast_values_latest": mock_blend,
             "_save_forecasts": mock_save,
         }
@@ -91,7 +87,6 @@ async def test_run_blend_app_success(mock_dependencies, blend_config):
     )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
-    deps["get_regional_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
 
     # Mocking non-empty result to trigger saving
     mock_blend_df = pd.DataFrame({"target_time": [], "expected_power_generation_megawatts": []})
@@ -252,7 +247,6 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
     )
     deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
     deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
-    deps["get_regional_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
 
     mock_blend_df = pd.DataFrame({"target_time": [], "expected_power_generation_megawatts": []})
     mock_blend_df.loc[0] = [pd.Timestamp("2024-01-01 12:00", tz="UTC"), 10.0]
@@ -264,7 +258,35 @@ async def test_run_blend_app_filters_regional_locations(mock_dependencies, blend
     # 1. nl_national  -> get_blend_weights, main pass + adjuster pass (2 calls)
     # 2. nl_groningen -> get_regional_blend_weights, main pass only (1 call)
     # de_tennet (another country's region), taun1 and temp_3 should be filtered out.
-    assert deps["get_blend_weights"].call_count == 2
-    assert deps["get_regional_blend_weights"].call_count == 1
+    assert deps["get_blend_weights"].call_count == 2 + 1
     assert deps["get_blend_forecast_values_latest"].call_count == 3
     assert deps["_save_forecasts"].call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_run_blend_app_with_model_suffix(mock_dependencies, blend_config):
+    """With a model suffix, the blend fetches {model}_pia and {model}_pia_adjust."""
+    deps = mock_dependencies
+    await deps["mock_client"].create_location(
+        dp.CreateLocationRequest(
+            location_name="nl_national",
+            energy_source=dp.EnergySource.SOLAR,
+            geometry_wkt="POINT(0 0)",
+            location_type=dp.LocationType.NATION,
+            effective_capacity_watts=1_000,
+            valid_from_utc=datetime(2020, 1, 1, tzinfo=UTC),
+            country_code="NL",
+        ),
+    )
+    deps["load_nl_mae_scorecard"].return_value = _mock_scorecard()
+    deps["get_blend_weights"].return_value = pd.DataFrame({"model_A": [1.0]})
+    deps["get_blend_forecast_values_latest"].return_value = pd.DataFrame()
+
+    config = blend_config.model_copy(update={"model_suffix": "_pia"})
+    await run_blend_app(config=config)
+
+    fetched = [
+        list(c.kwargs["weights_df"].columns)
+        for c in deps["get_blend_forecast_values_latest"].call_args_list
+    ]
+    assert fetched == [["model_A_pia"], ["model_A_pia_adjust"]]

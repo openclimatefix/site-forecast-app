@@ -270,7 +270,8 @@ class PVNetModel:
 
         # batch validation then save
         validate_batch_against_config(batch=batch, model=self.model)
-        save_batch(batch=batch, model_name=self.name, site_uuid=self.site_uuid)
+        save_batch(batch=batch, model_name=self.name, site_uuid=self.site_uuid,
+                   sample_t0=sample_t0)
         log.info(f"Predicting for {sample_t0=}, {(sample_location_id)=}")
 
         return batch

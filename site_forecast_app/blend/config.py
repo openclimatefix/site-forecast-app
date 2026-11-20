@@ -42,14 +42,6 @@ class BlendConfig(BaseModel):
             "short forecast horizon."
         ),
     )
-    regional_candidate_models: list[str] = Field(
-        ...,
-        title="Regional Candidate Models",
-        description=(
-            "Models evaluated as candidates for regional blends. "
-            "Typically a subset of day_ahead_candidate_models."
-        ),
-    )
 
     # ------------------------------------------------------------------
     # Blending parameters
@@ -90,6 +82,15 @@ class BlendConfig(BaseModel):
     # ------------------------------------------------------------------
     # Infrastructure / naming
     # ------------------------------------------------------------------
+    model_suffix: str = Field(
+        default_factory=lambda: os.getenv("BLEND_MODEL_SUFFIX", ""),
+        title="Model Suffix",
+        description=(
+            "Suffix added to the candidate model names when reading forecasts "
+            "from the Data Platform (e.g. '_pia' for models run in the "
+            "pvnet-inference-app). Defaults to the BLEND_MODEL_SUFFIX env var."
+        ),
+    )
     scorecard_path: str = Field(
         "data/nl_backtest_nmae_comparison.csv",
         title="Scorecard Path",
@@ -126,9 +127,14 @@ class BlendConfig(BaseModel):
         return pd.Timedelta(minutes=self.min_forecast_horizon_minutes)
 
     @property
+    def output_forecaster_name(self) -> str:
+        """Forecaster name for the blend, with the model suffix added."""
+        return f"{self.forecaster_name}{self.model_suffix}"
+
+    @property
     def adjuster_forecaster_name(self) -> str:
         """Forecaster name for the adjusted blend."""
-        return f"{self.forecaster_name}_adjust"
+        return f"{self.output_forecaster_name}_adjust"
 
     @property
     def t0(self) -> pd.Timestamp:

@@ -6,7 +6,6 @@ import logging
 import os
 import shutil
 import sys
-from functools import partial
 
 import click
 import pandas as pd
@@ -136,6 +135,43 @@ def run_model(model: PVNetModel, timestamp: pd.Timestamp) -> dict | None:
     return forecast
 
 
+def run_blend_and_curtailment(
+    client_name: str,
+    country: str,
+    timestamp: pd.Timestamp,
+    dp_location_map: dict[str, str] | None = None,
+    run_blend: bool = True,
+) -> None:
+    """Blend the latest model forecasts in the Data Platform, then apply curtailment."""
+    # The config is loaded here (where country context lives) and passed into
+    # run_blend_app so the blend app remains country-agnostic.
+    log.info("Checking for blend pipeline configuration...")
+    app_config = load_blend_config(client_name=client_name)
+    suffix = app_config.model_suffix if app_config else ""
+
+    if run_blend and app_config and app_config.client_name == client_name:
+        log.info(f"Starting {app_config.client_name} blend pipeline...")
+        asyncio.run(run_blend_app(config=app_config))
+        log.info(f"{app_config.client_name} blend pipeline completed.")
+
+    # lets now run curtailment
+    if client_name == "nl":
+        log.info("Running curtailment for NL...")
+        if dp_location_map is None:
+            dp_location_map = asyncio.run(build_dp_location_map(country=country.upper()))
+        curtailment = Curtailment(timestamp)
+        asyncio.run(curtailment.apply_curtailment_on_model(
+                                                model_name=f"nl_blend_uncurtailed{suffix}",
+                                                location_map=dp_location_map,
+                                                t0=timestamp,
+                                                new_model_name=f"nl_blend{suffix}"))
+        asyncio.run(curtailment.apply_curtailment_on_model(
+                                            model_name=f"nl_blend_uncurtailed{suffix}_adjust",
+                                            location_map=dp_location_map,
+                                            t0=timestamp,
+                                            new_model_name=f"nl_blend{suffix}_adjust"))
+
+
 @click.command()
 @click.option(
     "--date",
@@ -190,11 +226,11 @@ def app_run(
     log.info(f"Running site forecast app:{version}")
 
     # Get environment variables
-    url = os.environ["DB_URL"]
     client_name = os.environ["CLIENT_NAME"]
     country = os.environ["COUNTRY"]
     save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
     run_blend_service = os.getenv("RUN_BLEND_SERVICE", "true").lower() == "true"
+    run_models = os.getenv("RUN_MODELS", "true").lower() == "true"
 
     if timestamp is None:
         # get the timestamp now rounded down the nearest 15 minutes
@@ -204,8 +240,15 @@ def app_run(
     else:
         timestamp = pd.Timestamp(timestamp).floor("15min")
 
+    if not run_models:
+        # only blend and curtail forecasts already in the Data Platform
+        log.info("RUN_MODELS is false, so only running blend and curtailment")
+        run_blend_and_curtailment(client_name=client_name, country=country, timestamp=timestamp)
+        log.info("Forecast finished")
+        return
+
     # 0. Initialise DB connection
-    db_conn = DatabaseConnection(url, echo=False)
+    db_conn = DatabaseConnection(os.environ["DB_URL"], echo=False)
 
     log.info(f"Country {country}...")
     log.info(f"write_to_db {write_to_db}...")
@@ -236,17 +279,13 @@ def app_run(
         dp_location_map: dict[str, str] | None = None
         if save_to_data_platform:
             try:
-                dp_location_map = asyncio.run(build_dp_location_map())
+                dp_location_map = asyncio.run(build_dp_location_map(country=country.upper()))
                 log.info(f"Pre-fetched {len(dp_location_map)} DP site locations.")
             except Exception:
                 log.warning(
                     "Failed to pre-fetch DP location map — will fall back to per-site lookup.",
                     exc_info=True,
                 )
-
-        if any(m.curtailment for m in all_model_configs.models):
-            log.info("Curtailment is enabled for at least one model.")
-            curtailment = Curtailment(timestamp)
 
         for model_config in all_model_configs.models:
             # 2. Get sites
@@ -344,9 +383,8 @@ def app_run(
                         f"Writing forecast for site_group_uuid={model_config.site_group_uuid}",
                     )
 
-                    # make a partial function for saving forecast, still need to set
-                    # forecast_values and model_name
-                    save_forecast_for_site_group_partial = partial(save_forecast_for_site_group,
+                    # save the forecast
+                    save_forecast_for_site_group(
                         db_session=session,
                         timestamp=timestamp,
                         site_group=site_group,
@@ -355,38 +393,11 @@ def app_run(
                         version=version,
                         use_adjuster_database=use_adjuster_database,
                         location_map=dp_location_map,
+                        forecast_values=forecast_values,
+                        model_name=model_config.name,
+                        observer_name=model_config.observer_name_adjuster,
                     )
 
-                    if not model_config.curtailment:
-                        # if there is no curtailment, we can save the forecast normally
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
-
-                    elif model_config.save_uncurtailed & model_config.curtailment:
-                        # if there is curtailment, and we want to save the uncurtailed values
-                        log.info("Saving uncurtailed forecast values...")
-
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name + "_uncurtailed",
-                            observer_name=model_config.observer_name_uncurtailed_adjuster,
-                        )
-
-                    if model_config.curtailment:
-                        # now saving the curtailed forecast values
-                        log.info("Applying curtailment to forecast values...")
-                        forecast_values = {k: curtailment.apply_curtailment(v) \
-                                        for k, v in forecast_values.items()}
-
-
-                        save_forecast_for_site_group_partial(
-                            forecast_values=forecast_values,
-                            model_name=model_config.name,
-                            observer_name=model_config.observer_name_adjuster,
-                        )
                     successful_runs_count += 1
                     successful_runs.append(f"model={model_config.name}, "
                                        f"site_group_uuid={model_config.site_group_uuid}")
@@ -395,17 +406,16 @@ def app_run(
             f"Completed forecasts for {successful_runs_count} runs for "
             f"{runs} model runs.",
         )
-        if run_blend_service and save_to_data_platform:
-            # Run the generic blend pipeline automatically after site forecasts complete.
-            # Blend writes to the Data Platform, so only run when DP saves are enabled.
-            # The config is loaded here (where country context lives) and passed into
-            # run_blend_app so the blend app remains country-agnostic.
-            log.info("Checking for blend pipeline configuration...")
-            app_config = load_blend_config(client_name=client_name)
-            if app_config and app_config.client_name == client_name:
-                log.info(f"Starting {app_config.client_name} blend pipeline...")
-                asyncio.run(run_blend_app(config=app_config))
-                log.info(f"{app_config.client_name} blend pipeline completed.")
+        # Blend and curtailment write to the Data Platform, so only run when DP saves are enabled.
+        if save_to_data_platform:
+            run_blend_and_curtailment(
+                client_name=client_name,
+                country=country,
+                timestamp=timestamp,
+                dp_location_map=dp_location_map,
+                run_blend=run_blend_service,
+            )
+
         if successful_runs_count == runs:
             log.info("All forecasts completed successfully")
         elif 0 < successful_runs_count < runs:
@@ -413,6 +423,7 @@ def app_run(
                             some succeeded: {successful_runs}")
         else:
             raise Exception("All forecasts failed")
+
 
 
         # lets remove any temporary files created during forecasting
