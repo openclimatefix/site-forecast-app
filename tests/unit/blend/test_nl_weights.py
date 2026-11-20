@@ -234,3 +234,32 @@ async def test_get_blend_weights_ignores_models_without_a_run(blend_config: Blen
 
     assert list(weights_df.columns) == ["nl_regional_da_ecmwf_mo"]
     assert (weights_df["nl_regional_da_ecmwf_mo"] == 1.0).all()
+
+
+@pytest.mark.asyncio
+async def test_get_blend_weights_with_model_suffix(blend_config: BlendConfig):
+    """Init times are fetched for {model}_pia and mapped back to the scorecard names."""
+    t0 = pd.Timestamp("2024-06-01 12:00", tz="UTC")
+    horizons = pd.timedelta_range(start="15min", end="36h", freq="15min")
+    df_mae = pd.DataFrame(
+        {"nl_regional_da_ecmwf_mo": 1.0, "nl_regional_da_mo": 2.0},
+        index=horizons,
+    )
+    config = blend_config.model_copy(update={"model_suffix": "_pia"})
+
+    with patch(
+        "site_forecast_app.blend.weights.fetch_latest_nl_init_times", new_callable=AsyncMock,
+    ) as mock_fetch:
+        mock_fetch.return_value = {"nl_regional_da_ecmwf_mo_pia": t0}
+
+        weights_df = await get_blend_weights(
+            t0=t0,
+            location_uuid="u",
+            df_mae=df_mae,
+            max_horizon=pd.Timedelta("36h"),
+            client=AsyncMock(),
+            config=config,
+        )
+
+    assert all(m.endswith("_pia") for m in mock_fetch.call_args.kwargs["model_names"])
+    assert list(weights_df.columns) == ["nl_regional_da_ecmwf_mo"]

@@ -135,6 +135,43 @@ def run_model(model: PVNetModel, timestamp: pd.Timestamp) -> dict | None:
     return forecast
 
 
+def run_blend_and_curtailment(
+    client_name: str,
+    country: str,
+    timestamp: pd.Timestamp,
+    dp_location_map: dict[str, str] | None = None,
+    run_blend: bool = True,
+) -> None:
+    """Blend the latest model forecasts in the Data Platform, then apply curtailment."""
+    # The config is loaded here (where country context lives) and passed into
+    # run_blend_app so the blend app remains country-agnostic.
+    log.info("Checking for blend pipeline configuration...")
+    app_config = load_blend_config(client_name=client_name)
+    suffix = app_config.model_suffix if app_config else ""
+
+    if run_blend and app_config and app_config.client_name == client_name:
+        log.info(f"Starting {app_config.client_name} blend pipeline...")
+        asyncio.run(run_blend_app(config=app_config))
+        log.info(f"{app_config.client_name} blend pipeline completed.")
+
+    # lets now run curtailment
+    if client_name == "nl":
+        log.info("Running curtailment for NL...")
+        if dp_location_map is None:
+            dp_location_map = asyncio.run(build_dp_location_map(country=country.upper()))
+        curtailment = Curtailment(timestamp)
+        asyncio.run(curtailment.apply_curtailment_on_model(
+                                                model_name=f"nl_blend_uncurtailed{suffix}",
+                                                location_map=dp_location_map,
+                                                t0=timestamp,
+                                                new_model_name=f"nl_blend{suffix}"))
+        asyncio.run(curtailment.apply_curtailment_on_model(
+                                            model_name=f"nl_blend_uncurtailed{suffix}_adjust",
+                                            location_map=dp_location_map,
+                                            t0=timestamp,
+                                            new_model_name=f"nl_blend{suffix}_adjust"))
+
+
 @click.command()
 @click.option(
     "--date",
@@ -189,11 +226,11 @@ def app_run(
     log.info(f"Running site forecast app:{version}")
 
     # Get environment variables
-    url = os.environ["DB_URL"]
     client_name = os.environ["CLIENT_NAME"]
     country = os.environ["COUNTRY"]
     save_to_data_platform = os.getenv("SAVE_TO_DATA_PLATFORM", "false").lower() == "true"
     run_blend_service = os.getenv("RUN_BLEND_SERVICE", "true").lower() == "true"
+    run_models = os.getenv("RUN_MODELS", "true").lower() == "true"
 
     if timestamp is None:
         # get the timestamp now rounded down the nearest 15 minutes
@@ -203,8 +240,15 @@ def app_run(
     else:
         timestamp = pd.Timestamp(timestamp).floor("15min")
 
+    if not run_models:
+        # only blend and curtail forecasts already in the Data Platform
+        log.info("RUN_MODELS is false, so only running blend and curtailment")
+        run_blend_and_curtailment(client_name=client_name, country=country, timestamp=timestamp)
+        log.info("Forecast finished")
+        return
+
     # 0. Initialise DB connection
-    db_conn = DatabaseConnection(url, echo=False)
+    db_conn = DatabaseConnection(os.environ["DB_URL"], echo=False)
 
     log.info(f"Country {country}...")
     log.info(f"write_to_db {write_to_db}...")
@@ -362,30 +406,15 @@ def app_run(
             f"Completed forecasts for {successful_runs_count} runs for "
             f"{runs} model runs.",
         )
-        if run_blend_service and save_to_data_platform:
-            # Run the generic blend pipeline automatically after site forecasts complete.
-            # Blend writes to the Data Platform, so only run when DP saves are enabled.
-            # The config is loaded here (where country context lives) and passed into
-            # run_blend_app so the blend app remains country-agnostic.
-            log.info("Checking for blend pipeline configuration...")
-            app_config = load_blend_config(client_name=client_name)
-            if app_config and app_config.client_name == client_name:
-                log.info(f"Starting {app_config.client_name} blend pipeline...")
-                asyncio.run(run_blend_app(config=app_config))
-                log.info(f"{app_config.client_name} blend pipeline completed.")
-
-        # lets now run curtailment
-        if client_name == "nl" and save_to_data_platform:
-            log.info("Running curtailment for NL...")
-            curtailment = Curtailment(timestamp)
-            asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed",
-                                                    location_map=dp_location_map,
-                                                    t0=timestamp,
-                                                    new_model_name="nl_blend"))
-            asyncio.run(curtailment.apply_curtailment_on_model(model_name="nl_blend_uncurtailed_adjust",
-                                                location_map=dp_location_map,
-                                                t0=timestamp,
-                                                new_model_name="nl_blend_adjust"))
+        # Blend and curtailment write to the Data Platform, so only run when DP saves are enabled.
+        if save_to_data_platform:
+            run_blend_and_curtailment(
+                client_name=client_name,
+                country=country,
+                timestamp=timestamp,
+                dp_location_map=dp_location_map,
+                run_blend=run_blend_service,
+            )
 
         if successful_runs_count == runs:
             log.info("All forecasts completed successfully")
